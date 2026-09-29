@@ -1,0 +1,1 @@
+import{N as e,Q as t,_ as n,b as r}from"./app-CnHRJDCg.js";import{t as i}from"./_plugin-vue_export-helper-CSBScHBl.js";var a={},o={class:`pagina-404`};function s(i,a){return e(),r(`div`,o,[a[0]||=n(`h1`,null,`Error 404`,-1),n(`p`,null,t(i.$page.props.error),1)])}var c=i(a,[[`render`,s],[`__scopeId`,`data-v-093b85a1`]]);export{c as default};

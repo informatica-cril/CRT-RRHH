@@ -162,7 +162,7 @@ O automático con el `Jenkinsfile` de la raíz (cambia `SSH_HOST`/`SSH_USER`; ha
 ## Recompilar los fronts (en local, no en el servidor)
 
 ```bash
-cd app && npm run build:web              # web  → public/app
+npm run build:web                        # web (src/) → public/app
 npx vite build --config vite.config.laravel.js   # panel → public/build (desde la raíz)
 ```
 

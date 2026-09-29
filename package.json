@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:web": "vite build --mode web --base /app/ --outDir public/app --emptyOutDir",
     "preview": "vite preview",
     "cap:init": "npx cap init",
     "cap:add:android": "npx cap add android",

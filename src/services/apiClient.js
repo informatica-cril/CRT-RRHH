@@ -7,6 +7,28 @@
 const API_URL = import.meta.env.VITE_API_URL || ''
 const TOKEN_KEY = 'crt_api_token'
 
+// Sense VITE_API_URL la web la serveix el mateix Laravel (/app/) i crida /api al
+// mateix domini. Sanctum tracta aquestes peticions com a "stateful" (com el panell
+// Inertia) i exigeix el token CSRF a les que modifiquen dades.
+const SAME_ORIGIN = !API_URL
+const UNSAFE_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE']
+
+function readXsrfCookie() {
+  const m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/)
+  return m ? decodeURIComponent(m[1]) : null
+}
+
+async function xsrfToken(refresh = false) {
+  if (refresh || !readXsrfCookie()) {
+    await fetch('/sanctum/csrf-cookie', { credentials: 'same-origin' })
+  }
+  return readXsrfCookie()
+}
+
+function needsXsrf(options) {
+  return SAME_ORIGIN && UNSAFE_METHODS.includes((options.method || 'GET').toUpperCase())
+}
+
 function getToken() {
   return localStorage.getItem(TOKEN_KEY)
 }
@@ -27,6 +49,7 @@ export async function apiFetchRaw(endpoint, options = {}) {
   const token = getToken()
   const headers = { ...(options.headers || {}) }
   if (token) headers['Authorization'] = `Bearer ${token}`
+  if (needsXsrf(options)) headers['X-XSRF-TOKEN'] = await xsrfToken()
   return fetch(apiUrl(endpoint), { ...options, headers })
 }
 
@@ -58,10 +81,21 @@ export async function apiRequest(endpoint, options = {}) {
     }
   }
 
-  const response = await fetch(url, {
+  const xsrf = needsXsrf(options)
+  if (xsrf) {
+    headers['X-XSRF-TOKEN'] = await xsrfToken()
+  }
+
+  let response = await fetch(url, {
     ...options,
     headers,
   })
+
+  // 419: el token CSRF ha caducat amb la sessió. Se'n demana un de nou i es reintenta un cop.
+  if (response.status === 419 && xsrf) {
+    headers['X-XSRF-TOKEN'] = await xsrfToken(true)
+    response = await fetch(url, { ...options, headers })
+  }
 
   // Handle 401 — token expired
   if (response.status === 401) {
@@ -160,6 +194,6 @@ export const api = {
  * Check if the app should use the API backend.
  * Returns true if VITE_API_URL is configured.
  */
-export function isApiMode() { return !!API_URL }
+export function isApiMode() { return true } // amb VITE_API_URL (mòbil) o al mateix domini (web a /app/)
 
 export default api

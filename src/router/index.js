@@ -8,6 +8,13 @@ const routes = [
     component: () => import('../views/LoginView.vue'),
     meta: { guest: true }
   },
+  {
+    // Destí obligat quan l'API respon 423 (must_change_password=true).
+    path: '/canvi-contrasenya-obligatori',
+    name: 'force-password-change',
+    component: () => import('../views/ForcePasswordChangeView.vue'),
+    meta: { requiresAuth: true }
+  },
   // ── Admin routes ──
   {
     path: '/',
@@ -327,6 +334,17 @@ router.beforeEach(async (to, from, next) => {
     return
   }
   
+  // Contrasenya temporal pendent de canviar: bloqueja tota la resta de rutes
+  // autenticades (l'API també ho talla amb 423, aixo evita l'ensurt de pantalles buides).
+  if (authStore.isAuthenticated && authStore.user?.must_change_password && to.name !== 'force-password-change') {
+    next({ name: 'force-password-change' })
+    return
+  }
+  if (to.name === 'force-password-change' && !authStore.user?.must_change_password) {
+    next(authStore.isWorker ? { name: 'worker-dashboard' } : { name: 'dashboard' })
+    return
+  }
+
   // If admin-only route and user is worker, redirect to worker dashboard
   // Coordinators can access admin routes too
   if (to.meta.requiresAdmin && authStore.user?.role === 'worker') {

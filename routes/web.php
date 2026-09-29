@@ -11,8 +11,7 @@ use Illuminate\Support\Facades\Auth;
 |--------------------------------------------------------------------------
 */
 
-// Redirect root to dashboard (will redirect to login if not authenticated)
-// ── Web de control horari (Vue, compilada a public/app amb `npm run build:web`) ──
+// ── Web de control horari (Vue de src/, compilada a public/app amb `npm run build:web` a l'arrel) ──
 // Tot en un sol domini: la web a /app, l'API a /api i el panell Inertia a /dashboard.
 Route::get('/', function () {
     return redirect('/app/');
@@ -22,7 +21,7 @@ Route::get('/', function () {
 // cada desplegament es vegi a l'instant (els assets porten hash al nom).
 Route::get('app', function () {
     $index = public_path('app/index.html');
-    abort_unless(is_file($index), 503, 'La web no està compilada: executa `npm run build:web` a app/.');
+    abort_unless(is_file($index), 503, 'La web no està compilada: executa `npm run build:web` a l\'arrel del projecte.');
 
     return response()->file($index, [
         'Content-Type' => 'text/html; charset=UTF-8',
