@@ -1,0 +1,242 @@
+<?php
+
+use App\Http\Controllers\Api\AbsenceController;
+use App\Http\Controllers\Api\AuditLogController;
+use App\Http\Controllers\Api\AuthCodeController;
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\DocumentController;
+use App\Http\Controllers\Api\DocumentSignatureController;
+use App\Http\Controllers\Api\ExcedenciaController;
+use App\Http\Controllers\Api\GeolocationController;
+use App\Http\Controllers\Api\HolidayController;
+use App\Http\Controllers\Api\LocationController;
+use App\Http\Controllers\Api\WorkLocationController;
+use App\Http\Controllers\Api\ZoneController;
+use App\Http\Controllers\Api\AmbulatoryCenterController;
+use App\Http\Controllers\Api\OnboardingController;
+use App\Http\Controllers\Api\PayrollController;
+use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\WorkLogController;
+use App\Http\Controllers\Api\WorkScheduleController;
+use Illuminate\Support\Facades\Route;
+
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::prefix('v1')->group(function () {
+    // ── Auth ──
+    Route::prefix('auth')->group(function () {
+        Route::post('login', [AuthController::class, 'login']);
+        Route::post('reset-password', [AuthController::class, 'resetPassword']);
+        Route::post('generate-random-password', [AuthController::class, 'generateRandomPassword']);
+        Route::middleware('auth:sanctum')->group(function () {
+            // Route::get('me', [AuthController::class, 'me']);
+            Route::post('logout', [AuthController::class, 'logout']);
+            Route::post('geo-consent', [AuthController::class, 'geoConsent']);
+        });
+    });
+
+    Route::middleware('auth:sanctum')->group(function () {
+        // ── Users ──
+        Route::prefix('users')->group(function () {
+            Route::get('/', [UserController::class, 'index']);
+            Route::get('me', [AuthController::class, 'me']);
+            Route::get('bulk-index', [UserController::class, 'bulkIndex']);
+            Route::get('worker-bulk-info', [UserController::class, 'workerBulkInfo']);
+            Route::post('/', [UserController::class, 'store']);
+            Route::post('bulk', [UserController::class, 'bulkStore']);
+            Route::get('{user}', [UserController::class, 'show']);
+            Route::put('{user}', [UserController::class, 'update']);
+            Route::delete('{user}', [UserController::class, 'destroy']);
+        });
+        
+        // ── Work Schedules ──
+        Route::prefix('work-schedules')->group(function () {
+            Route::get('/', [WorkScheduleController::class, 'index']);
+            Route::get('{workSchedule}', [WorkScheduleController::class, 'show']);
+            Route::post('/', [WorkScheduleController::class, 'store']);
+            Route::put('{workSchedule}', [WorkScheduleController::class, 'update']);
+        });
+
+        // ── Work Logs ──
+        Route::prefix('work-logs')->group(function () {
+            Route::get('/', [WorkLogController::class, 'index']);
+            Route::get('user/{userId}', [WorkLogController::class, 'byUser']);
+            Route::post('/', [WorkLogController::class, 'store']);
+            Route::put('{workLog}', [WorkLogController::class, 'update']);
+        });
+
+        // ── Location Tracking ──
+        Route::post('location-tracking', [LocationController::class, 'store']);
+
+        // ── Absence Types ──
+        Route::prefix('absence-types')->group(function () {
+            Route::get('/', [AbsenceController::class, 'indexTypes']);
+            Route::post('/', [AbsenceController::class, 'storeType']);
+            Route::put('{absenceType}', [AbsenceController::class, 'updateType']);
+            Route::delete('{absenceType}', [AbsenceController::class, 'deleteType']);
+        });
+
+        // ── Absences ──
+        Route::prefix('absences')->group(function () {
+            Route::get('/', [AbsenceController::class, 'index']);
+            Route::get('user/{userId}', [AbsenceController::class, 'byUser']);
+            Route::post('/', [AbsenceController::class, 'store']);
+            Route::post('bulk', [AbsenceController::class, 'bulkStore']);
+            Route::put('{absence}', [AbsenceController::class, 'update']);
+            Route::get('used-days/{userId}/{typeId}/{year}', [AbsenceController::class, 'usedDays']);
+        });
+
+        // ── Auth Codes ──
+        Route::prefix('auth-codes')->group(function () {
+            Route::get('/', [AuthCodeController::class, 'index']);
+            Route::post('/', [AuthCodeController::class, 'store']);
+            Route::post('{authCode}/revoke', [AuthCodeController::class, 'revoke']);
+            Route::post('validate', [AuthCodeController::class, 'validateCode']);
+            Route::post('use', [AuthCodeController::class, 'useCode']);
+        });
+
+        // ── Work Locations ──
+        Route::prefix('work-locations')->group(function () {
+            Route::get('/', [WorkLocationController::class, 'index']);
+            Route::post('/', [WorkLocationController::class, 'store']);
+            Route::get('{id}', [WorkLocationController::class, 'show']);
+            Route::put('{id}', [WorkLocationController::class, 'update']);
+            Route::delete('{id}', [WorkLocationController::class, 'destroy']);
+            Route::post('{id}/assign', [WorkLocationController::class, 'assignWorker']);
+            Route::post('{id}/remove-worker', [WorkLocationController::class, 'removeWorker']);
+        });
+
+        // ── Ambulatory Centers ──
+        Route::prefix('ambulatory-centers')->group(function () {
+            Route::get('/', [AmbulatoryCenterController::class, 'index']);
+            Route::post('{id}/assign', [AmbulatoryCenterController::class, 'assignToUser']);
+            Route::post('{id}/remove-worker', [AmbulatoryCenterController::class, 'removeWorker']);
+        });
+
+        // ── Zones ──
+        Route::prefix('zones')->group(function () {
+            Route::get('/', [ZoneController::class, 'index']);
+            Route::post('/', [ZoneController::class, 'store']);
+            Route::get('{id}', [ZoneController::class, 'show']);
+            Route::put('{id}', [ZoneController::class, 'update']);
+            Route::delete('{id}', [ZoneController::class, 'destroy']);
+            Route::post('{id}/assign', [ZoneController::class, 'assignWorker']);
+            Route::post('{id}/remove-worker', [ZoneController::class, 'removeWorker']);
+        });
+
+        // ── Excedencias ──
+        Route::prefix('excedencias')->group(function () {
+            Route::get('/', [ExcedenciaController::class, 'index']);
+            Route::get('types', [ExcedenciaController::class, 'indexTypes']);
+            Route::get('user/{userId}', [ExcedenciaController::class, 'byUser']);
+            Route::post('/', [ExcedenciaController::class, 'store']);
+            Route::put('{excedencia}', [ExcedenciaController::class, 'update']);
+        });
+
+        // ── Documents ──
+        Route::prefix('documents')->group(function () {
+            Route::get('/', [DocumentController::class, 'index']);
+            Route::get('{document}', [DocumentController::class, 'show']);
+            Route::post('/', [DocumentController::class, 'store']);
+            Route::put('{document}', [DocumentController::class, 'update']);
+            Route::delete('{document}', [DocumentController::class, 'destroy']);
+            Route::get('user/{userId}', [DocumentController::class, 'forUser']);
+            Route::get('{document}/pending-signatures', [DocumentController::class, 'pendingSignatures']);
+        });
+
+        // ── Geolocation ──
+        Route::prefix('geolocation')->group(function () {
+            Route::get('ambulatory-points/{userId}', [GeolocationController::class, 'ambulatoryPoints']);
+            Route::get('municipal-assignment/{userId}', [GeolocationController::class, 'municipalAssignment']);
+            Route::get('active-zone/{userId}', [GeolocationController::class, 'municipalAssignment']); // Shim
+        });
+
+        // ── Compatibility Shims ──
+        Route::get('cp-assignments/active/{userId}', [GeolocationController::class, 'municipalAssignment']);
+        Route::get('municipal-assignments/active/{userId}', [GeolocationController::class, 'municipalAssignment']);
+
+        // ── Document Signatures ──
+        Route::prefix('document-signatures')->group(function () {
+            Route::get('user/{userId}', [DocumentSignatureController::class, 'byUser']);
+            Route::post('/', [DocumentSignatureController::class, 'store']);
+            Route::put('{signature}', [DocumentSignatureController::class, 'update']);
+            Route::get('urgent-unsigned/{userId}', [DocumentSignatureController::class, 'urgentUnsigned']);
+        });
+
+        // ── Onboarding ──
+        Route::prefix('onboarding')->group(function () {
+            Route::get('profiles', [OnboardingController::class, 'indexProfiles']);
+            Route::get('profiles/{profile}', [OnboardingController::class, 'showProfile']);
+            Route::post('profiles', [OnboardingController::class, 'storeProfile']);
+            Route::put('profiles/{profile}', [OnboardingController::class, 'updateProfile']);
+            Route::delete('profiles/{profile}', [OnboardingController::class, 'deleteProfile']);
+            
+            Route::get('status/{userId}', [OnboardingController::class, 'status']);
+            Route::post('init', [OnboardingController::class, 'init']);
+            Route::put('status/{status}', [OnboardingController::class, 'updateStatus']);
+            Route::put('status-by-user/{userId}', [OnboardingController::class, 'updateStatusByUser']);
+            Route::post('complete/{userId}', [OnboardingController::class, 'complete']);
+            Route::get('all-statuses', [OnboardingController::class, 'allStatuses']);
+        });
+
+        // ── Payrolls ──
+        // ── Payrolls (Using a different name to avoid potential cache/slug collisions) ──
+        Route::get('payroll-files', [PayrollController::class, 'index']);
+        Route::post('payroll-files', [PayrollController::class, 'store']);
+        Route::post('payroll-files/bulk', [PayrollController::class, 'bulkStore']);
+        Route::get('payroll-files/worker/{userId}', [PayrollController::class, 'workerPayrolls']);
+        Route::get('payroll-files/{payroll}', [PayrollController::class, 'show']);
+        Route::delete('payroll-files/{payroll}', [PayrollController::class, 'destroy']);
+        Route::post('payroll-files/{payroll}/view', [PayrollController::class, 'markAsViewed']);
+        Route::post('payroll-files/{payroll}/sign', [PayrollController::class, 'sign']);
+
+        // ── Audit Logs ──
+        Route::prefix('audit-logs')->group(function () {
+            Route::get('/', [AuditLogController::class, 'index']);
+            Route::post('/', [AuditLogController::class, 'store']);
+        });
+
+        // ── Chat ──
+        Route::prefix('chat')->group(function () {
+            // Settings & Policy
+            Route::get('/settings', [App\Http\Controllers\Api\ChatController::class, 'getSettings']);
+            Route::post('/settings', [App\Http\Controllers\Api\ChatController::class, 'saveSettings']);
+            Route::get('/policy-status/{userId}', [App\Http\Controllers\Api\ChatController::class, 'hasPolicyAccepted']);
+            Route::post('/accept-policy', [App\Http\Controllers\Api\ChatController::class, 'acceptPolicy']);
+            
+            // Presence
+            Route::post('/presence', [App\Http\Controllers\Api\ChatController::class, 'setUserPresence']);
+            Route::get('/presence/{userId}', [App\Http\Controllers\Api\ChatController::class, 'getUserPresence']);
+            Route::post('/heartbeat', [App\Http\Controllers\Api\ChatController::class, 'heartbeat']);
+
+            // Alerts
+            Route::get('/alerts', [App\Http\Controllers\Api\ChatController::class, 'getAlerts']);
+            Route::get('/alerts/unreviewed', [App\Http\Controllers\Api\ChatController::class, 'getUnreviewedAlerts']);
+            Route::post('/alerts/{id}/review', [App\Http\Controllers\Api\ChatController::class, 'reviewAlert']);
+
+            // Conversations
+            Route::get('/conversations', [App\Http\Controllers\Api\ChatController::class, 'getConversationsForUser']);
+            Route::get('/conversations/all', [App\Http\Controllers\Api\ChatController::class, 'getAllConversations']);
+            Route::post('/conversations', [App\Http\Controllers\Api\ChatController::class, 'addConversation']);
+            Route::post('/conversations/dm', [App\Http\Controllers\Api\ChatController::class, 'getOrCreateDm']);
+            Route::get('/conversations/{id}', [App\Http\Controllers\Api\ChatController::class, 'getConversation']);
+            
+            // Messages & Search
+            Route::get('/search', [App\Http\Controllers\Api\ChatController::class, 'searchMessages']);
+            Route::get('/conversations/{convId}/messages', [App\Http\Controllers\Api\ChatController::class, 'getMessages']);
+            Route::post('/messages', [App\Http\Controllers\Api\ChatController::class, 'addMessage']);
+            Route::get('/conversations/{convId}/unread/{userId}', [App\Http\Controllers\Api\ChatController::class, 'getUnreadCount']);
+            Route::get('/conversations/{convId}/last-message', [App\Http\Controllers\Api\ChatController::class, 'getLastMessage']);
+            Route::post('/conversations/{convId}/read', [App\Http\Controllers\Api\ChatController::class, 'markMessagesRead']);
+            Route::get('/unread-count/{userId}', [App\Http\Controllers\Api\ChatController::class, 'getTotalUnreadCount']);
+        });
+
+        // ── Holidays ──
+        Route::get('holidays', [HolidayController::class, 'index']);
+    });
+});
+

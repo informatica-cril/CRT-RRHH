@@ -1,0 +1,404 @@
+================================================================================
+  CRT RRHH — MANUAL D'ÚS PER A L'ADMINISTRADOR
+  Versió: Juny 2026
+================================================================================
+
+Aquest document descriu totes les funcionalitats disponibles a la part
+d'administració de l'aplicació CRT RRHH. Està pensat per a personal
+de gerència i coordinació, sense coneixements tècnics.
+
+L'aplicació funciona des del navegador (web) i des de l'aplicació mòbil/tablet
+Android. Les dues versions mostren les mateixes dades i funcions.
+
+Accés: https://crtrrhh.crtbcn.cat
+Usuari i contrasenya: els facilita el departament d'informàtica.
+
+================================================================================
+1. TAULER DE CONTROL (DASHBOARD)
+================================================================================
+
+És la pantalla principal que es veu en iniciar sessió. Mostra un resum de
+l'activitat de totes les treballadores en temps real.
+
+TARGETES DE RESUM (part superior)
+----------------------------------
+- Treballadores actives: nombre total de treballadores donades d'alta.
+- Hores avui: total d'hores treballades avui entre totes les treballadores.
+- Hores setmana: total acumulat de la setmana actual.
+- Hores mes: total acumulat del mes en curs.
+- Sol·licituds pendents: nombre de fitxatges o permisos que esperen aprovació.
+
+GRÀFIC SETMANAL
+---------------
+Barres amb les hores treballades cada dia de la setmana actual. La línia
+discontínua marca les 8 hores de referència. Les etiquetes sobre cada barra
+mostren les hores en format Xh Ymin.
+
+QUI TREBALLA ARA?
+-----------------
+Llista en temps real de les treballadores que estan fitxades en aquest moment,
+amb l'hora d'entrada i el temps que porten en curs.
+
+ACTIVITAT RECENT
+----------------
+Registre cronològic dels últims fitxatges, agrupats per dia (Avui / Ahir /
+data). Per a cada entrada es mostra:
+  - Nom de la treballadora
+  - Hora d'entrada i hora de sortida (o "en curs" si encara treballa)
+  - Hores treballades
+  - Si hi ha hores fora de zona, apareix una advertència ⚠️
+  - Estat del fitxatge (Pendent / Aprovada / Rebutjada)
+
+Per defecte es mostren els últims 3 dies. El botó "Mostrar més dies →" amplia
+la vista de 4 en 4 dies.
+
+Filtre d'estat: botons per veure Tots / Actius / Pendents / Aprovats.
+
+APROVACIONS PENDENTS
+--------------------
+Quadre amb fins a 5 fitxatges que esperen revisió. Per a cada un es pot:
+  - Aprovar (botó ✓ verd)
+  - Rebutjar (botó ✗ vermell): s'obre un formulari on s'ha d'escriure
+    el motiu del rebuig abans de confirmar.
+
+MAPA DE ZONES
+-------------
+Mapa interactiu que mostra les zones de treball. Cada zona apareix com una
+àrea o marcador amb el nombre de treballadores assignades i les hores anuals
+teòriques. Les treballadores amb 30 o més codis postals de Barcelona apareixen
+agrupades com a "🗺️ Tots BCN" en lloc de mostrar cada codi per separat.
+Es pot fer clic a cada zona per veure les treballadores que hi treballen.
+
+MENÚ D'ADMINISTRACIÓ
+--------------------
+Accessible des de la pestanya "Menú". Conté accessos directes a totes les
+seccions: Absències, Treballadores, Documentació, IT, Informes, Nòmines,
+Auditoria, Configuració de permisos, Codis d'autorització i Configuració.
+
+================================================================================
+2. GESTIÓ DE TREBALLADORES
+================================================================================
+
+Accés: Menú → Treballadores
+
+Mostra la taula de totes les treballadores i usuàries de gestió donades d'alta.
+
+TAULA DE TREBALLADORES
+-----------------------
+Columnes: Nom, DNI, Email, Perfil / Tipus de treball, Zona assignada,
+Horari, Data d'alta, Estat (Activa / Inactiva).
+
+La columna Zona mostra:
+  - Codis postals individuals (o "🗺️ Tots BCN (N CPs)" si en té 30 o més)
+  - Municipis del Vallès (per a treballadores de tipus DOMICILIARIA_VALLES)
+  - Centres ambulatoris o punts GPS (per a AMBULATORIA)
+
+CERCADOR I ORDENACIÓ
+---------------------
+- Camp de cerca: filtra per nom, email o DNI en temps real.
+- Les columnes es poden ordenar fent clic a la capçalera.
+
+CREAR UNA TREBALLADORA NOVA
+----------------------------
+Botó "+ Crear" (part superior dreta). S'obre un formulari amb:
+  - Nom complet
+  - Email (serà el nom d'usuari per entrar a l'app)
+  - DNI/NIE
+  - Tipus de treball: Domiciliària / Domiciliària Vallès / Ambulatòria
+  - Perfil professional: Fisioterapeuta / Logopeda / Administració / IT / Gerència
+  - Horari: seleccionable entre les plantilles existents
+  - Data d'alta (data d'incorporació a efectes de comptabilitat d'hores)
+
+En crear la treballadora, el sistema genera automàticament una contrasenya
+aleatòria que es mostra una sola vegada. Cal comunicar-la a la treballadora.
+
+EDITAR UNA TREBALLADORA
+------------------------
+Icona de llapis (✏️) a la fila corresponent. S'obre el mateix formulari
+preomplert amb les dades actuals.
+
+ASSIGNAR CODIS POSTALS (treballadores DOMICILIARIA)
+----------------------------------------------------
+Botó "CP" a la fila de la treballadora. S'obre un modal amb:
+  - Llista de tots els codis postals disponibles (caselles de verificació)
+  - Dreceres ràpides:
+      · "✓ Tots els CP" — marca tots d'un cop
+      · "🏙️ Tots BCN (08xxx)" — marca tots els codis de Barcelona
+      · "✗ Cap" — desmarca tots
+  - Data d'inici d'assignació (obligatòria)
+  - Data de fi (opcional, per a assignacions temporals)
+
+ASSIGNAR MUNICIPIS (treballadores DOMICILIARIA_VALLES)
+-------------------------------------------------------
+Botó "Munis" a la fila. S'obre un modal amb la llista de municipis del Vallès
+amb caselles de verificació i dates d'inici / fi.
+
+ASSIGNAR CENTRES (treballadores AMBULATORIA)
+--------------------------------------------
+Botó "Points". Permet assignar centres ambulatoris existents (desplegable)
+o afegir punts GPS manuals (nom, latitud, longitud i radi en metres).
+
+GESTIÓ D'HORARIS
+-----------------
+Icona de calendari per a cada treballadora. S'obre l'editor d'horari amb:
+  - 7 dies de la setmana, cadascun amb opció d'activar/desactivar
+  - Hora d'entrada i hora de sortida per a cada dia actiu
+  - Resum de les hores setmanals i les hores anuals estimades
+  - Opció de crear una plantilla nova o modificar una d'existent
+
+IMPORTACIÓ MASSIVA (CSV)
+------------------------
+Botó "Importar CSV". Permet crear múltiples treballadores alhora a partir
+d'un fitxer CSV amb el format: nom;email;dni;codi_postal;horari_id;data_alta;tipus_treball
+El sistema mostra una previsualització de les dades abans d'importar, i un cop
+fet, mostra la taula de resultats amb les contrasenyes generades.
+
+================================================================================
+3. GESTIÓ DE FITXATGES (REGISTRE DE JORNADA)
+================================================================================
+
+Accés: Menú → Fitxatges (o des del tauler, aprovacions pendents)
+
+Compleix amb el Reial Decret Llei 8/2019 de registre de jornada.
+
+TAULA DE FITXATGES
+-------------------
+Columnes: Treballadora, Data, Hora entrada, Hora sortida, Hores treballades,
+Hores extra (autoritzades / no autoritzades / fora de zona), Estat, Accions.
+
+Distintius d'estat:
+  - PENDENT: fitxatge pendent de revisió
+  - APROVADA: fitxatge aprovat per l'administrador
+  - REBUTJADA: fitxatge rebutjat (amb motiu)
+  - EN CURS: la treballadora encara treballa (no ha fitxat sortida)
+  - TANCAT AUTO.: la sortida va ser tancada automàticament pel sistema
+    (la treballadora va oblidar fitxar la sortida; el sistema la tanca
+    en funció de les hores programades a l'horari)
+  - REVISIÓ GPS: el sistema detecta hores fora de la zona assignada
+  - FORA ZONA: la treballadora va fitxar des d'una ubicació no assignada
+
+FILTRES
+--------
+  - Mes: selector dels últims 6 mesos
+  - Treballadora: totes o una de concreta
+  - Estat: Tots / Revisió GPS / Pendents normals / Aprovats
+
+APROVACIÓ I REBUIG
+-------------------
+Per a fitxatges PENDENTS normals:
+  - Botó ✓ Aprovar
+  - Botó ✗ Rebutjar → s'obre un formulari on s'ha d'escriure el motiu
+
+Per a fitxatges en REVISIÓ GPS (hores fora de zona detectades):
+  L'administrador té tres opcions:
+  · "Aprovar jornada completa": s'aprova tot incloent les hores fora de zona
+    com a hores normals (es considera que la ubicació era correcta).
+  · "Aprovar (h. fora zona = no autoritzades)": s'aprova la jornada però les
+    hores fora de zona es comptabilitzen com a hores extra no autoritzades.
+  · "Rebutjar": s'obre el formulari de motiu de rebuig.
+
+TANCAMENT AUTOMÀTIC
+--------------------
+Si una treballadora oblida fitxar la sortida, el sistema detecta la jornada
+oberta en accedir al dia següent i la tanca automàticament basant-se en les
+hores programades al seu horari. Aquests registres apareixen marcats com
+"TANCAT AUTO." i queden registrats a l'auditoria.
+
+================================================================================
+4. GESTIÓ DE DOCUMENTS
+================================================================================
+
+Accés: Menú → Documentació
+
+Permet publicar documents per a les treballadores (circulars, normatives,
+documents de prevenció de riscos, etc.) i fer el seguiment de les signatures.
+
+RESUM SUPERIOR
+--------------
+  - Total de documents publicats
+  - Pendents de signatura
+  - Documents urgents actius
+  - Documents completats (signats per totes les destinatàries)
+
+PESTANYES DE FILTRE
+-------------------
+Tots / Urgents / Pendents de signatura / Completats / Només lectura
+
+TARGETA DE DOCUMENT
+-------------------
+Cada document mostra: títol, descripció, nom de fitxer, data de creació,
+destinatàries (totes o nombre de seleccionades), categoria, i distintius:
+  - URGENT: bloqueja l'accés a l'app de la treballadora fins que signi
+  - SIGNATURA: requereix signatura electrònica
+  - PDF: el document és un fitxer PDF adjunt
+
+DETALL I SEGUIMENT DE SIGNATURES
+----------------------------------
+El botó de desplegar (▼) de cada document mostra una taula amb:
+  - Nom de cada treballadora destinatària
+  - Data i hora en què ha visualitzat el document (o "No vist")
+  - Data i hora de signatura (o "Pendent")
+  - Codi hash dels primers 16 caràcters de la signatura electrònica
+  - Botó de recordatori individual: envia una notificació a aquella treballadora
+
+Barra de progrés: % signades / % vistes sense signar / % pendents.
+
+Botó "Enviar recordatori a totes": envia una notificació a totes les
+treballadores que encara no han signat.
+
+CREAR UN DOCUMENT NOU
+----------------------
+Botó "+ Nou document". Camp disponibles:
+  - Títol
+  - Descripció (opcional)
+  - Contingut: redactat lliure o pujada d'un PDF (màxim 4 MB)
+  - Nom del fitxer
+  - Categoria: PRL / Normativa / Laboral / Formació / Altres
+  - Destinatàries: Totes les treballadores / Selecció individual
+  - Opció "Requereix signatura electrònica"
+  - Opció "Document urgent (bloqueja l'accés fins que es signi)"
+
+EDITAR UN DOCUMENT
+------------------
+Icona ✏️ a la targeta del document. S'obre el formulari preomplert.
+
+ELIMINAR UN DOCUMENT
+--------------------
+Icona 🗑️ a la targeta. Demana confirmació abans d'esborrar.
+
+PERFILS D'INCORPORACIÓ (ONBOARDING)
+-------------------------------------
+A la part inferior de la pantalla es gestionen els perfils d'incorporació.
+Cada perfil és un conjunt de documents ordenats que s'assignen a una
+treballadora quan s'incorpora.
+
+Per a cada perfil es pot veure, per a cada treballadora:
+  - Progrés (% de documents signats)
+  - Estat (Completat / En curs / Pendent)
+  - Data de finalització
+
+Cada document dins del perfil es pot configurar com "Signatura obligatòria"
+o "Només lectura".
+
+================================================================================
+5. INFORMES
+================================================================================
+
+Accés: Menú → Informes
+
+FILTRES
+--------
+  - Mes: selector dels últims 12 mesos
+  - Treballadora: totes o una de concreta
+
+RESUM ESTADÍSTIC
+-----------------
+Targetes superiors:
+  - Hores treballades (total del mes)
+  - Hores teòriques (dies laborables del mes × 8h)
+  - Hores extra autoritzades
+  - Hores extra no autoritzades
+  - Nombre d'absències
+
+INFORME INDIVIDUAL (quan es selecciona una treballadora concreta)
+------------------------------------------------------------------
+Panel addicional amb:
+  - Mitjana d'hores diàries
+  - Dies treballats
+  - Hores extra autoritzades i no autoritzades
+  - Permisos i absències usats
+  - Nombre de fitxatges fora del codi postal assignat
+
+Si hi ha fitxatges fora de zona, apareix una sub-taula amb el detall de
+cada incidència: data, CP assignat, entrada, sortida, hores i estat.
+
+TAULA DE FITXATGES
+-------------------
+Mostra tots els fitxatges del mes seleccionat amb: data, hora entrada,
+hora sortida, hores totals, hores extra autoritzades, hores extra no
+autoritzades, estat de la ubicació GPS (dins zona / fora zona), estat.
+Fila de totals al final.
+
+EXPORTACIÓ
+-----------
+  - "Descarregar PDF": genera un informe formatat en format A4 horitzontal
+    preparat per imprimir. Inclou tots els resums, la taula completa i peu
+    de pàgina legal (RDL 8/2019, RGPD, LOPDGDD, conservació 4 anys).
+
+  - "Descarregar Excel": genera un fitxer CSV (compatible amb Excel) amb
+    totes les dades del mes. El nom del fitxer inclou el mes i la treballadora.
+
+================================================================================
+6. ABSÈNCIES I PERMISOS
+================================================================================
+
+Accés: Menú → Absències
+
+Gestiona les sol·licituds de dies de permís, baixes i absències de les
+treballadores.
+
+Les treballadores poden sol·licitar dies des de la seva app. L'administrador
+les veu aquí i les pot:
+  - Aprovar
+  - Rebutjar (amb motiu escrit)
+
+Les absències aprovades es reflecteixen als informes del mes corresponent.
+
+================================================================================
+7. AUDITORIA
+================================================================================
+
+Accés: Menú → Auditoria
+
+Registre complet de totes les accions realitzades al sistema: qui ha fet
+què i quan. Inclou creació i modificació de treballadores, aprovació de
+fitxatges, publicació de documents, tancaments automàtics, etc.
+
+Aquest registre no es pot modificar ni eliminar. Serveix com a traçabilitat
+legal de totes les operacions.
+
+================================================================================
+8. CODIS D'AUTORITZACIÓ D'HORES EXTRA
+================================================================================
+
+Accés: Menú → Codis d'autorització
+
+Permet crear codis alfanumèrics que les treballadores han d'introduir quan
+registren hores extra per justificar-les. L'administrador genera el codi,
+el comunica a la treballadora, i queda registrat vinculat al fitxatge.
+
+================================================================================
+9. PREGUNTES FREQÜENTS
+================================================================================
+
+P: Una treballadora ha oblidat fitxar la sortida. Què passa?
+R: El sistema la tanca automàticament l'endemà basant-se en l'horari assignat.
+   El fitxatge queda marcat com "TANCAT AUTO." i apareix a l'auditoria.
+   Si les hores calculades automàticament no són correctes, es pot rebutjar
+   i demanar a la treballadora que justifiqui la jornada.
+
+P: Apareix "REVISIÓ GPS" a un fitxatge. Que vol dir?
+R: Que el sistema ha detectat que la treballadora ha treballat part de la
+   jornada des d'una ubicació fora dels seus codis postals assignats. Cal
+   revisar-ho i decidir si s'aprova la jornada completa, si es marquen les
+   hores fora de zona com a no autoritzades, o si es rebutja.
+
+P: Un fitxatge apareix dos cops el mateix dia. Què ha passat?
+R: Pot ser que la treballadora hagi pitjat dues vegades el botó de fitxar
+   per culpa d'una connexió lenta. El sistema detecta i evita els duplicats
+   a partir de la versió actual, però els registres antics poden conservar-se.
+   Es pot contactar amb informàtica per eliminar el duplicat incorrecte.
+
+P: Com envio un document urgent que obligui la treballadora a llegir-lo
+   abans de poder usar l'app?
+R: En crear el document, activa l'opció "Document urgent (bloqueja l'accés
+   fins que es signi)". La treballadora veurà el document en obrir l'app i
+   no podrà continuar fins que l'hagi llegit i signat.
+
+P: Com genero l'informe mensual per a una treballadora concreta?
+R: Ves a Informes, selecciona el mes i el nom de la treballadora, i fes clic
+   a "Descarregar PDF" o "Descarregar Excel".
+
+================================================================================
+  Per a incidències tècniques: informatica@crtbcn.cat
+================================================================================

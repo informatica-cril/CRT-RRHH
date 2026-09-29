@@ -1,0 +1,66 @@
+# CRT RRHH — Nginx (exemple per a aaPanel)
+# UN SOL domini i UNA sola app Laravel:
+#   https://crtrrhh.crtbcn.cat/        → redirigeix a /app/
+#   https://crtrrhh.crtbcn.cat/app/    → web de control horari (Vue, public/app)
+#   https://crtrrhh.crtbcn.cat/api/    → API (Laravel)
+#   https://crtrrhh.crtbcn.cat/dashboard → panell Inertia (public/build)
+#
+# ⚠️ SEGURETAT: el docroot ha de ser la carpeta **public/**, MAI l'arrel del repo.
+# Servir l'arrel exposaria .env, /storage, /app (PHP) i el codi font.
+# A aaPanel: Website → el lloc → Site directory → Running directory = /public.
+# Ajusta el socket PHP-FPM a la versió instal·lada (aaPanel: /tmp/php-cgi-83.sock per a PHP 8.3).
+
+server {
+    listen 80;
+    server_name crtrrhh.crtbcn.cat;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name crtrrhh.crtbcn.cat;
+
+    # aaPanel col·loca aquí el certificat de Let's Encrypt (SSL → Let's Encrypt).
+    ssl_certificate     /www/server/panel/vhost/cert/crtrrhh.crtbcn.cat/fullchain.pem;
+    ssl_certificate_key /www/server/panel/vhost/cert/crtrrhh.crtbcn.cat/privkey.pem;
+
+    # Docroot = public/ del repo (NO l'arrel).
+    root /www/wwwroot/crtrrhh.crtbcn.cat/public;
+    index index.php;
+
+    # Assets compilats (porten hash al nom): caché llarga.
+    location ~ ^/(app|build)/assets/ {
+        try_files $uri =404;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # /app/ no té index.php: cau a Laravel, que serveix public/app/index.html sense caché.
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass unix:/tmp/php-cgi-83.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    # Documents servits per storage:link (public/storage → storage/app/public).
+    # Nota: qualsevol fitxer aquí és PÚBLIC sense auth; no hi posis documents privats.
+    location /storage { try_files $uri =404; }
+
+    # Bloqueja l'accés a fitxers ocults (.env, .git, .user.ini, etc.).
+    location ~ /\.(?!well-known) { deny all; }
+
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    client_max_body_size 20m;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+    gzip_min_length 1000;
+}

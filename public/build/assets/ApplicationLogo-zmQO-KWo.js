@@ -1,0 +1,1 @@
+import{N as e,b as t}from"./app-CnHRJDCg.js";import{t as n}from"./_plugin-vue_export-helper-CSBScHBl.js";var r={},i={src:`/logo/CRT-LOGO-removebg2.png`,alt:`Logo de la aplicación`};function a(n,r){return e(),t(`img`,i)}var o=n(r,[[`render`,a]]);export{o as t};

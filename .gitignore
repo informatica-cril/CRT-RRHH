@@ -1,0 +1,84 @@
+/vendor
+/node_modules
+/public/hot
+/public/storage
+/storage/*.key
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/framework/cache/*
+/storage/logs/*
+.env
+.env.backup
+.env.production
+Homestead.json
+Homestead.yaml
+.vagrant
+.phpunit.result.cache
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+pnpm-debug.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.log
+logs
+/android/*
+/app/android/*
+/app/node_modules/*
+
+# Node
+node_modules/
+app/node_modules/
+npm-debug.log*
+
+# Android build artifacts
+android/.gradle/
+android/app/build/
+android/build/
+app/android/app/build/
+app/android/capacitor-cordova-android-plugins/build/
+android/local.properties
+android/captures/
+android/.idea/
+
+# Laravel
+/vendor/
+# vendor/ sin ancorar: evita que subdirectoris (p. ex. api/vendor) es tornin a trackejar
+vendor/
+/storage/*.key
+.env
+.env.backup
+/public/hot
+/public/storage
+
+# Binaris que no s'han de versionar (usar releases/artefactes)
+*.apk
+
+
+# Laravel Dusk
+/browser/console
+/browser/screenshots
+
+# Frontend build output
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+.htaccess
+.user.ini
