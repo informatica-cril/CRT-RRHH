@@ -121,6 +121,19 @@
           <div v-else id="worker-zone-map" style="height:320px;width:100%;min-width:0;border-radius:12px;overflow:hidden;margin-top:12px;border:1px solid var(--color-border-light);"></div>
         </div>
 
+        <!-- Horari d'avui: perquè aquest bloc no es quedi buit sota el mapa -->
+        <div class="card mt-lg">
+          <h3 class="card-title mb-md">📅 Horari d'avui</h3>
+          <div v-if="todayScheduleLabel" style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:1.4rem;font-weight:700;color:var(--color-primary);">{{ todayScheduleLabel }}</span>
+          </div>
+          <div v-else class="text-small text-muted">Avui no tens jornada prevista.</div>
+          <div v-if="activeCpAssignment" style="margin-top:12px;">
+            <div class="text-small text-muted mb-sm">Zones assignades</div>
+            <span v-for="cp in activeCpAssignment.postal_codes" :key="cp" class="badge badge-info" style="margin-right:4px;margin-bottom:4px;">{{ cp }}</span>
+          </div>
+        </div>
+
         <!-- Quick calendar -->
         <div>
           <div class="card">
@@ -953,6 +966,15 @@ async function loadWorkerSchedule() {
   if (!sid) { workerSchedule.value = null; return }
   workerSchedule.value = await db.getWorkSchedule(sid).catch(() => null)
 }
+// Horari (entrada-sortida) del dia d'avui, per omplir el buit sota el mapa de zona.
+const todayScheduleLabel = computed(() => {
+  const sched = workerSchedule.value
+  if (!sched || !Array.isArray(sched.days)) return ''
+  const jsDay = new Date().getDay()
+  const entries = sched.days.filter(d => d.day === jsDay && d.active !== false && d.start && d.end)
+  if (!entries.length) return ''
+  return entries.map(d => `${d.start.substring(0, 5)} – ${d.end.substring(0, 5)}`).join('  ·  ')
+})
 const locationStatus = ref('checking'), locationText = ref('')
 const lastKnownPos = ref(null)
 const locationClass = computed(() => locationStatus.value)
