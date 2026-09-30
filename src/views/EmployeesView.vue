@@ -317,7 +317,7 @@
             <div style="flex:1;">
               <label class="form-label">Plantilla horària</label>
               <select class="form-select" v-model="scheduleForm.id" @change="loadScheduleTemplate">
-                <option v-for="s in schedules" :key="s.id" :value="s.id">{{ s.name }} ({{ s.total_hours_weekly }}h/set)</option>
+                <option v-for="s in schedules" :key="s.id" :value="s.id">{{ s.name }} ({{ formatHM(s.total_hours_weekly) }}/set)</option>
               </select>
             </div>
             <button class="btn btn-accent btn-sm" style="white-space:nowrap;margin-bottom:1px;" @click="startNewSchedule">+ Nova plantilla</button>
@@ -335,6 +335,23 @@
           </div>
         </div>
 
+        <!-- Aplicar un mateix horari a diversos dies d'un cop, en lloc d'anar un per un -->
+        <div style="margin-top:14px;padding:10px 12px;background:var(--color-bg);border-radius:8px;">
+          <div class="form-label" style="margin-bottom:6px;">Aplicar un horari a diversos dies</div>
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;">
+            <input class="form-input" type="time" v-model="bulkStart" style="width:115px;" />
+            <span>→</span>
+            <input class="form-input" type="time" v-model="bulkEnd" style="width:115px;" />
+            <button type="button" class="btn btn-outline btn-sm" :disabled="!bulkStart || !bulkEnd" @click="applyBulkSchedule([1,2,3,4,5])">Laborables (Dl-Dv)</button>
+            <button type="button" class="btn btn-outline btn-sm" :disabled="!bulkStart || !bulkEnd" @click="applyBulkSchedule([1,2,3,4,5,6,0])">Tota la setmana</button>
+            <button type="button" class="btn btn-outline btn-sm" :disabled="!bulkStart || !bulkEnd" @click="applyBulkSchedule([1,3,5])">Dl · Dc · Dv</button>
+            <button type="button" class="btn btn-outline btn-sm" :disabled="!bulkStart || !bulkEnd" @click="applyBulkSchedule([2,4])">Dt · Dj</button>
+          </div>
+          <div class="text-small text-muted" style="margin-top:6px;">
+            Posa l'hora d'entrada i sortida i tria a quins dies s'aplica. Després pots ajustar dies concrets a sota si cal.
+          </div>
+        </div>
+
         <!-- Editor de dies (comú als dos modes). Suporta jornades partides: diversos trams al mateix dia. -->
         <div v-for="(d, index) in scheduleForm.days" :key="index" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--color-border-light);">
           <label style="width:100px;font-weight:500;">
@@ -345,14 +362,14 @@
           <input v-if="d.active" class="form-input" type="time" v-model="d.start" style="width:115px;" />
           <span v-if="d.active">→</span>
           <input v-if="d.active" class="form-input" type="time" v-model="d.end" style="width:115px;" />
-          <span v-if="d.active" class="text-small text-muted">{{ calcHours(d) }}h</span>
+          <span v-if="d.active" class="text-small text-muted">{{ formatHM(calcHours(d)) }}</span>
           <span v-else class="text-small text-muted">Descans</span>
           <button v-if="d.active && !isExtraTramo(index)" type="button" class="btn btn-outline btn-sm" title="Afegir un segon tram (jornada partida)" @click="addTramo(index)">+ tram</button>
           <button v-if="isExtraTramo(index)" type="button" class="btn btn-outline btn-sm" style="color:var(--color-danger);" title="Treure aquest tram" @click="removeTramo(index)">✕</button>
         </div>
 
         <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
-          <span class="text-small"><strong>Total setmanal:</strong> {{ totalWeeklyHours }}h</span>
+          <span class="text-small"><strong>Total setmanal:</strong> {{ formatHM(totalWeeklyHours) }}</span>
           <span class="text-small text-muted">Anual estimat: {{ (totalWeeklyHours * 46.5).toFixed(0) }}h</span>
         </div>
         <div class="modal-footer">
@@ -627,6 +644,7 @@ import { useAuthStore } from '../stores/auth'
 import { i18n } from '../i18n'
 import { getPostalCodeList, BARCELONA_POSTAL_CODES, getMunicipalityList, VALLES_MUNICIPALITIES } from '../services/geolocation'
 import CalendarPdfViewer from '../components/CalendarPdfViewer.vue'
+import { formatHM } from '../utils/formatHours'
 
 const authStore = useAuthStore()
 const t = (key) => i18n.t(key)
@@ -972,6 +990,22 @@ function addTramo(index) {
   scheduleForm.days.splice(index + 1, 0, { day: d.day, name: d.name || dayName(d.day), active: true, start: '', end: '' })
 }
 function removeTramo(index) { scheduleForm.days.splice(index, 1) }
+
+// Aplicar un horari a diversos dies d'un cop (en lloc d'anar dia per dia).
+// Nomes toca el PRIMER tram de cada dia seleccionat: si algu ja tenia jornada
+// partida amb trams extra, aquests no es toquen.
+const bulkStart = ref('')
+const bulkEnd = ref('')
+function applyBulkSchedule(dayNumbers) {
+  if (!bulkStart.value || !bulkEnd.value) return
+  for (const d of scheduleForm.days) {
+    if (dayNumbers.includes(d.day) && !isExtraTramo(scheduleForm.days.indexOf(d))) {
+      d.active = true
+      d.start = bulkStart.value
+      d.end = bulkEnd.value
+    }
+  }
+}
 
 const totalWeeklyHours = computed(() => scheduleForm.days.filter(d => d.active).reduce((s, d) => s + parseFloat(calcHours(d)), 0).toFixed(1))
 

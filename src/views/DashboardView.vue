@@ -71,7 +71,7 @@
             <div v-for="(day, index) in weekDays" :key="index" class="mobile-summary-item" 
               :style="index === todayIndex ? 'border-left: 3px solid var(--color-accent)' : ''">
               <span class="mobile-summary-day">{{ day.fullLabel || day.label }}</span>
-              <span class="mobile-summary-value">{{ day.hours }}h</span>
+              <span class="mobile-summary-value">{{ formatHM(day.hours) }}</span>
             </div>
           </div>
         </div>
@@ -118,7 +118,7 @@
                     <td>{{ formatDate(log.date) }}</td>
                     <td>{{ formatTime(log.start_time) }}</td>
                     <td>{{ log.end_time ? formatTime(log.end_time) : '-' }}</td>
-                    <td>{{ log.total_hours_worked ? Number(log.effective_hours ?? log.total_hours_worked).toFixed(2) + 'h' : '-' }}</td>
+                    <td>{{ log.total_hours_worked ? formatHM(log.effective_hours ?? log.total_hours_worked) : '-' }}</td>
                     <td>
                       <span class="badge" :class="statusBadge(log.status)">{{ t(log.status) || log.status }}</span>
                     </td>
@@ -142,7 +142,7 @@
                   </div>
                   <div class="mobile-log-item">
                     <span class="mobile-log-label">Hores</span>
-                    <span style="font-weight:700;">{{ log.total_hours_worked ? Number(log.effective_hours ?? log.total_hours_worked).toFixed(2) + 'h' : '-' }}</span>
+                    <span style="font-weight:700;">{{ log.total_hours_worked ? formatHM(log.effective_hours ?? log.total_hours_worked) : '-' }}</span>
                   </div>
                 </div>
               </div>
@@ -186,7 +186,7 @@
             style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--color-border-light);">
             <div>
               <div style="font-weight: 500; font-size: 0.87rem;">{{ getUserName(log.user_id) }}</div>
-              <div style="font-size: 0.78rem; color: var(--color-text-secondary);">{{ formatDate(log.date) }} · {{ Number((log.effective_hours ?? log.total_hours_worked) || 0).toFixed(2) }}h</div>
+              <div style="font-size: 0.78rem; color: var(--color-text-secondary);">{{ formatDate(log.date) }} · {{ formatHM(log.effective_hours ?? log.total_hours_worked) }}</div>
             </div>
             <div style="display: flex; gap: 4px;">
               <button class="btn btn-success btn-sm" @click="approveLog(log.id)">✓</button>
@@ -235,23 +235,23 @@
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:10px;margin:8px 0 16px;">
           <div class="stat-card" style="padding:10px;">
             <div class="stat-label">Treballat</div>
-            <div style="font-size:1.3rem;font-weight:700;color:var(--color-primary);">{{ monthlyAnalysis.worked.toFixed(1) }}h</div>
+            <div style="font-size:1.3rem;font-weight:700;color:var(--color-primary);">{{ formatHM(monthlyAnalysis.worked) }}</div>
           </div>
           <div class="stat-card" style="padding:10px;">
             <div class="stat-label">Bàsic contractat</div>
-            <div style="font-size:1.3rem;font-weight:700;">{{ monthlyAnalysis.basic.toFixed(1) }}h</div>
+            <div style="font-size:1.3rem;font-weight:700;">{{ formatHM(monthlyAnalysis.basic) }}</div>
           </div>
           <div class="stat-card" style="padding:10px;">
             <div class="stat-label">Complement. autoritzades</div>
-            <div style="font-size:1.3rem;font-weight:700;color:var(--color-warning);">{{ monthlyAnalysis.complementary.toFixed(1) }}h</div>
+            <div style="font-size:1.3rem;font-weight:700;color:var(--color-warning);">{{ formatHM(monthlyAnalysis.complementary) }}</div>
           </div>
           <div class="stat-card" style="padding:10px;">
             <div class="stat-label">Màxim autoritzat</div>
-            <div style="font-size:1.3rem;font-weight:700;">{{ monthlyAnalysis.max.toFixed(1) }}h</div>
+            <div style="font-size:1.3rem;font-weight:700;">{{ formatHM(monthlyAnalysis.max) }}</div>
           </div>
           <div class="stat-card" style="padding:10px;" v-if="monthlyAnalysis.overflow > 0.01">
             <div class="stat-label" style="color:var(--color-danger);">Excés no autoritzat</div>
-            <div style="font-size:1.3rem;font-weight:700;color:var(--color-danger);">+{{ monthlyAnalysis.overflow.toFixed(1) }}h</div>
+            <div style="font-size:1.3rem;font-weight:700;color:var(--color-danger);">+{{ formatHM(monthlyAnalysis.overflow) }}</div>
           </div>
         </div>
 
@@ -416,6 +416,7 @@ import { db } from '../services/db'
 import { getCurrentPosition, BARCELONA_POSTAL_CODES, VALLES_MUNICIPALITIES } from '../services/geolocation'
 import { getPolygon, getGeoJsonBounds } from '../services/geoPolygonService'
 import { i18n } from '../i18n'
+import { formatHM } from '../utils/formatHours'
 import { Bar } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js'
 
@@ -457,7 +458,7 @@ async function fetchStats() {
 }
 
 function formatH(hoursDecimal) {
-  return Number(hoursDecimal).toFixed(2) + 'h'
+  return formatHM(hoursDecimal)
 }
 
 const hoursToday = computed(() => {
@@ -709,7 +710,7 @@ const monthlyChartOptions = {
   maintainAspectRatio: false,
   plugins: {
     legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, padding: 8, font: { size: 9 } } },
-    tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.raw).toFixed(1)}h` } }
+    tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${formatHM(ctx.raw)}` } }
   },
   scales: {
     x: { stacked: true, beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 9 } } },
@@ -758,7 +759,7 @@ const dailyChartOptions = {
   maintainAspectRatio: false,
   plugins: {
     legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, padding: 8, font: { size: 9 } } },
-    tooltip: { callbacks: { title: (items) => `Dia ${items[0].label}`, label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.raw).toFixed(1)}h` } }
+    tooltip: { callbacks: { title: (items) => `Dia ${items[0].label}`, label: (ctx) => `${ctx.dataset.label}: ${formatHM(ctx.raw)}` } }
   },
   scales: {
     y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 9 } } },

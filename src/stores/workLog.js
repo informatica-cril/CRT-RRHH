@@ -3,6 +3,7 @@ import { db } from '../services/db'
 import { auditLog } from '../services/audit'
 import { useAuthStore } from './auth'
 import { checkUserLocation } from '../services/geolocation'
+import { formatHM } from '../utils/formatHours'
 
 export const useWorkLogStore = defineStore('workLog', {
   state: () => ({
@@ -225,9 +226,9 @@ export const useWorkLogStore = defineStore('workLog', {
           `${hoursToAuthorize}h autoritzades amb codi ${code} (${remainingUnauthorized}h resten pendents)`)
         this.logs = await db.getWorkLogsByUser(authStore.userId)
 
-        const baseMsg = `✓ ${hoursToAuthorize.toFixed(2)}h extra autoritzades correctament.`
+        const baseMsg = `✓ ${formatHM(hoursToAuthorize)} extra autoritzades correctament.`
         const warningMsg = remainingUnauthorized > 0
-          ? ` Només s'han actualitzat ${hoursToAuthorize.toFixed(2)}h de les ${extraPending.toFixed(2)}h acumulades. Per gestionar les ${remainingUnauthorized.toFixed(2)}h restants, contacta amb el teu responsable.`
+          ? ` Només s'han actualitzat ${formatHM(hoursToAuthorize)} de les ${formatHM(extraPending)} acumulades. Per gestionar les ${formatHM(remainingUnauthorized)} restants, contacta amb el teu responsable.`
           : ''
         return { success: true, message: baseMsg + warningMsg, hasRemaining: remainingUnauthorized > 0 }
       } catch (e) {

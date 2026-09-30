@@ -16,14 +16,14 @@
           <div><strong>Data:</strong> {{ formatDate(workLog.date) }}</div>
           <div><strong>Inici:</strong> {{ formatDateTime(workLog.start_time) }}</div>
           <div><strong>Fi:</strong> {{ workLog.end_time ? formatDateTime(workLog.end_time) : 'En curs' }}</div>
-          <div><strong>Hores totals (brutes):</strong> {{ workLog.total_hours_worked }}h</div>
+          <div><strong>Hores totals (brutes):</strong> {{ formatHM(workLog.total_hours_worked) }}</div>
           <div><strong>Minuts complementaris:</strong> {{ workLog.complementary_minutes || 0 }} min</div>
           <div><strong>Estat:</strong> {{ workLog.status }}</div>
           <div><strong>Segmentat:</strong> {{ workLog.segmented ? 'Sí' : 'No' }}</div>
         </div>
         <div class="effective-banner">
           <span class="effective-label">Temps de treball EFECTIU (només trams aprovats):</span>
-          <span class="effective-value">{{ effectiveHours }} h</span>
+          <span class="effective-value">{{ effectiveHoursLabel }}</span>
           <span v-if="workLog.segmented && pendingCount > 0" class="effective-note">
             · {{ pendingCount }} tram(s) pendent(s) de revisió no compten encara
           </span>
@@ -141,6 +141,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import db from '../services/db'
+import { formatHM } from '../utils/formatHours'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -177,6 +178,8 @@ const effectiveHours = computed(() => {
   const val = workLog.value.effective_hours ?? workLog.value.hours_worked ?? workLog.value.total_hours_worked ?? 0
   return Number(val).toFixed(2)
 })
+
+const effectiveHoursLabel = computed(() => formatHM(effectiveHours.value))
 
 const pendingCount = computed(() =>
   segments.value.filter(s => s.status === 'pending').length

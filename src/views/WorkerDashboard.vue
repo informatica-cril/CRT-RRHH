@@ -73,7 +73,7 @@
                   style="text-align:left;border:1.5px solid var(--color-border);border-radius:9px;padding:9px 12px;background:var(--color-surface);cursor:pointer;min-height:44px;"
                   :style="authCodeInput === c.code ? 'border-color:var(--color-accent);' : ''">
                   <code style="font-weight:700;">{{ c.code }}</code>
-                  · {{ c.authorized_hours }}h {{ c.type === 'extraordinaria' ? 'extraordinàries (1,25×)' : 'complementàries' }}
+                  · {{ formatHM(c.authorized_hours) }} {{ c.type === 'extraordinaria' ? 'extraordinàries (1,25×)' : 'complementàries' }}
                   <div class="text-small text-muted">{{ c.concept }}</div>
                 </button>
               </div>
@@ -84,7 +84,7 @@
                 <label class="form-label">Fitxatge</label>
                 <select class="form-select" v-model="authLogId" style="width:100%;">
                   <option value="">Selecciona fitxatge...</option>
-                  <option v-for="l in logsWithUnauthorized" :key="l.id" :value="l.id">{{ formatDateFull(l.date) }} — {{ Number(l.extra_hours_unauthorized||0).toFixed(1) }}h no aut.</option>
+                  <option v-for="l in logsWithUnauthorized" :key="l.id" :value="l.id">{{ formatDateFull(l.date) }} — {{ formatHM(l.extra_hours_unauthorized) }} no aut.</option>
                 </select>
               </div>
               <div class="form-group" style="margin-bottom:0;">
@@ -349,19 +349,19 @@
                 <td class="text-small">{{ l.end_time ? formatTime(l.end_time) : '—' }}</td>
                 <td>
                   <strong :style="l.hour_status === 'ok' ? 'color:var(--color-success)' : 'color:var(--color-text)'">
-                    {{ Number(l.effective_hours ?? l.total_hours_worked ?? l.hours_worked ?? 0).toFixed(2) }}h
+                    {{ formatHM(l.effective_hours ?? l.total_hours_worked ?? l.hours_worked) }}
                   </strong>
                 </td>
                 <td>
-                  <span v-if="(l.extra_hours_unauthorized||0) > 0" style="color:#f97316;font-weight:600;">{{ Number(l.extra_hours_unauthorized).toFixed(1) }}h</span>
+                  <span v-if="(l.extra_hours_unauthorized||0) > 0" style="color:#f97316;font-weight:600;">{{ formatHM(l.extra_hours_unauthorized) }}</span>
                   <span v-else class="text-muted">—</span>
                 </td>
                 <td>
-                  <span v-if="(l.hours_out_of_area||0) > 0" style="color:var(--color-danger);font-weight:600;">{{ Number(l.hours_out_of_area).toFixed(1) }}h</span>
+                  <span v-if="(l.hours_out_of_area||0) > 0" style="color:var(--color-danger);font-weight:600;">{{ formatHM(l.hours_out_of_area) }}</span>
                   <span v-else class="text-muted">—</span>
                 </td>
                 <td>
-                  <span v-if="(l.extra_hours_authorized||0) > 0" style="color:var(--color-success);font-weight:600;">+{{ Number(l.extra_hours_authorized).toFixed(1) }}h</span>
+                  <span v-if="(l.extra_hours_authorized||0) > 0" style="color:var(--color-success);font-weight:600;">+{{ formatHM(l.extra_hours_authorized) }}</span>
                   <span v-else class="text-muted">—</span>
                 </td>
                 <td><span class="badge" :class="l.status === 'approved' ? 'badge-success' : l.status === 'pending' ? 'badge-warning' : 'badge-danger'">{{ l.status === 'approved' ? 'Aprovat' : l.status === 'pending' ? 'Pendent' : l.status }}</span></td>
@@ -759,6 +759,7 @@ import { Capacitor } from '@capacitor/core'
 import { getPolygon } from '../services/geoPolygonService'
 import { auditLog } from '../services/audit'
 import { i18n } from '../i18n'
+import { formatHM } from '../utils/formatHours'
 import WorkLogAlertBanner from '../components/WorkLogAlertBanner.vue'
 import PacteComplementaries from '../components/PacteComplementaries.vue'
 import BreakTimerModal from '../components/BreakTimerModal.vue'
@@ -1049,13 +1050,7 @@ async function fetchData() {
 
 // --- Methods ---
 function formatH(hoursDecimal) {
-  const totalMinutes = Math.round(Number(hoursDecimal) * 60)
-  const h = Math.floor(totalMinutes / 60)
-  const m = totalMinutes % 60
-  if (h === 0 && m === 0) return '0.00h'
-  if (h === 0) return `${m} min`
-  if (m === 0) return `${h}h`
-  return `${h}h ${m}m`
+  return formatHM(hoursDecimal)
 }
 
 async function changePassword() {
@@ -1079,13 +1074,13 @@ const todayAuthorized = computed(() => {
   const now = new Date()
   const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const total = myWorkLogs.value.filter(l => l.date && l.date.substring(0, 7) === month).reduce((s, l) => s + Number(l.extra_hours_authorized || 0), 0)
-  return total.toFixed(2) + 'h'
+  return formatH(total)
 })
 const todayUnauthorized = computed(() => {
   const now = new Date()
   const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const total = myWorkLogs.value.filter(l => l.date && l.date.substring(0, 7) === month).reduce((s, l) => s + Number(l.extra_hours_unauthorized || 0), 0)
-  return total.toFixed(2) + 'h'
+  return formatH(total)
 })
 const weekHours = computed(() => {
   const now = new Date(); const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay() + 1); weekStart.setHours(0,0,0,0)

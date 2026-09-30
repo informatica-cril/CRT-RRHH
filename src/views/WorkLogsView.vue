@@ -45,8 +45,8 @@
               <td>{{ formatTime(log.start_time) }}</td>
               <td>{{ log.end_time ? formatTime(log.end_time) : '—' }}</td>
               <td>
-                <strong v-if="log.end_time" :title="'Hores brutes: ' + Number(log.total_hours_worked || 0).toFixed(2) + 'h'">
-                  {{ Number((log.effective_hours ?? log.total_hours_worked) || 0).toFixed(2) }}h
+                <strong v-if="log.end_time" :title="'Hores brutes: ' + formatHM(log.total_hours_worked)">
+                  {{ formatHM(log.effective_hours ?? log.total_hours_worked) }}
                 </strong>
                 <span v-else>—</span>
                 <span v-if="log.segmented && Number(log.effective_hours) !== Number(log.total_hours_worked)" class="badge badge-warning" style="font-size:0.7rem; margin-left:4px;" title="Temps efectiu segons trams aprovats">efectiu</span>
@@ -54,13 +54,13 @@
               <td>
                 <div style="display:flex;flex-direction:column;gap:2px;">
                   <span v-if="Number(log.extra_hours_authorized || 0) > 0" class="badge badge-success" title="Hores Extres Autoritzades">
-                    +{{ Number(log.extra_hours_authorized).toFixed(1) }}h ✓
+                    +{{ formatHM(log.extra_hours_authorized) }} ✓
                   </span>
                   <span v-if="Number(log.extra_hours_unauthorized || 0) > 0" class="badge badge-warning" title="Hores Extres No Autoritzades">
-                    +{{ Number(log.extra_hours_unauthorized).toFixed(1) }}h (pendent)
+                    +{{ formatHM(log.extra_hours_unauthorized) }} (pendent)
                   </span>
                   <span v-if="Number(log.hours_out_of_area || 0) > 0" class="badge badge-danger" title="Hores Fora de Zona Descomptades">
-                    -{{ Number(log.hours_out_of_area).toFixed(1) }}h (Fora Zona)
+                    -{{ formatHM(log.hours_out_of_area) }} (Fora Zona)
                   </span>
                   <span v-if="!Number(log.extra_hours_authorized) && !Number(log.extra_hours_unauthorized) && !Number(log.hours_out_of_area)">—</span>
                 </div>
@@ -138,6 +138,7 @@ import { useAuthStore } from '../stores/auth'
 import { useWorkLogStore } from '../stores/workLog'
 import { db } from '../services/db'
 import { i18n } from '../i18n'
+import { formatHM } from '../utils/formatHours'
 
 const authStore = useAuthStore()
 const workLogStore = useWorkLogStore()
