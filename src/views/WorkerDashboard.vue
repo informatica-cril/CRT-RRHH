@@ -128,11 +128,9 @@
               <span v-else class="text-small text-muted">Avui no tens jornada prevista.</span>
             </div>
           </div>
-        </div>
 
-        <!-- Quick calendar -->
-        <div>
-          <div class="card">
+          <!-- Quick calendar: dins la mateixa targeta, sota l'horari d'avui -->
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--color-border-light);">
             <div class="card-header">
               <button class="btn btn-outline btn-sm" @click="prevMonth">◂</button>
               <h3 class="card-title">{{ calendarMonthName }}</h3>
