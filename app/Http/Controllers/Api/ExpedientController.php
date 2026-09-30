@@ -34,11 +34,11 @@ class ExpedientController extends Controller
                 'fins'         => $request->query('fins'),
             ]));
         } catch (\Throwable $e) {
-            return response()->json(['ok' => false, 'error' => 'domi no accessible'], 502);
+            return response()->json(['ok' => false, 'error' => 'domi no accessible'], 424);
         }
 
         if (! $resp->ok()) {
-            return response()->json(['ok' => false, 'error' => 'error de domi', 'status' => $resp->status()], 502);
+            return response()->json(['ok' => false, 'error' => 'error de domi', 'status' => $resp->status()], 424);
         }
 
         // Es retorna tal com ve de domi (ja porta objectiu/valoratiu + font per bloc).
@@ -60,10 +60,10 @@ class ExpedientController extends Controller
                 'fins'         => $request->query('fins'),
             ]));
         } catch (\Throwable $e) {
-            return response()->json(['ok' => false, 'error' => 'domi no accessible'], 502);
+            return response()->json(['ok' => false, 'error' => 'domi no accessible'], 424);
         }
         if (! $resp->ok()) {
-            return response()->json(['ok' => false, 'error' => 'error de domi', 'status' => $resp->status()], 502);
+            return response()->json(['ok' => false, 'error' => 'error de domi', 'status' => $resp->status()], 424);
         }
 
         return response()->json($resp->json());

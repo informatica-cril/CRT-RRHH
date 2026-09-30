@@ -74,7 +74,7 @@ class CertifiedMailController extends Controller
         if (! $r['ok']) {
             $mail->update(['estat_global' => 'error', 'error_txt' => mb_substr($r['error'], 0, 250)]);
 
-            return response()->json(['message' => $r['error']], 502);
+            return response()->json(['message' => $r['error']], 424);
         }
         $mail->update(['estat_global' => $mail->programat_at ? 'programat' : 'enviat']);
 

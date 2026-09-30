@@ -19,22 +19,18 @@ class ConciliacioController extends Controller
     /** Parelles candidates: comptes domi sense vincle × treballadors RRHH sense domi_username. */
     public function index()
     {
-        \Log::info('[conciliacio] index() inici', [
-            'domi_token_len' => strlen((string) env('DOMI_EXPEDIENT_TOKEN')),
-            'domi_url' => (string) env('DOMI_EXPEDIENT_URL'),
-        ]);
-
         $comptes = $this->comptesDomi();
-        \Log::info('[conciliacio] comptesDomi() acabat', ['is_array' => is_array($comptes)]);
         if (! is_array($comptes)) {
-            return response()->json(['ok' => false, 'error' => $comptes ?: 'domi no accessible'], 502);
+            // 424 (Failed Dependency), no 502: Nginx intercepta i substitueix
+            // qualsevol resposta 502 -encara que la generi la propia app- per
+            // la seva pagina d'error generica, ocultant el JSON real.
+            return response()->json(['ok' => false, 'error' => $comptes ?: 'domi no accessible'], 424);
         }
 
         $workers = User::whereNull('domi_username')
             ->whereIn('role', ['worker'])
             ->where('active', true)
             ->orderBy('name')->get(['id', 'name', 'email', 'dni', 'work_type']);
-        \Log::info('[conciliacio] workers carregats', ['count' => $workers->count()]);
 
         $out = [];
         foreach ($comptes as $c) {
@@ -79,7 +75,7 @@ class ConciliacioController extends Controller
             $resp = Http::withToken($token)->timeout(8)
                 ->post($url, ['username' => $data['username'], 'rrhh_user_id' => $user->id]);
         } catch (\Throwable $e) {
-            return response()->json(['ok' => false, 'error' => 'domi no accessible'], 502);
+            return response()->json(['ok' => false, 'error' => 'domi no accessible'], 424);
         }
         $body = $resp->json() ?: [];
         if (! $resp->successful() || empty($body['ok'])) {

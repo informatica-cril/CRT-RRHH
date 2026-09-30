@@ -106,7 +106,7 @@ class RltReportController extends Controller
         $fets = RltFets::per($data['tipus'], $data['desde'], $data['fins']);
         $r = $ia->xat(self::sistema($data['tipus']), self::usuari($fets));
         if (! $r['ok']) {
-            return response()->json(['message' => 'La IA no ha tornat text: ' . ($r['error'] ?? 'resposta buida')], 502);
+            return response()->json(['message' => 'La IA no ha tornat text: ' . ($r['error'] ?? 'resposta buida')], 424);
         }
 
         $id = DB::table('rlt_reports')->insertGetId([
