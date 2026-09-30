@@ -19,7 +19,13 @@ class ConciliacioController extends Controller
     /** Parelles candidates: comptes domi sense vincle × treballadors RRHH sense domi_username. */
     public function index()
     {
+        \Log::info('[conciliacio] index() inici', [
+            'domi_token_len' => strlen((string) env('DOMI_EXPEDIENT_TOKEN')),
+            'domi_url' => (string) env('DOMI_EXPEDIENT_URL'),
+        ]);
+
         $comptes = $this->comptesDomi();
+        \Log::info('[conciliacio] comptesDomi() acabat', ['is_array' => is_array($comptes)]);
         if (! is_array($comptes)) {
             return response()->json(['ok' => false, 'error' => $comptes ?: 'domi no accessible'], 502);
         }
@@ -28,6 +34,7 @@ class ConciliacioController extends Controller
             ->whereIn('role', ['worker'])
             ->where('active', true)
             ->orderBy('name')->get(['id', 'name', 'email', 'dni', 'work_type']);
+        \Log::info('[conciliacio] workers carregats', ['count' => $workers->count()]);
 
         $out = [];
         foreach ($comptes as $c) {
