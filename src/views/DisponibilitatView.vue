@@ -123,15 +123,15 @@
                   <span v-else class="alerta">sense horari assignat</span>
                 </div>
                 <div v-if="f.compl_pacte" class="horari-compl" :title="'Complementàries pactades (art. 12.5 ET), sostre limitat pel màxim anual de 1726 h'">
-                  + complementàries: fins a {{ f.compl_hores_setmana }} h/set · {{ f.compl_ratio_pct }}%
+                  + complementàries: fins a {{ formatHM(f.compl_hores_setmana) }}/set · {{ f.compl_ratio_pct }}%
                 </div>
                 <div v-else-if="f.nomes_extraordinaries" class="horari-compl extra" title="Jornada completa: no fa complementàries, només extraordinàries">
                   + extraordinàries: 80 h/any · 1,25×
                 </div>
               </td>
               <td class="dret nums">
-                <div class="hores-base">{{ f.hores_setmana }}</div>
-                <div v-if="f.compl_hores_setmana > 0" class="hores-compl">+{{ f.compl_hores_setmana }}</div>
+                <div class="hores-base">{{ formatHM(f.hores_setmana) }}</div>
+                <div v-if="f.compl_hores_setmana > 0" class="hores-compl">+{{ formatHM(f.compl_hores_setmana) }}</div>
               </td>
               <td v-for="c in f.dies" :key="c.data" class="cel">
                 <div class="casella" :class="c.estat" :title="c.detall || etiquetes[c.estat]">
@@ -177,6 +177,7 @@
  */
 import { ref, computed, onMounted, watch } from 'vue'
 import api from '../services/apiClient'
+import { formatHM } from '../utils/formatHours'
 
 const carregant = ref(true)
 const error = ref('')
