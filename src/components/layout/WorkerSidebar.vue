@@ -30,6 +30,13 @@
         </router-link>
       </li>
       <li>
+        <router-link to="/worker/safata" :class="{ active: $route.name === 'worker-safata' }">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+          <span>📥 Safata</span>
+          <span v-if="safataPendingCount > 0" class="nav-badge">{{ safataPendingCount }}</span>
+        </router-link>
+      </li>
+      <li>
         <router-link to="/worker/calendar" :class="{ active: $route.name === 'worker-calendar' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           <span>{{ t('calendar') }}</span>
@@ -131,19 +138,23 @@ const initials = computed(() => authStore.userName.split(' ').map(w => w[0]).joi
 const pendingDocsCount = ref(0)
 const newPayrollsCount = ref(0)
 const unreadChatCount = ref(0)
+const safataPendingCount = ref(0)
 
 async function fetchCounts() {
   if (!authStore.userId) return
   try {
-    const [docs, sigs, payrolls, unreadCount] = await Promise.all([
+    const [docs, sigs, payrolls, unreadCount, alerts] = await Promise.all([
       db.getDocumentsForUser(authStore.userId),
       db.getDocSignaturesByUser(authStore.userId),
       db.getWorkerPayrolls(authStore.userId),
-      db.getTotalUnreadCount(authStore.userId)
+      db.getTotalUnreadCount(authStore.userId),
+      db.getPendingAlerts(authStore.userId).catch(() => [])
     ])
     pendingDocsCount.value = docs.filter(d => d.requires_signature && !sigs.find(s => s.document_id === d.id && s.signed_at)).length
     newPayrollsCount.value = payrolls.filter(p => !p.viewed_at).length
     unreadChatCount.value = unreadCount
+    // Coincide con lo que agrupa La meva safata: audiencia previa + rebuig de tram.
+    safataPendingCount.value = (alerts || []).filter(a => ['audiencia', 'segment_rejected'].includes(a.type)).length
   } catch (e) {
     console.error('[WorkerSidebar] Error fetching counts:', e)
   }
