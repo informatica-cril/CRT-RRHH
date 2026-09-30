@@ -108,7 +108,9 @@
                     <option v-for="ft in g.items" :key="ft.clau" :value="ft.clau">{{ ft.base_conveni }} · {{ ft.descripcio }}</option>
                   </optgroup>
                 </select>
-                <textarea v-model="rejectReason[seg.id]" rows="2" class="form-input" placeholder="Motiu del rebuig"></textarea>
+                <textarea v-model="rejectReason[seg.id]" rows="2" class="form-input" placeholder="Motiu del rebuig (mínim 5 caràcters)"></textarea>
+                <div v-if="(rejectReason[seg.id] || '').trim().length > 0 && (rejectReason[seg.id] || '').trim().length < 5"
+                  class="reject-hint">Falten {{ 5 - (rejectReason[seg.id] || '').trim().length }} caràcters més al motiu.</div>
                 <button @click="rejectSegment(seg)" class="btn-reject"
                   :disabled="!rejectFault[seg.id] || (rejectReason[seg.id] || '').trim().length < 5">Rebutjar i qualificar</button>
               </div>
@@ -284,6 +286,7 @@ async function sendAllegation(seg) {
 .segment-actions { display: flex; gap: 8px; margin-top: 8px; }
 .btn-approve { background: #4caf50; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
 .btn-reject { background: #f44336; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+.reject-hint { color: #ff9800; font-size: 0.82em; margin-top: -4px; }
 .modification-item { display: flex; gap: 12px; padding: 6px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.9em; }
 .empty { color: #999; padding: 12px; }
 .loading, .error { text-align: center; padding: 40px; color: #999; }
