@@ -853,11 +853,15 @@ async function startBreakCheckTimer() {
 
     // ── Determinar hora d'activació ──
     // Prioritat: 1) break_override_time del treballador, 2) config global
-    const effectiveMode = userOverrideTime ? 'fixed' : settings.break_start_mode
+    // "00:00:00" és el valor per defecte de la columna quan NO s'ha fixat cap
+    // hora (no mitjanit real): tractar-lo com "sense override" per no descartar
+    // la pausa creient que la mitjanit ja ha passat.
+    const hasOverrideTime = !!userOverrideTime && userOverrideTime !== '00:00:00'
+    const effectiveMode = hasOverrideTime ? 'fixed' : settings.break_start_mode
 
     if (effectiveMode === 'fixed') {
       // Mode fixed: hora concreta del dia
-      const fixedStr = userOverrideTime || settings.break_start_fixed_time || '12:00'
+      const fixedStr = (hasOverrideTime ? userOverrideTime : null) || settings.break_start_fixed_time || '12:00'
       const [fh, fm] = String(fixedStr).substring(0, 5).split(':').map(Number)
       triggerTime = new Date(clockInTime)
       triggerTime.setHours(fh, fm, 0, 0)
