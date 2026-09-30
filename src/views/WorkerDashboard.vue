@@ -932,6 +932,21 @@ async function triggerBreak(settings) {
     console.log('[Break] Pausa activada')
   } catch (e) {
     console.error('[Break] Error activant pausa:', e)
+    // 409 = el backend ja té una pausa oberta (p.ex. la pestanya es va tancar a mig
+    // pausa). Sense això, el treballador es queda encallat: mai li surt el modal i
+    // mai pot "acabar" una pausa que, pel servidor, ja està en marxa.
+    if (e?.status === 409) {
+      try {
+        const detail = await db.getWorkLogDetail(workLogStore.currentLog.id)
+        if (detail?.break_start_time && !detail?.break_end_time) {
+          breakStartTime.value = detail.break_start_time
+          breakModalVisible.value = true
+          console.log('[Break] Pausa ja oberta al servidor: recuperant el modal')
+        }
+      } catch (e2) {
+        console.error('[Break] Error recuperant la pausa oberta:', e2)
+      }
+    }
   }
 }
 
