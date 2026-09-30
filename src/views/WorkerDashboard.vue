@@ -119,18 +119,14 @@
             Cap zona assignada
           </div>
           <div v-else id="worker-zone-map" style="height:320px;width:100%;min-width:0;border-radius:12px;overflow:hidden;margin-top:12px;border:1px solid var(--color-border-light);"></div>
-        </div>
 
-        <!-- Horari d'avui: perquè aquest bloc no es quedi buit sota el mapa -->
-        <div class="card mt-lg">
-          <h3 class="card-title mb-md">📅 Horari d'avui</h3>
-          <div v-if="todayScheduleLabel" style="display:flex;align-items:center;gap:10px;">
-            <span style="font-size:1.4rem;font-weight:700;color:var(--color-primary);">{{ todayScheduleLabel }}</span>
-          </div>
-          <div v-else class="text-small text-muted">Avui no tens jornada prevista.</div>
-          <div v-if="activeCpAssignment" style="margin-top:12px;">
-            <div class="text-small text-muted mb-sm">Zones assignades</div>
-            <span v-for="cp in activeCpAssignment.postal_codes" :key="cp" class="badge badge-info" style="margin-right:4px;margin-bottom:4px;">{{ cp }}</span>
+          <!-- Horari d'avui: dins la mateixa targeta, just sota el mapa -->
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--color-border-light);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <div>
+              <div class="text-small text-muted">📅 Horari d'avui</div>
+              <span v-if="todayScheduleLabel" style="font-size:1.15rem;font-weight:700;color:var(--color-primary);">{{ todayScheduleLabel }}</span>
+              <span v-else class="text-small text-muted">Avui no tens jornada prevista.</span>
+            </div>
           </div>
         </div>
 
