@@ -1079,6 +1079,9 @@ async function fetchData() {
       if (activeLog && !workLogStore.isWorking) {
         workLogStore.currentLog = activeLog
         workLogStore.isWorking = true
+        // En restaurar (recàrrega a mig torn) també cal l'offset: aquí no és "ara
+        // mateix" com a l'inici de jornada, però server_time del mateix fetch val igual.
+        workLogStore.clockOffsetMs = data.server_time ? (new Date(data.server_time).getTime() - Date.now()) : 0
         workLogStore.startTimer()
       }
     }

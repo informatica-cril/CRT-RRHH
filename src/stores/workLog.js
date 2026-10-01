@@ -11,7 +11,11 @@ export const useWorkLogStore = defineStore('workLog', {
     logs: [],
     elapsed: 0,
     timerInterval: null,
-    isWorking: false
+    isWorking: false,
+    // Diferencia (ms) entre el rellotge del servidor i el del dispositiu. Si el
+    // rellotge del treballador va desquadrat (passa sovint i no sempre es pot
+    // arreglar), el comptador seguiria sent correcte igualment.
+    clockOffsetMs: 0
   }),
 
   getters: {
@@ -86,6 +90,9 @@ export const useWorkLogStore = defineStore('workLog', {
         const log = await db.addWorkLog(logData)
         this.currentLog = log
         this.isWorking = true
+        // log.start_time l'ha posat el servidor just ara: la diferència amb
+        // Date.now() és (aprox.) el desquadre del rellotge del dispositiu.
+        this.clockOffsetMs = log.start_time ? (new Date(log.start_time).getTime() - Date.now()) : 0
         this.startTimer()
         auditLog(authStore.userId, 'START_WORKDAY', 'work_log', log.id,
           `Inici jornada: ${now.toLocaleTimeString('ca-ES')} · ` + (hasCoords ? `match: ${geoResult.valid}` : 'registre manual sense GPS'))
@@ -242,15 +249,17 @@ export const useWorkLogStore = defineStore('workLog', {
       if (this.currentLog && this.currentLog.start_time) {
         // start_time arriba en hora de Madrid directa (sense Z): el navegador ja
         // l'interpreta com a hora local seva correctament, sense forçar res.
+        // Date.now() + clockOffsetMs corregeix si el rellotge del dispositiu va
+        // desquadrat (veure clockOffsetMs).
         const start = new Date(this.currentLog.start_time)
-        const diff = Math.floor((Date.now() - start.getTime()) / 1000)
+        const diff = Math.floor(((Date.now() + this.clockOffsetMs) - start.getTime()) / 1000)
         // Prevent negative elapsed times due to clock skew
         this.elapsed = Math.max(0, diff)
       }
       this.timerInterval = setInterval(() => {
         if (this.currentLog && this.currentLog.start_time) {
           const start = new Date(this.currentLog.start_time).getTime()
-          this.elapsed = Math.max(0, Math.floor((Date.now() - start) / 1000))
+          this.elapsed = Math.max(0, Math.floor(((Date.now() + this.clockOffsetMs) - start) / 1000))
         }
       }, 1000)
     },

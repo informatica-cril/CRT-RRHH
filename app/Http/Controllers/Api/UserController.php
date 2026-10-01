@@ -422,6 +422,9 @@ class UserController extends Controller
                 ->orderBy('date', 'desc')
                 ->limit(50)
                 ->get(),
+            // Perque el frontend pugui corregir comptadors en viu (jornada, pausa) si
+            // el rellotge del dispositiu va desquadrat, calculant un offset relatiu.
+            'server_time' => now()->toDateTimeString(),
         ]);
     }
 }
