@@ -22,7 +22,9 @@ use Illuminate\Support\Facades\DB;
  */
 class MigrarHoresFichatgeAMadrid extends Command
 {
-    protected $signature = 'worklogs:migrar-hores-a-madrid {--apply : Aplica els canvis de debò (sense això, només simula)}';
+    protected $signature = 'worklogs:migrar-hores-a-madrid
+        {--apply : Aplica els canvis de debò (sense això, només simula)}
+        {--before= : Data/hora límit (Y-m-d H:i:s, hora de Madrid). Només es toquen files amb updated_at ANTERIOR a aquest moment — imprescindible per no re-desplaçar fitxatges ja fets amb el codi nou}';
     protected $description = 'Converteix start_time/end_time/break_* de work_logs i work_log_segments de UTC a hora de Madrid directa';
 
     private const CAMPS_WORKLOG = ['start_time', 'end_time', 'break_start_time', 'break_end_time'];
@@ -31,6 +33,20 @@ class MigrarHoresFichatgeAMadrid extends Command
     public function handle(): int
     {
         $apply = (bool) $this->option('apply');
+        $beforeOpt = $this->option('before');
+
+        if (! $beforeOpt) {
+            $this->error('Falta --before="Y-m-d H:i:s" (hora de Madrid del moment exacte en que es va desplegar el codi nou).');
+            $this->error('Sense això es re-desplaçarien per error els fitxatges fets ja amb el codi corregit.');
+            return self::FAILURE;
+        }
+        try {
+            $before = Carbon::parse($beforeOpt, 'Europe/Madrid');
+        } catch (\Throwable $e) {
+            $this->error("Data no vàlida: {$beforeOpt}");
+            return self::FAILURE;
+        }
+        $this->info("Nomes es tocaran files amb updated_at anterior a {$before->toDateTimeString()} (Madrid).");
 
         if (! $apply) {
             $this->warn('MODE SIMULACIÓ (dry-run). No s\'escriurà res a la BD.');
@@ -43,17 +59,19 @@ class MigrarHoresFichatgeAMadrid extends Command
             }
         }
 
-        $this->migrarTaula('work_logs', self::CAMPS_WORKLOG, $apply);
-        $this->migrarTaula('work_log_segments', self::CAMPS_SEGMENT, $apply);
+        $this->migrarTaula('work_logs', self::CAMPS_WORKLOG, $apply, $before);
+        $this->migrarTaula('work_log_segments', self::CAMPS_SEGMENT, $apply, $before);
 
         $this->info($apply ? 'Fet.' : 'Simulació acabada. Executa amb --apply per aplicar-ho de debò.');
         return self::SUCCESS;
     }
 
-    private function migrarTaula(string $taula, array $camps, bool $apply): void
+    private function migrarTaula(string $taula, array $camps, bool $apply, Carbon $before): void
     {
         $this->info("--- {$taula} ---");
-        $files = DB::table($taula)->get();
+        // updated_at es guarda en hora de Madrid directa (mai s'ha tocat): es pot
+        // comparar tal qual contra el límit sense conversions.
+        $files = DB::table($taula)->where('updated_at', '<', $before->toDateTimeString())->get();
         $actualitzades = 0;
         $exemplesMostrats = 0;
 
