@@ -261,7 +261,14 @@ class WorkLogController extends Controller
             $workLog->setAttribute('coords_restringides', true);
         }
 
-        return response()->json($workLog);
+        // server_time: perque el frontend pugui corregir comptadors (p.ex. la pausa
+        // obligatoria) si el rellotge del dispositiu del treballador va desquadrat,
+        // sense dependre que el seu rellotge local sigui fiable. now() n'hi ha prou
+        // aqui (no cal el servei extern d'hora exacta): nomes serveix per calcular
+        // un offset relatiu, no per validar res.
+        return response()->json(array_merge($workLog->toArray(), [
+            'server_time' => now(),
+        ]));
     }
 
     /**
@@ -298,6 +305,7 @@ class WorkLogController extends Controller
             'work_log' => $workLog->fresh(),
             'break_duration_minutes' => $settings->break_duration_minutes,
             'break_start_time' => $now,
+            'server_time' => $now,
         ]);
     }
 

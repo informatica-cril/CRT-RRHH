@@ -8,6 +8,7 @@
       :visible="breakModalVisible"
       :duration-minutes="breakDuration"
       :start-time="breakStartTime"
+      :clock-offset-ms="breakClockOffsetMs"
       @complete="onBreakComplete"
     />
 
@@ -776,6 +777,7 @@ import CalendarPdfViewer from '../components/CalendarPdfViewer.vue'
 const breakModalVisible = ref(false)
 const breakDuration = ref(20)
 const breakStartTime = ref(null)
+const breakClockOffsetMs = ref(0)
 const currentWorkLogId = ref(null)
 const breakScheduledTime = ref(null) // Hora prevista de la pausa (per mostrar al dashboard)
 let breakTriggerTimeout = null
@@ -928,6 +930,7 @@ async function triggerBreak(settings) {
     breakDuration.value = settings.break_duration_minutes
     const res = await db.startBreak(workLogStore.currentLog.id, await verdicteZona())
     breakStartTime.value = res.break_start_time
+    breakClockOffsetMs.value = res.server_time ? (new Date(res.server_time).getTime() - Date.now()) : 0
     breakModalVisible.value = true
     console.log('[Break] Pausa activada')
   } catch (e) {
@@ -940,6 +943,7 @@ async function triggerBreak(settings) {
         const detail = await db.getWorkLogDetail(workLogStore.currentLog.id)
         if (detail?.break_start_time && !detail?.break_end_time) {
           breakStartTime.value = detail.break_start_time
+          breakClockOffsetMs.value = detail.server_time ? (new Date(detail.server_time).getTime() - Date.now()) : 0
           breakModalVisible.value = true
           console.log('[Break] Pausa ja oberta al servidor: recuperant el modal')
         }
