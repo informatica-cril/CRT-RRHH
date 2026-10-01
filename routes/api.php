@@ -398,6 +398,27 @@ Route::prefix('v1')->group(function () {
             });
         });
 
+        // ── Representació legal: crèdit horari (art. 68.e ET) ──
+        // Les hores les registra la persona representant (el controlador comprova el mandat);
+        // validar-les i gestionar els mandats és d'admin/hr.
+        Route::prefix('comite')->group(function () {
+            Route::get('me', [\App\Http\Controllers\Api\ComiteController::class, 'me']);
+            Route::get('me/hores', [\App\Http\Controllers\Api\ComiteController::class, 'mevesHores']);
+            Route::post('hores', [\App\Http\Controllers\Api\ComiteController::class, 'store']);
+            Route::delete('hores/{hora}', [\App\Http\Controllers\Api\ComiteController::class, 'destroy']);
+            Route::post('hores/{hora}/justificant', [\App\Http\Controllers\Api\ComiteController::class, 'pujaJustificant']);
+            Route::get('hores/{hora}/justificant', [\App\Http\Controllers\Api\ComiteController::class, 'baixaJustificant']);
+            Route::middleware('role:admin,hr')->group(function () {
+                Route::get('membres', [\App\Http\Controllers\Api\ComiteController::class, 'membres']);
+                Route::post('membres', [\App\Http\Controllers\Api\ComiteController::class, 'storeMembre']);
+                Route::put('membres/{membre}', [\App\Http\Controllers\Api\ComiteController::class, 'updateMembre']);
+                Route::get('hores', [\App\Http\Controllers\Api\ComiteController::class, 'hores']);
+                Route::post('hores/{hora}/valida', [\App\Http\Controllers\Api\ComiteController::class, 'valida']);
+                Route::post('hores/{hora}/rebutja', [\App\Http\Controllers\Api\ComiteController::class, 'rebutja']);
+                Route::get('resum', [\App\Http\Controllers\Api\ComiteController::class, 'resumMensual']);
+            });
+        });
+
         // ── Compliment / Governança (constància interna: publicació + acusament) ──
         Route::prefix('compliance')->group(function () {
             // Treballador: documents pendents d'acusar + acusar-ne recepció (constància art. 90).

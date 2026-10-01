@@ -109,6 +109,18 @@
         </router-link>
       </li>
       <li v-if="authStore.canManageStaff">
+        <router-link to="/comite" :class="{ active: $route.name === 'comite' }">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><path d="M16 3.5l2 2"/></svg>
+          <span>Comitè d'empresa</span>
+        </router-link>
+      </li>
+      <li v-if="esRepresentant">
+        <router-link to="/worker/comite" :class="{ active: $route.name === 'worker-comite' }">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><path d="M16 3.5l2 2"/></svg>
+          <span>Les meves hores de comitè</span>
+        </router-link>
+      </li>
+      <li v-if="authStore.canManageStaff">
         <router-link to="/comunicacio-certificada" :class="{ active: $route.name === 'certified-mail' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 6L2 7"/><path d="M16 15l2 2 4-4"/></svg>
           <span>Comunicació certificada</span>
@@ -222,6 +234,7 @@ import { useAuthStore } from '../../stores/auth'
 import { useRouter } from 'vue-router'
 import { useWorkLogStore } from '../../stores/workLog'
 import { db } from '../../services/db'
+import api from '../../services/apiClient'
 import { i18n } from '../../i18n'
 
 const authStore = useAuthStore()
@@ -235,6 +248,7 @@ async function handleLogout() {
 }
 
 const pendingCount = ref(0)
+const esRepresentant = ref(false)
 const unreadCount = ref(0)
 const expedientObert = ref(['expedient', 'disciplinary'].includes(router.currentRoute.value.name))
 
@@ -249,6 +263,8 @@ async function fetchCounts() {
 
 onMounted(() => {
   fetchCounts()
+  // Personal de gestió que també és representant: enllaç a les seves pròpies hores.
+  api.get('/v1/comite/me').then(r => { esRepresentant.value = !!r?.membre }).catch(() => {})
   const interval = setInterval(fetchCounts, 60000)
   onUnmounted(() => clearInterval(interval))
 })

@@ -416,6 +416,14 @@
             <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text);">Informació i polítiques</div>
           </router-link>
 
+          <!-- Hores de comitè (només representants) -->
+          <router-link v-if="esRepresentant" to="/worker/comite" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
+            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(9, 78, 140, 0.10); color: #094E8C; display: flex; align-items: center; justify-content: center;">
+              <svg style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><path d="M16 3.5l2 2"/></svg>
+            </div>
+            <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text);">Hores de comitè</div>
+          </router-link>
+
           <!-- Absences -->
           <router-link to="/worker/absences" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
             <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(59, 130, 246, 0.1); color: var(--color-primary); display: flex; align-items: center; justify-content: center;">
@@ -1009,6 +1017,7 @@ const activeAmbulatoryCenter = ref(null)
 const ambulatoryCenterHistory = ref([])
 const holidays = ref([])
 const bossa = ref(null)
+const esRepresentant = ref(false)
 const jornadaPla = ref([])
 function plaDelDia(day) {
   if (!day || !day.currentMonth) return null
@@ -1482,6 +1491,8 @@ onMounted(async () => {
   loadMyAuthCodes()
   import('../services/apiClient').then(({ api }) =>
     api.get('/v1/bossa-anual').then(b => { bossa.value = b }).catch(() => {}))
+  import('../services/apiClient').then(({ api }) =>
+    api.get('/v1/comite/me').then(r => { esRepresentant.value = !!r?.membre }).catch(() => {}))
   await checkLocation()
   // Init worker map if already on clock tab
   if (activeTab.value === 'clock') {

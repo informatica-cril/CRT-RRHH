@@ -66,6 +66,9 @@ onMounted(async () => {
   const drets = (esAdmin || authStore.user?.role === 'hr')
     ? await n(api.get('/v1/privacy/requests?pendents=1'))
     : 0
+  const comite = (esAdmin || authStore.user?.role === 'hr')
+    ? await n(api.get('/v1/comite/hores?estat=pendent'))
+    : 0
   cues.value = [
     { clau: 'fitxatges', titol: 'Fitxatges pendents d\'aprovar', sub: 'registres de jornada a validar', icona: '⏱', n: fitxatges, urgencia: 'mitjana', enllac: '/work-logs' },
     { clau: 'forazona', titol: 'Fitxatges fora de zona', sub: 'marca feta fora del domicili', icona: '📍', n: foraZona, urgencia: 'alta', enllac: '/work-logs' },
@@ -74,6 +77,7 @@ onMounted(async () => {
     { clau: 'disciplinari', titol: 'Suggeriments disciplinaris', sub: 'el motor proposa; decideix una persona', icona: '⚖️', n: suggeriments, urgencia: 'alta', enllac: '/disciplinary' },
     { clau: 'conciliacio', titol: 'Comptes domi per conciliar', sub: 'identitats domi ↔ RRHH sense vincular', icona: '🔗', n: conciliacio, urgencia: 'baixa', enllac: '/conciliacio' },
     { clau: 'drets', titol: 'Drets RGPD per respondre', sub: 'sol·licituds amb termini d\'un mes (art. 12.3)', icona: '🔐', n: drets, urgencia: 'alta', enllac: '/privacy' },
+    { clau: 'comite', titol: 'Hores de comitè per validar', sub: 'crèdit horari de la representació (art. 68 ET)', icona: '🤝', n: comite, urgencia: 'mitjana', enllac: '/comite' },
   ]
   carregant.value = false
 })

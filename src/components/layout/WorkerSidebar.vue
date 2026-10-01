@@ -87,6 +87,12 @@
           <span>El meu rendiment</span>
         </router-link>
       </li>
+      <li v-if="esRepresentant">
+        <router-link to="/worker/comite" :class="{ active: $route.name === 'worker-comite' }">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><path d="M16 3.5l2 2"/></svg>
+          <span>Hores de comitè</span>
+        </router-link>
+      </li>
       <li>
         <router-link to="/worker/compliance" :class="{ active: $route.name === 'worker-compliance' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15l2 2 4-4"/></svg>
@@ -122,6 +128,7 @@ import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '../../stores/auth'
 import { useRouter } from 'vue-router'
 import { db } from '../../services/db'
+import api from '../../services/apiClient'
 import { i18n } from '../../i18n'
 
 const authStore = useAuthStore()
@@ -139,6 +146,7 @@ const pendingDocsCount = ref(0)
 const newPayrollsCount = ref(0)
 const unreadChatCount = ref(0)
 const safataPendingCount = ref(0)
+const esRepresentant = ref(false)
 
 async function fetchCounts() {
   if (!authStore.userId) return
@@ -162,6 +170,8 @@ async function fetchCounts() {
 
 onMounted(() => {
   fetchCounts()
+  // Una sola consulta: el mandat no canvia d'un minut a l'altre.
+  api.get('/v1/comite/me').then(r => { esRepresentant.value = !!r?.membre }).catch(() => {})
   // Refresh counts every 30 seconds
   const interval = setInterval(fetchCounts, 30000)
   onUnmounted(() => clearInterval(interval))
