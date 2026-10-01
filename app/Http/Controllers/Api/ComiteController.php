@@ -194,6 +194,24 @@ class ComiteController extends Controller
         return response()->json($membre->load('user:id,name,dni,email,active'));
     }
 
+    /**
+     * Esborrar un mandat només si no té cap hora: la FK esborraria en cascada les hores i, amb
+     * elles, la justificació del crèdit. Amb hores, el camí és la data de baixa.
+     */
+    public function destroyMembre(Request $request, ComiteMembre $membre)
+    {
+        $n = $membre->hores()->count();
+        if ($n > 0) {
+            return response()->json(['message' => "Aquest mandat té {$n} registre(s) d'hores i esborrar-lo els faria desaparèixer. "
+                . "Poseu-li una data de baixa: deixarà de ser representant i les hores quedaran justificades."], 422);
+        }
+
+        $membre->delete();
+        $this->audita($request, 'COMITE_MEMBRE_ESBORRAT', $membre->id, "Mandat esborrat de l'usuari {$membre->user_id}");
+
+        return response()->json(['ok' => true]);
+    }
+
     public function hores(Request $request)
     {
         $q = ComiteHora::with('user:id,name,dni', 'validador:id,name')

@@ -412,6 +412,7 @@ Route::prefix('v1')->group(function () {
                 Route::get('membres', [\App\Http\Controllers\Api\ComiteController::class, 'membres']);
                 Route::post('membres', [\App\Http\Controllers\Api\ComiteController::class, 'storeMembre']);
                 Route::put('membres/{membre}', [\App\Http\Controllers\Api\ComiteController::class, 'updateMembre']);
+                Route::delete('membres/{membre}', [\App\Http\Controllers\Api\ComiteController::class, 'destroyMembre']);
                 Route::get('hores', [\App\Http\Controllers\Api\ComiteController::class, 'hores']);
                 Route::post('hores/{hora}/valida', [\App\Http\Controllers\Api\ComiteController::class, 'valida']);
                 Route::post('hores/{hora}/rebutja', [\App\Http\Controllers\Api\ComiteController::class, 'rebutja']);

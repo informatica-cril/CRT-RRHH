@@ -155,7 +155,10 @@
                 <td class="text-small">{{ m.sindicat || '—' }}</td>
                 <td class="text-small">{{ dmy(m.data_alta) }} → {{ m.data_baixa ? dmy(m.data_baixa) : 'vigent' }}</td>
                 <td>{{ hm(m.credit_hores_mensual) }}</td>
-                <td><button class="btn btn-sm btn-outline" @click="edita(m)">Editar</button></td>
+                <td style="white-space:nowrap;">
+                  <button class="btn btn-sm btn-outline" @click="edita(m)">Editar</button>
+                  <button class="btn btn-sm btn-danger" style="margin-left:6px;" @click="esborra(m)">Eliminar</button>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -285,6 +288,19 @@ function edita (m) {
 }
 
 function nouMembre () { editant.value = null; form.value = buit() }
+
+async function esborra (m) {
+  if (!confirm(`Eliminar ${m.user?.name} dels representants?`)) return
+  error.value = ''
+  try {
+    await api.delete(`/v1/comite/membres/${m.id}`)
+    if (editant.value?.id === m.id) nouMembre()
+    await carrega()
+  } catch (e) {
+    error.value = e?.message || "No s'ha pogut eliminar."
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+}
 
 async function desaMembre () {
   desant.value = true
