@@ -240,14 +240,9 @@ export const useWorkLogStore = defineStore('workLog', {
     startTimer() {
       this.stopTimer()
       if (this.currentLog && this.currentLog.start_time) {
-        let startTimeStr = this.currentLog.start_time
-        // start_time es guarda en UTC real a BD (veure WorkLogController::store).
-        // Si arriba com a string "naive" sense Z/offset, cal marcar-la com UTC
-        // explícitament perquè el navegador no l'interpreti com a hora local seva.
-        if (typeof startTimeStr === 'string' && !startTimeStr.includes('Z') && !startTimeStr.includes('+')) {
-          startTimeStr = startTimeStr.replace(' ', 'T') + 'Z'
-        }
-        const start = new Date(startTimeStr)
+        // start_time arriba en hora de Madrid directa (sense Z): el navegador ja
+        // l'interpreta com a hora local seva correctament, sense forçar res.
+        const start = new Date(this.currentLog.start_time)
         const diff = Math.floor((Date.now() - start.getTime()) / 1000)
         // Prevent negative elapsed times due to clock skew
         this.elapsed = Math.max(0, diff)

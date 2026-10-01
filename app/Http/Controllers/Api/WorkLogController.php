@@ -93,7 +93,10 @@ class WorkLogController extends Controller
         unset($data['justificacio']);
 
         $now = $this->workLogs->getAccurateTime();
-        $data['start_time'] = $now->copy()->utc()->toDateTimeString();
+        // Hora de Madrid directa (sense convertir a UTC): perque qualsevol consulta
+        // directa a BD (auditoria, inspeccio de treball) sigui llegible tal qual,
+        // conveni consistent amb created_at/updated_at.
+        $data['start_time'] = $now->toDateTimeString();
         $data['date'] = $now->toDateString();
 
         // Prevent duplicate open sessions for the same user on the same date
@@ -150,12 +153,13 @@ class WorkLogController extends Controller
         // (client clock may lag behind NTP, causing totalHours to be 0 or negative)
         if (array_key_exists('end_time', $data) && $data['end_time'] !== null) {
             $endNow = $this->workLogs->getAccurateTime();
-            $data['end_time'] = $endNow->copy()->utc()->toDateTimeString();
+            // Hora de Madrid directa (mateix conveni que start_time, veure store()).
+            $data['end_time'] = $endNow->toDateTimeString();
 
             $startRaw = $workLog->getRawOriginal('start_time');
             if ($startRaw) {
-                $startUtc = Carbon::parse($startRaw, 'UTC');
-                $serverHours = round($startUtc->diffInSeconds($endNow) / 3600, 4);
+                $startLocal = Carbon::parse($startRaw, 'Europe/Madrid');
+                $serverHours = round($startLocal->diffInSeconds($endNow) / 3600, 4);
                 $hoursOutOfArea = round(floatval($data['hours_out_of_area'] ?? $workLog->hours_out_of_area ?? 0), 4);
                 $data['total_hours_worked'] = $serverHours;
                 $data['hours_worked']       = round(max(0, $serverHours - $hoursOutOfArea), 4);
@@ -286,10 +290,10 @@ class WorkLogController extends Controller
         $settings = \App\Models\BreakSetting::getSettings();
         $geo = $request->validate(['location_match' => 'nullable|boolean']);
 
-        // Mateix conveni que start_time: UTC real a BD, no hora de Madrid sense convertir.
-        $nowUtc = $now->copy()->utc()->toDateTimeString();
+        // Hora de Madrid directa (mateix conveni que start_time/end_time).
+        $nowLocal = $now->toDateTimeString();
         $workLog->update([
-            'break_start_time' => $nowUtc,
+            'break_start_time' => $nowLocal,
             'break_start_location_match' => $geo['location_match'] ?? null,
             'break_status' => 'active',
             'break_required' => true,
@@ -306,7 +310,9 @@ class WorkLogController extends Controller
         return response()->json([
             'work_log' => $workLog->fresh(),
             'break_duration_minutes' => $settings->break_duration_minutes,
-            'break_start_time' => $nowUtc . 'Z',
+            'break_start_time' => $nowLocal,
+            // server_time SÍ va en UTC real (amb 'Z' veritable): només serveix perquè el
+            // frontend calculi un offset relatiu contra Date.now(), no es guarda a BD.
             'server_time' => $now->copy()->utc()->toISOString(),
         ]);
     }
@@ -322,7 +328,7 @@ class WorkLogController extends Controller
 
         $geo = $request->validate(['location_match' => 'nullable|boolean']);
         $workLog->update([
-            'break_end_time' => $now->copy()->utc()->toDateTimeString(),
+            'break_end_time' => $now->toDateTimeString(),
             'break_end_location_match' => $geo['location_match'] ?? null,
             'break_status' => 'completed',
         ]);
