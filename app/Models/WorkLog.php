@@ -73,12 +73,18 @@ class WorkLog extends Model
     /**
      * Prepare a date for array / JSON serialization.
      *
+     * Totes les dates del fichatge (start_time, end_time, break_*, created_at...)
+     * es guarden en hora de Madrid directa, MAI UTC real (veure WorkLogController).
+     * Sense la 'Z' final: el navegador interpreta el valor tal qual, en hora local,
+     * que ja és el correcte. Afegir-hi una 'Z' (com feia abans aquest mètode) li fa
+     * creure que és UTC real i li suma 1-2h de més en mostrar-la.
+     *
      * @param  \DateTimeInterface  $date
      * @return string
      */
     protected function serializeDate(\DateTimeInterface $date)
     {
-        return $date->format('Y-m-d\TH:i:s.v\Z');
+        return $date->format('Y-m-d\TH:i:s.v');
     }
 
     public function user()
