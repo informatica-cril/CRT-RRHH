@@ -21,14 +21,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Les dates es guarden i es llegeixen en hora de Madrid (config('app.timezone')),
-        // però la serialització per defecte de Carbon hi afegeix una 'Z' com si fossin UTC
-        // real, SENSE convertir-les. El navegador es creu la 'Z' i suma 2h (horari d'estiu)
-        // en mostrar-les, desquadrant totes les hores de tota l'app. Traient la 'Z' (sense
-        // marca de zona), el navegador interpreta el valor tal qual, en hora local, que és
-        // exactament el que ja és.
-        \Illuminate\Support\Carbon::serializeUsing(fn ($date) => $date->format('Y-m-d\TH:i:s.u'));
-
         // Aplicar la configuració de correu desada a la BD (si existeix) sobre la config runtime,
         // de manera que tots els enviaments (notificacions, proves) la facin servir.
         try {

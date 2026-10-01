@@ -263,11 +263,11 @@ class WorkLogController extends Controller
 
         // server_time: perque el frontend pugui corregir comptadors (p.ex. la pausa
         // obligatoria) si el rellotge del dispositiu del treballador va desquadrat,
-        // sense dependre que el seu rellotge local sigui fiable. now() n'hi ha prou
-        // aqui (no cal el servei extern d'hora exacta): nomes serveix per calcular
-        // un offset relatiu, no per validar res.
+        // sense dependre que el seu rellotge local sigui fiable. Convertit a UTC real
+        // explicitament (mateix conveni que start_time): aixi Carbon el serialitza amb
+        // una 'Z' veritable i el frontend el pot comparar be amb el seu Date.now().
         return response()->json(array_merge($workLog->toArray(), [
-            'server_time' => now(),
+            'server_time' => now()->copy()->utc()->toISOString(),
         ]));
     }
 
@@ -286,8 +286,10 @@ class WorkLogController extends Controller
         $settings = \App\Models\BreakSetting::getSettings();
         $geo = $request->validate(['location_match' => 'nullable|boolean']);
 
+        // Mateix conveni que start_time: UTC real a BD, no hora de Madrid sense convertir.
+        $nowUtc = $now->copy()->utc()->toDateTimeString();
         $workLog->update([
-            'break_start_time' => $now,
+            'break_start_time' => $nowUtc,
             'break_start_location_match' => $geo['location_match'] ?? null,
             'break_status' => 'active',
             'break_required' => true,
@@ -304,8 +306,8 @@ class WorkLogController extends Controller
         return response()->json([
             'work_log' => $workLog->fresh(),
             'break_duration_minutes' => $settings->break_duration_minutes,
-            'break_start_time' => $now,
-            'server_time' => $now,
+            'break_start_time' => $nowUtc . 'Z',
+            'server_time' => $now->copy()->utc()->toISOString(),
         ]);
     }
 
@@ -320,7 +322,7 @@ class WorkLogController extends Controller
 
         $geo = $request->validate(['location_match' => 'nullable|boolean']);
         $workLog->update([
-            'break_end_time' => $now,
+            'break_end_time' => $now->copy()->utc()->toDateTimeString(),
             'break_end_location_match' => $geo['location_match'] ?? null,
             'break_status' => 'completed',
         ]);
