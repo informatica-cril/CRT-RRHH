@@ -822,6 +822,9 @@ function getScheduledHoursForToday(schedule) {
 async function startBreakCheckTimer() {
   stopBreakCheckTimer()
   if (!workLogStore.isWorking || !workLogStore.currentLog?.id) return
+  // Pausa ja feta (o omesa) en aquesta jornada: en recarregar la pantalla, el càlcul d'hora
+  // donava "ja és hora" i la tornava a demanar.
+  if (['completed', 'skipped'].includes(workLogStore.currentLog.break_status) || workLogStore.currentLog.break_end_time) return
 
   try {
     const settings = await db.getBreakSettings()
@@ -965,7 +968,13 @@ async function triggerBreak(settings) {
 async function onBreakComplete() {
   breakModalVisible.value = false
   try {
-    if (currentWorkLogId.value) await db.completeBreak(currentWorkLogId.value, await verdicteZona())
+    if (currentWorkLogId.value) {
+      const log = await db.completeBreak(currentWorkLogId.value, await verdicteZona())
+      // Sense això, en tornar a muntar la pantalla (canvi de pestanya) el store encara creu que no hi ha pausa.
+      if (log && workLogStore.currentLog?.id === log.id) {
+        Object.assign(workLogStore.currentLog, { break_status: log.break_status, break_start_time: log.break_start_time, break_end_time: log.break_end_time })
+      }
+    }
   } catch (e) { console.error(e) }
 }
 

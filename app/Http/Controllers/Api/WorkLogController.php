@@ -285,6 +285,11 @@ class WorkLogController extends Controller
         if ($workLog->break_status === 'active') {
             return response()->json(['message' => 'La pausa ja està en curs'], 409);
         }
+        // Una pausa ja feta no es torna a obrir: sobreescriuria break_start_time de la primera
+        // i el registre quedaria amb un inici nou i el final de l'antiga.
+        if (in_array($workLog->break_status, ['completed', 'skipped'], true) || $workLog->break_end_time) {
+            return response()->json(['message' => 'La pausa d\'aquesta jornada ja s\'ha fet', 'ja_feta' => true], 409);
+        }
 
         $now = $this->workLogs->getAccurateTime();
         $settings = \App\Models\BreakSetting::getSettings();
