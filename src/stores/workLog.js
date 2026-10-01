@@ -240,12 +240,9 @@ export const useWorkLogStore = defineStore('workLog', {
     startTimer() {
       this.stopTimer()
       if (this.currentLog && this.currentLog.start_time) {
-        let startTimeStr = this.currentLog.start_time
-        // If it's a naive string from PHP (e.g. "2026-03-31 09:21:21"), append Z to force UTC
-        if (typeof startTimeStr === 'string' && !startTimeStr.includes('Z') && !startTimeStr.includes('+')) {
-          startTimeStr = startTimeStr.replace(' ', 'T') + 'Z'
-        }
-        const start = new Date(startTimeStr)
+        // Les dates ja arriben en hora local (sense 'Z' falsa, veure
+        // AppServiceProvider::boot). Forçar-hi una 'Z' aquí les tornaria a desquadrar.
+        const start = new Date(this.currentLog.start_time)
         const diff = Math.floor((Date.now() - start.getTime()) / 1000)
         // Prevent negative elapsed times due to clock skew
         this.elapsed = Math.max(0, diff)
