@@ -99,6 +99,7 @@ const messages = {
     modify_record: 'Modificar registre',
     in_progress: 'En curs',
     out_of_area: 'Fora de zona',
+    extra: 'Hores extra',
     
     // Geolocation
     location_valid: 'Ubicació vàlida',
@@ -327,6 +328,7 @@ const messages = {
     modify_record: 'Modificar registro',
     in_progress: 'En curso',
     out_of_area: 'Fuera de zona',
+    extra: 'Horas extra',
     
     location_valid: 'Ubicación válida',
     location_invalid: 'Fuera de la zona asignada',
@@ -525,6 +527,7 @@ const messages = {
     modify_record: 'Modify Record',
     in_progress: 'In progress',
     out_of_area: 'Out of area',
+    extra: 'Overtime',
     
     location_valid: 'Valid Location',
     location_invalid: 'Outside assigned zone',

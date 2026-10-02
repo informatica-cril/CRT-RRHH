@@ -57,12 +57,23 @@
       </div>
 
       <!-- User -->
-      <div class="header-user" id="header-user">
-        <div class="header-user-info hide-mobile">
-          <div class="header-user-name">{{ authStore.userName }}</div>
-          <div class="header-user-email">{{ authStore.userEmail }}</div>
+      <div class="usuari-wrap" ref="usuariWrap">
+        <button type="button" class="header-user" id="header-user" :aria-expanded="usuariObert" @click="usuariObert = !usuariObert; alertesObert = false">
+          <div class="header-user-info hide-mobile">
+            <div class="header-user-name">{{ authStore.userName }}</div>
+            <div class="header-user-email">{{ authStore.userEmail }}</div>
+          </div>
+          <div class="header-avatar">{{ initials }}</div>
+        </button>
+        <div v-if="usuariObert" class="usuari-menu">
+          <div class="usuari-cap">
+            <strong>{{ authStore.userName }}</strong>
+            <span>{{ authStore.userEmail }}</span>
+          </div>
+          <router-link :to="authStore.isWorker ? '/worker/settings' : '/settings'" class="usuari-op" @click="usuariObert = false">⚙️ Configuració</router-link>
+          <router-link to="/privacy" class="usuari-op" @click="usuariObert = false">🔐 Privadesa</router-link>
+          <button type="button" class="usuari-op usuari-sortir" @click="tancaSessio">🚪 Tancar sessió</button>
         </div>
-        <div class="header-avatar">{{ initials }}</div>
       </div>
     </div>
   </header>
@@ -74,6 +85,7 @@ import { useAuthStore } from '../../stores/auth'
 import { useSettingsStore } from '../../stores/settings'
 import { i18n } from '../../i18n'
 import db from '../../services/db'
+import { useRouter } from 'vue-router'
 import api from '../../services/apiClient'
 
 const authStore = useAuthStore()
@@ -96,6 +108,14 @@ const initials = computed(() => {
 const alertes = ref([])
 const alertesObert = ref(false)
 const alertesWrap = ref(null)
+const usuariObert = ref(false)
+const usuariWrap = ref(null)
+const router = useRouter()
+async function tancaSessio() {
+  usuariObert.value = false
+  await authStore.logout()
+  router.push('/login')
+}
 const pendents = ref([])
 const totalAlertes = computed(() => alertes.value.length + pendents.value.reduce((s, c) => s + c.n, 0))
 const hasNotifications = computed(() => totalAlertes.value > 0)
@@ -155,6 +175,7 @@ function quan(ts) {
 
 function tancaFora(e) {
   if (alertesObert.value && alertesWrap.value && !alertesWrap.value.contains(e.target)) alertesObert.value = false
+  if (usuariObert.value && usuariWrap.value && !usuariWrap.value.contains(e.target)) usuariObert.value = false
 }
 
 let interval = null
@@ -170,6 +191,14 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.usuari-wrap { position: relative; }
+.header-user { background: none; border: none; font: inherit; color: inherit; }
+.usuari-menu { position: absolute; right: 0; top: calc(100% + 8px); min-width: 230px; background: var(--color-surface, #fff); border: 1px solid var(--color-border, #DCE4EE); border-radius: 12px; box-shadow: 0 10px 30px rgba(10, 42, 74, .15); z-index: 1000; overflow: hidden; }
+.usuari-cap { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-bottom: 1px solid var(--color-border, #e5eaf0); font-size: .85rem; }
+.usuari-cap span { font-size: .75rem; color: var(--color-text-muted, #7a8aa0); }
+.usuari-op { display: block; width: 100%; text-align: left; padding: 11px 14px; font-size: .86rem; color: var(--color-text); text-decoration: none; background: none; border: none; cursor: pointer; font: inherit; }
+.usuari-op:hover { background: rgba(10, 42, 74, .05); }
+.usuari-sortir { color: var(--color-danger, #B3352F); font-weight: 700; border-top: 1px solid var(--color-border, #e5eaf0); }
 .alertes-wrap { position: relative; }
 .alertes-panel { position: absolute; right: 0; top: calc(100% + 8px); width: 340px; max-width: calc(100vw - 32px); max-height: 70vh; overflow-y: auto; background: var(--color-surface, #fff); border: 1px solid var(--color-border, #DCE4EE); border-radius: 12px; box-shadow: 0 10px 30px rgba(10, 42, 74, .15); z-index: 1000; }
 .alertes-cap { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--color-border, #DCE4EE); }

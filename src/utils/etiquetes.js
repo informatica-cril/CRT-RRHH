@@ -1,0 +1,64 @@
+// Etiquetes en català per als codis interns (pending, approved, break_started…). Les pantalles no
+// han d'ensenyar mai el codi tal qual: una sola font perquè totes diguin el mateix.
+
+const MAPES = {
+  // work_logs.status
+  fitxatge: { pending: 'Pendent', approved: 'Aprovat', rejected: 'Rebutjat', modified: 'Modificat' },
+  // work_logs.break_status
+  pausa: { pending: 'Pendent de fer', active: 'En curs', completed: 'Feta', skipped: 'Omesa' },
+  // work_log_segments.status
+  tram: { pending: 'Pendent de revisió', approved: 'Aprovat', rejected: 'Rebutjat' },
+  // work_logs.hour_status
+  hores: { ok: 'Correcte', extra: 'Hores extra', out_of_area: 'Fora de zona', in_progress: 'En curs' },
+  // work_log_segments.home_verification / work_logs.home_verification
+  verificacio: { verificat: 'Verificat', fora_radi: 'Fora del radi', pendent: 'Pendent de verificar', no_disponible: 'No disponible' },
+  // work_log_modifications.action
+  modificacio: {
+    created: 'Creat', segmented: 'Dividit en trams', approved: 'Aprovat', rejected: 'Rebutjat', modified: 'Modificat',
+    break_started: 'Pausa iniciada', break_completed: 'Pausa acabada', break_skipped: 'Pausa omesa',
+    registre_manual: 'Registre manual', allegacio: 'Al·legació presentada',
+  },
+  // audit_logs.action
+  auditoria: {
+    LOGIN: 'Inici de sessió', LOGIN_FAILED: 'Inici de sessió fallit', LOGOUT: 'Tancament de sessió',
+    CHANGE_PASSWORD: 'Canvi de contrasenya', PASSWORD_CHANGED: 'Canvi de contrasenya', PASSWORD_RESET: 'Restabliment de contrasenya',
+    START_WORKDAY: 'Inici de jornada', END_WORKDAY: 'Fi de jornada', APPROVE_WORKLOG: 'Fitxatge aprovat', REJECT_WORKLOG: 'Fitxatge rebutjat',
+    EXPORT_WORKLOGS: 'Exportació del registre de jornada', ACCESS_LOCATION_DATA: 'Consulta de dades d\'ubicació',
+    GPS_DENEGAT_DISP_CORP: 'GPS denegat en dispositiu corporatiu', ACCEPT_GEO_CONSENT: 'Consentiment de geolocalització',
+    ACK_GEO_ALERT: 'Avís d\'ubicació revisat', ADD_WORK_LOCATION: 'Ubicació de treball afegida', REMOVE_WORK_LOCATION: 'Ubicació de treball eliminada',
+    ASSIGN_CENTER: 'Centre assignat', REMOVE_CENTER: 'Centre retirat', ASSIGN_ZONE: 'Zona assignada', ASSIGN_ZONE_MUNI: 'Municipi assignat',
+    AUTHORIZE_EXTRA_HOURS: 'Hores extra autoritzades', AUTHORIZE_OVERTIME: 'Hores extra autoritzades', AUTHORIZE_OVERTIME_RESTART: 'Represa de jornada autoritzada',
+    GENERATE_AUTH_CODE: 'Codi d\'autorització generat', RENEW_AUTH_CODE: 'Codi d\'autorització renovat', REVOKE_AUTH_CODE: 'Codi d\'autorització revocat',
+    CREATE_ABSENCE: 'Absència creada', REQUEST_ABSENCE: 'Absència sol·licitada', CREATE_ABSENCE_TYPE: 'Tipus d\'absència creat',
+    UPDATE_ABSENCE_TYPE: 'Tipus d\'absència modificat', MASS_ASSIGN_PERMISSION: 'Permís assignat en bloc',
+    REQUEST_EXCEDENCIA: 'Excedència sol·licitada', APPROVE_EXCEDENCIA: 'Excedència aprovada', REJECT_EXCEDENCIA: 'Excedència denegada',
+    CREATE_USER: 'Persona donada d\'alta', UPDATE_USER: 'Fitxa de persona modificada', IMPORT_CSV: 'Importació de personal',
+    CREATE_SCHEDULE: 'Horari creat', UPDATE_SCHEDULE: 'Horari modificat',
+    UPLOAD_PAYROLL: 'Nòmina pujada', BULK_UPLOAD_PAYROLL: 'Nòmines pujades en bloc', DELETE_PAYROLL: 'Nòmina eliminada',
+    VIEW_PAYROLL: 'Nòmina consultada', DOWNLOAD_PAYROLL: 'Nòmina descarregada', PRINT_PAYROLL: 'Nòmina impresa',
+    SIGN_PAYROLL: 'Recepció de nòmina signada', EMAIL_PAYROLL: 'Nòmina enviada per correu', CHAT_SEND_PAYROLL: 'Nòmina enviada pel xat',
+    CREATE_DOCUMENT: 'Document creat', VIEW_DOCUMENT: 'Document consultat', SIGN_DOCUMENT: 'Document signat', SIGN_URGENT_DOCUMENT: 'Document urgent signat',
+    START_ONBOARDING: 'Acollida iniciada', COMPLETE_ONBOARDING: 'Acollida completada', ONBOARDING_SIGN: 'Document d\'acollida signat',
+    ONBOARDING_VIEW: 'Document d\'acollida consultat', ASSIGN_ONBOARDING: 'Acollida assignada',
+    CREATE_ONBOARDING_PROFILE: 'Perfil d\'acollida creat', UPDATE_ONBOARDING_PROFILE: 'Perfil d\'acollida modificat',
+    ACCEPT_CHAT_POLICY: 'Política del xat acceptada', CREATE_CHAT_GROUP: 'Grup de xat creat', UPDATE_CHAT_SETTINGS: 'Configuració del xat modificada',
+    REVIEW_CHAT_ALERT: 'Avís del xat revisat', SEND_NOTIFICATION: 'Notificació enviada', SEND_REMINDER: 'Recordatori enviat',
+    FORENSIC_SEARCH: 'Cerca forense', DOMI_TOKEN_AVIS: 'Avís del token de domi',
+    RENDIMENT_CONSULTA: 'Consulta de rendiment', RENDIMENT_ALLEGACIO: 'Al·legació de rendiment', RENDIMENT_ALLEGACIO_RESPOSTA: 'Resposta a al·legació de rendiment',
+    RLT_INFORME_GENERAT: 'Informe RLT generat', RLT_INFORME_SIGNAT: 'Informe RLT signat', RLT_INFORME_LLIURAT: 'Informe RLT lliurat',
+    DRETS_SOLLICITUD: 'Sol·licitud de drets RGPD', DRETS_RESPOSTA: 'Resposta a drets RGPD',
+    COMITE_HORES_REGISTRE: 'Hores de comitè registrades', COMITE_HORES_RETIRADA: 'Hores de comitè retirades',
+    COMITE_HORES_VALIDADA: 'Hores de comitè validades', COMITE_HORES_REBUTJADA: 'Hores de comitè rebutjades',
+    COMITE_MEMBRE_ALTA: 'Alta de representant', COMITE_MEMBRE_CANVI: 'Canvi de mandat de representant', COMITE_MEMBRE_ESBORRAT: 'Representant eliminat',
+    MIGRACIO_HISTORIC_2026: 'Importació de l\'històric 2026',
+  },
+}
+
+/**
+ * Etiqueta llegible d'un codi. Si el codi no és al mapa, no s'inventa res: es mostra tal qual,
+ * però sense guions baixos, perquè almenys es pugui llegir.
+ */
+export function etiqueta(tipus, codi) {
+  if (codi === null || codi === undefined || codi === '') return '—'
+  return MAPES[tipus]?.[codi] ?? String(codi).replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase())
+}

@@ -23,7 +23,7 @@
             <tr v-for="log in filteredLogs" :key="log.id">
               <td>{{ formatDateTime(log.created_at) }}</td>
               <td>{{ getUserName(log.user_id) }}</td>
-              <td><span class="badge badge-primary">{{ log.action }}</span></td>
+              <td><span class="badge badge-primary" :title="log.action">{{ etiqueta('auditoria', log.action) }}</span></td>
               <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;">{{ log.details || '—' }}</td>
               <td><code style="font-size:0.8rem;">{{ log.ip_address }}</code></td>
             </tr>
@@ -42,6 +42,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { db } from '../services/db'
 import { i18n } from '../i18n'
+import { etiqueta } from '../utils/etiquetes'
 
 const t = (key) => i18n.t(key)
 const searchQuery = ref('')

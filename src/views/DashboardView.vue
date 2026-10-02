@@ -113,14 +113,18 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="log in recentLogs" :key="log.id">
-                    <td>{{ getUserName(log.user_id) }}</td>
+                  <tr v-for="log in recentLogs" :key="log.id" class="act-fila" @click="$router.push(`/work-logs/${log.id}/detail`)" title="Obrir el detall del fitxatge">
+                    <td><strong class="act-nom">{{ nomBonic(getUserName(log.user_id)) }}</strong></td>
                     <td>{{ formatDate(log.date) }}</td>
                     <td>{{ formatTime(log.start_time) }}</td>
-                    <td>{{ log.end_time ? formatTime(log.end_time) : '-' }}</td>
-                    <td>{{ log.total_hours_worked ? formatHM(log.effective_hours ?? log.total_hours_worked) : '-' }}</td>
+                    <td>{{ log.end_time ? formatTime(log.end_time) : '—' }}</td>
                     <td>
-                      <span class="badge" :class="statusBadge(log.status)">{{ t(log.status) || log.status }}</span>
+                      <span v-if="!log.end_time" class="act-encurs">● En curs</span>
+                      <span v-else>{{ formatHM(log.effective_hours ?? log.total_hours_worked) }}</span>
+                    </td>
+                    <td>
+                      <span v-if="!log.end_time" class="text-muted text-small">—</span>
+                      <span v-else class="badge" :class="statusBadge(log.status)">{{ t(log.status) || log.status }}</span>
                     </td>
                   </tr>
                 </tbody>
@@ -129,20 +133,21 @@
 
             <!-- Mobile Card List View -->
             <div class="mobile-activity-list show-on-mobile">
-              <div v-for="log in recentLogs" :key="log.id" class="mobile-log-card">
+              <div v-for="log in recentLogs" :key="log.id" class="mobile-log-card" @click="$router.push(`/work-logs/${log.id}/detail`)">
                 <div class="mobile-log-header">
-                  <div class="mobile-log-name">{{ getUserName(log.user_id) }}</div>
-                  <span class="badge" :class="statusBadge(log.status)">{{ t(log.status) || log.status }}</span>
+                  <div class="mobile-log-name">{{ nomBonic(getUserName(log.user_id)) }}</div>
+                  <span v-if="!log.end_time" class="act-encurs">● En curs</span>
+                  <span v-else class="badge" :class="statusBadge(log.status)">{{ t(log.status) || log.status }}</span>
                 </div>
                 <div class="mobile-log-date">{{ formatDate(log.date) }}</div>
                 <div class="mobile-log-body mt-sm">
                   <div class="mobile-log-item">
                     <span class="mobile-log-label">Inici/Fi</span>
-                    <span>{{ formatTime(log.start_time) }} / {{ log.end_time ? formatTime(log.end_time) : '-' }}</span>
+                    <span>{{ formatTime(log.start_time) }} – {{ log.end_time ? formatTime(log.end_time) : 'en curs' }}</span>
                   </div>
                   <div class="mobile-log-item">
                     <span class="mobile-log-label">Hores</span>
-                    <span style="font-weight:700;">{{ log.total_hours_worked ? formatHM(log.effective_hours ?? log.total_hours_worked) : '-' }}</span>
+                    <span style="font-weight:700;">{{ log.end_time ? formatHM(log.effective_hours ?? log.total_hours_worked) : '—' }}</span>
                   </div>
                 </div>
               </div>
@@ -513,7 +518,10 @@ async function fetchPendingCount() {
 }
 
 const pendingLogs = computed(() => workLogStore.logs.filter(l => l.status === 'pending').sort((a, b) => new Date(b.date) - new Date(a.date)))
-const recentLogs = computed(() => workLogStore.logs.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 8))
+// Còpia abans d'ordenar (sort() sobre el store reordenava la llista de totes les pantalles) i per data i hora.
+const recentLogs = computed(() => [...workLogStore.logs]
+  .sort((a, b) => String(b.date).slice(0, 10).localeCompare(String(a.date).slice(0, 10)) || String(b.start_time).localeCompare(String(a.start_time)))
+  .slice(0, 8))
 
 const totalExtraHours = computed(() => {
   const month = new Date().toISOString().slice(0, 7)
@@ -1078,6 +1086,12 @@ function statusBadge(s) { return { pending: 'badge-pending', approved: 'badge-su
 </script>
 
 <style scoped>
+/* ── Activitat recent ── */
+.act-fila { cursor: pointer; }
+.act-fila:hover td { background: rgba(9, 78, 140, .04); }
+.act-nom { font-weight: 600; }
+.act-encurs { display: inline-flex; align-items: center; gap: 4px; font-size: .78rem; font-weight: 700; color: #0A7C5E; background: #E8F8F2; border-radius: 999px; padding: 2px 10px; white-space: nowrap; }
+.mobile-log-card { cursor: pointer; }
 /* ── Mapa de treballadors per zona: mapa + panell de zones desplegables ── */
 .zm-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px; margin-top: 14px; }
 .zm-mapa { height: 460px; border-radius: 12px; overflow: hidden; border: 1px solid var(--color-border-light); }

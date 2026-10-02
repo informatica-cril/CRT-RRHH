@@ -346,6 +346,7 @@
                 <th style="color:var(--color-danger);">📍 Fora zona</th>
                 <th style="color:var(--color-success);">✓ Autorit.</th>
                 <th>Estat</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -375,7 +376,9 @@
                   <span v-if="(l.extra_hours_authorized||0) > 0" style="color:var(--color-success);font-weight:600;">+{{ formatHM(l.extra_hours_authorized) }}</span>
                   <span v-else class="text-muted">—</span>
                 </td>
-                <td><span class="badge" :class="l.status === 'approved' ? 'badge-success' : l.status === 'pending' ? 'badge-warning' : 'badge-danger'">{{ l.status === 'approved' ? 'Aprovat' : l.status === 'pending' ? 'Pendent' : l.status }}</span></td>
+                <td><span class="badge" :class="l.status === 'approved' ? 'badge-success' : l.status === 'pending' ? 'badge-warning' : 'badge-danger'">{{ etiqueta('fitxatge', l.status) }}</span></td>
+                <!-- La fila ja obre el detall, però no es veia: el botó diu que hi ha trams i pausa per consultar. -->
+                <td><button class="btn btn-outline btn-sm" style="white-space:nowrap;" @click.stop="router.push(`/work-logs/${l.id}/detail`)">🔍 Veure trams</button></td>
               </tr>
             </tbody>
           </table>
@@ -780,6 +783,7 @@ import { auditLog } from '../services/audit'
 import { i18n } from '../i18n'
 import { formatHM } from '../utils/formatHours'
 import { sortidaAltreDia } from '../utils/sortidaAltreDia'
+import { etiqueta } from '../utils/etiquetes'
 import WorkLogAlertBanner from '../components/WorkLogAlertBanner.vue'
 import PacteComplementaries from '../components/PacteComplementaries.vue'
 import BreakTimerModal from '../components/BreakTimerModal.vue'
