@@ -460,21 +460,34 @@
           <h3 class="modal-title">📍 Codis Postals assignats — {{ cpUser?.name }}</h3>
           <button class="icon-btn" @click="showCpModal = false">✕</button>
         </div>
-        <div v-if="activeCpAssignment" style="background:rgba(76,175,80,0.07);border-radius:8px;padding:12px;border-left:3px solid var(--color-success);margin-bottom:16px;">
-          <div class="text-small" style="color:var(--color-success);font-weight:600;">Assignació activa</div>
-          <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
-            <span v-for="cp in activeCpAssignment.postal_codes" :key="cp" class="badge badge-primary">{{ cp }} — {{ getCpZoneFn(cp) }}</span>
+        <!-- Assignació actual. Abans es llegia d'una promesa sense esperar-la i aquesta caixa no sortia mai. -->
+        <div v-if="activeCpAssignment" class="cp-actual">
+          <div class="text-small" style="color:var(--color-success);font-weight:700;">✓ Assignació actual</div>
+          <div class="cp-xips">
+            <span v-for="cp in activeCpAssignment.postal_codes" :key="cp" class="cp-xip fixa"><strong>{{ cp }}</strong> {{ getCpZoneFn(cp) }}</span>
           </div>
         </div>
-        <h4 style="font-size:0.9rem;margin-bottom:12px;">Nova assignació</h4>
-        <div style="margin-bottom:12px;">
-          <div class="form-label mb-sm">Codis postals</div>
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;max-height:180px;overflow-y:auto;border:1px solid var(--color-border-light);border-radius:8px;padding:10px;">
-            <label v-for="cp in postalCodes" :key="cp.code" style="display:flex;align-items:center;gap:6px;font-size:0.78rem;cursor:pointer;padding:3px 0;">
-              <input type="checkbox" :value="cp.code" v-model="newCpForm.postal_codes" style="width:13px;height:13px;" />
-              <span><strong>{{ cp.code }}</strong></span>
-            </label>
-          </div>
+        <div v-else class="text-small text-muted" style="margin-bottom:14px;">Aquesta persona encara no té cap codi postal assignat.</div>
+
+        <h4 style="font-size:0.9rem;margin-bottom:8px;">{{ activeCpAssignment ? 'Canviar l’assignació' : 'Nova assignació' }}</h4>
+        <!-- Triats: a dalt i amb ✕, perquè es vegi d'un cop d'ull què es desarà -->
+        <div class="cp-triats">
+          <span class="text-small" style="font-weight:700;">Triats ({{ newCpForm.postal_codes.length }}):</span>
+          <span v-if="!newCpForm.postal_codes.length" class="text-small text-muted">cap — tria'n a la llista de sota</span>
+          <span v-for="cp in [...newCpForm.postal_codes].sort()" :key="cp" class="cp-xip triat">
+            <strong>{{ cp }}</strong> {{ getCpZoneFn(cp) }}
+            <button type="button" class="cp-treu" :title="'Treure ' + cp" @click="toggleCp(cp)">✕</button>
+          </span>
+          <button v-if="newCpForm.postal_codes.length" type="button" class="btn btn-outline btn-sm" @click="newCpForm.postal_codes = []">Treure'ls tots</button>
+        </div>
+        <input v-model="cercaCp" type="search" class="form-input" style="margin-bottom:8px;" placeholder="🔍 Cerca per codi o barri (p. ex. «sants», «gràcia», «08015»)" />
+        <div class="cp-graella">
+          <button v-for="cp in cpsFiltrats" :key="cp.code" type="button" class="cp-opcio" :class="{ sel: newCpForm.postal_codes.includes(cp.code) }" @click="toggleCp(cp.code)">
+            <span class="cp-codi">{{ newCpForm.postal_codes.includes(cp.code) ? '✓ ' : '' }}{{ cp.code }}</span>
+            <span class="cp-barri">{{ cp.zone }}</span>
+            <span class="cp-qui" :title="'Persones que ja tenen aquest codi assignat'">👥 {{ cobertura[cp.code] || 0 }}</span>
+          </button>
+          <div v-if="!cpsFiltrats.length" class="text-small text-muted" style="grid-column:1/-1;padding:8px;">Cap codi coincideix amb «{{ cercaCp }}»</div>
         </div>
         <div class="form-date-row" style="margin-bottom:12px;">
           <div class="form-group">
@@ -486,7 +499,9 @@
             <input class="form-input" type="date" v-model="newCpForm.valid_to" />
           </div>
         </div>
-        <button class="btn btn-primary" @click="saveCpAssignment" :disabled="!newCpForm.postal_codes.length || !newCpForm.valid_from">Desar nova assignació</button>
+        <button class="btn btn-primary" @click="saveCpAssignment" :disabled="!newCpForm.postal_codes.length || !newCpForm.valid_from">
+          Desar l'assignació ({{ newCpForm.postal_codes.length }} codi{{ newCpForm.postal_codes.length === 1 ? '' : 's' }})
+        </button>
       </div>
     </div>
 
@@ -1096,11 +1111,34 @@ function formatDate(d) { return new Date(d).toLocaleDateString('ca-ES', { day: '
 // ── CP Assignment management ──
 const showCpModal = ref(false)
 const cpUser = ref(null)
-const activeCpAssignment = computed(() => cpUser.value ? db.getActiveCpAssignment(cpUser.value.id) : null)
+// L'assignació activa ja ve carregada a extraData (bulk-index): abans es cridava l'API sense esperar
+// la resposta i el modal rebia una promesa, de manera que «Assignació activa» no sortia mai.
+const activeCpAssignment = computed(() => (cpUser.value ? extraData.value[cpUser.value.id]?.cpAssignment : null) || null)
+const cercaCp = ref('')
+const normCp = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+const cpsFiltrats = computed(() => {
+  const q = normCp(cercaCp.value.trim())
+  return q ? postalCodes.filter(cp => cp.code.includes(q) || normCp(cp.zone).includes(q)) : postalCodes
+})
+// Quantes persones (sense comptar la que s'està editant) tenen cada CP assignat ara mateix.
+const cobertura = computed(() => {
+  const n = {}
+  Object.entries(extraData.value || {}).forEach(([uid, d]) => {
+    if (Number(uid) === cpUser.value?.id) return
+    ;(d?.cpAssignment?.postal_codes || []).forEach(cp => { n[cp] = (n[cp] || 0) + 1 })
+  })
+  return n
+})
+function toggleCp(cp) {
+  const i = newCpForm.postal_codes.indexOf(cp)
+  if (i >= 0) newCpForm.postal_codes.splice(i, 1)
+  else newCpForm.postal_codes.push(cp)
+}
 const newCpForm = reactive({ postal_codes: [], valid_from: new Date().toISOString().split('T')[0], valid_to: '' })
 
 async function openCpModal(user) {
   cpUser.value = user
+  cercaCp.value = ''
   Object.assign(newCpForm, { postal_codes: [], valid_from: new Date().toISOString().split('T')[0], valid_to: '' })
   const active = extraData.value[user.id]?.cpAssignment
   if (active) newCpForm.postal_codes = [...active.postal_codes]
@@ -1267,3 +1305,22 @@ async function saveMuniAssignment() {
   }
 }
 </script>
+
+<style scoped>
+/* ── Modal d'assignació de codis postals ── */
+.cp-actual { background: rgba(76, 175, 80, .07); border-radius: 10px; padding: 12px; border-left: 3px solid var(--color-success); margin-bottom: 16px; }
+.cp-xips { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+.cp-xip { display: inline-flex; align-items: center; gap: 5px; font-size: .78rem; padding: 3px 10px; border-radius: 999px; background: #fff; border: 1px solid var(--color-border-light, #e5eaf0); }
+.cp-xip.triat { background: rgba(9, 78, 140, .08); border-color: var(--color-primary, #094E8C); color: var(--color-primary, #094E8C); }
+.cp-treu { background: none; border: none; cursor: pointer; color: inherit; font-size: .8rem; padding: 0 0 0 2px; opacity: .7; }
+.cp-treu:hover { opacity: 1; }
+.cp-triats { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; min-height: 30px; }
+.cp-graella { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; max-height: 260px; overflow-y: auto; border: 1px solid var(--color-border-light, #e5eaf0); border-radius: 10px; padding: 8px; margin-bottom: 14px; }
+.cp-opcio { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--color-border-light, #e5eaf0); background: var(--color-surface, #fff); cursor: pointer; min-height: 44px; }
+.cp-opcio:hover { border-color: var(--color-primary, #094E8C); }
+.cp-opcio.sel { background: rgba(9, 78, 140, .08); border-color: var(--color-primary, #094E8C); }
+.cp-codi { font-weight: 800; font-size: .84rem; color: var(--color-text); }
+.cp-opcio.sel .cp-codi { color: var(--color-primary, #094E8C); }
+.cp-barri { font-size: .72rem; color: var(--color-text-muted, #7a8aa0); line-height: 1.2; }
+.cp-qui { font-size: .68rem; color: var(--color-text-muted, #94a3b8); margin-top: 2px; }
+</style>

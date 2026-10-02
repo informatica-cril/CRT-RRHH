@@ -76,11 +76,15 @@
                 <span :class="seg.home_verification === 'verificat' ? 'tag-ok' : (seg.home_verification === 'fora_radi' ? 'tag-ko' : '')">{{ etiqueta('verificacio', seg.home_verification) }}</span>
                 <span v-if="seg.home_distance_m != null"> · {{ seg.home_distance_m }} m (radi {{ seg.home_radius_m ?? '—' }} m)</span>
               </div>
+              <!-- Zona i CP en lloc de les coordenades (calculat al navegador, sense cap servei extern);
+                   les coordenades queden al títol per a qui ja les podia veure. -->
               <div v-if="seg.start_lat">
-                <strong>Posició inici:</strong> {{ seg.start_lat }}, {{ seg.start_lng }}
+                <strong>Posició inici:</strong>
+                <span :title="seg.start_lat + ', ' + seg.start_lng">📍 {{ zonaDePosicio(seg.start_lat, seg.start_lng)?.text || '—' }}</span>
               </div>
               <div v-if="seg.end_lat">
-                <strong>Posició fi:</strong> {{ seg.end_lat }}, {{ seg.end_lng }}
+                <strong>Posició fi:</strong>
+                <span :title="seg.end_lat + ', ' + seg.end_lng">📍 {{ zonaDePosicio(seg.end_lat, seg.end_lng)?.text || '—' }}</span>
               </div>
               <div v-if="seg.rejection_reason" class="rejection">
                 <strong>Motiu rebuig:</strong> {{ seg.rejection_reason }}
@@ -150,6 +154,7 @@ import { useAuthStore } from '../stores/auth'
 import db from '../services/db'
 import { formatHM } from '../utils/formatHours'
 import { etiqueta } from '../utils/etiquetes'
+import { zonaDePosicio } from '../utils/zonaDePosicio'
 
 const route = useRoute()
 const authStore = useAuthStore()
