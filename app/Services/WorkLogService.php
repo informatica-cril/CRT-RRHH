@@ -189,6 +189,7 @@ class WorkLogService
 
         $segments = [];
 
+        $iniciJornada = $startTime->copy();
         if ($scheduleStart && $scheduleEnd) {
             $localDate = $startTime->copy()->setTimezone('Europe/Madrid')->toDateString();
             $authStart = Carbon::parse("{$localDate} {$scheduleStart}", 'Europe/Madrid')->utc();
@@ -243,6 +244,22 @@ class WorkLogService
                     'duration_minutes' => intval($tIni->diffInMinutes($tFi)),
                     'status' => $dins ? 'approved' : 'pending',
                 ];
+            }
+        }
+
+        // La posició de l'entrada i la de la sortida van al tram que obren o tanquen, caigui on caigui
+        // respecte a l'horari: abans només es copiaven als trams de fora d'horari i un tram que
+        // començava amb l'entrada dins d'horari quedava sense cap posició.
+        if ($segments) {
+            $primer = 0;
+            $ultim = count($segments) - 1;
+            if (empty($segments[$primer]['start_lat']) && $segments[$primer]['start_time']->equalTo($iniciJornada)) {
+                $segments[$primer]['start_lat'] = $workLog->start_location_lat;
+                $segments[$primer]['start_lng'] = $workLog->start_location_lng;
+            }
+            if (empty($segments[$ultim]['end_lat']) && $segments[$ultim]['end_time']->equalTo($endTime)) {
+                $segments[$ultim]['end_lat'] = $workLog->end_location_lat;
+                $segments[$ultim]['end_lng'] = $workLog->end_location_lng;
             }
         }
 

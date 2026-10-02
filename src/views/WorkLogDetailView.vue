@@ -78,14 +78,18 @@
               </div>
               <!-- Zona i CP en lloc de les coordenades (calculat al navegador, sense cap servei extern);
                    les coordenades queden al títol per a qui ja les podia veure. -->
-              <div v-if="seg.start_lat">
-                <strong>Posició inici:</strong>
-                <span :title="seg.start_lat + ', ' + seg.start_lng">📍 {{ zonaDePosicio(seg.start_lat, seg.start_lng)?.text || '—' }}</span>
-              </div>
-              <div v-if="seg.end_lat">
-                <strong>Posició fi:</strong>
-                <span :title="seg.end_lat + ', ' + seg.end_lng">📍 {{ zonaDePosicio(seg.end_lat, seg.end_lng)?.text || '—' }}</span>
-              </div>
+              <template v-if="coordsVisibles">
+                <div>
+                  <strong>Posició inici:</strong>
+                  <span v-if="posicio(seg, 'inici')" :title="posicio(seg, 'inici').join(', ')">📍 {{ zonaDePosicio(...posicio(seg, 'inici'))?.text || '—' }}</span>
+                  <span v-else class="text-muted">Sense marca GPS (canvi de tram)</span>
+                </div>
+                <div>
+                  <strong>Posició fi:</strong>
+                  <span v-if="posicio(seg, 'fi')" :title="posicio(seg, 'fi').join(', ')">📍 {{ zonaDePosicio(...posicio(seg, 'fi'))?.text || '—' }}</span>
+                  <span v-else class="text-muted">Sense marca GPS (canvi de tram)</span>
+                </div>
+              </template>
               <div v-if="seg.rejection_reason" class="rejection">
                 <strong>Motiu rebuig:</strong> {{ seg.rejection_reason }}
               </div>
@@ -208,6 +212,23 @@ const duradaPausa = computed(() => {
   return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`
 })
 const iconaPausa = computed(() => ({ completed: '✅', active: '⏳', skipped: '⛔' }[workLog.value?.break_status] || '🕒'))
+
+// Les coordenades només arriben si qui mira les pot veure (EIPD §6.3); si no hi són, no es diu res.
+const coordsVisibles = computed(() => !!workLog.value && 'start_location_lat' in workLog.value)
+// Posició d'inici o fi d'un tram. Si el tram no en té però comença amb l'entrada (o acaba amb la
+// sortida), és la del fitxatge: abans els trams dins d'horari es creaven sense cap posició.
+const mateixMoment = (a, b) => !!a && !!b && String(a).slice(0, 19) === String(b).slice(0, 19)
+function posicio(seg, quina) {
+  const w = workLog.value || {}
+  if (quina === 'inici') {
+    if (seg.start_lat) return [seg.start_lat, seg.start_lng]
+    if (mateixMoment(seg.start_time, w.start_time) && w.start_location_lat) return [w.start_location_lat, w.start_location_lng]
+  } else {
+    if (seg.end_lat) return [seg.end_lat, seg.end_lng]
+    if (mateixMoment(seg.end_time, w.end_time) && w.end_location_lat) return [w.end_location_lat, w.end_location_lng]
+  }
+  return null
+}
 
 const pendingCount = computed(() =>
   segments.value.filter(s => s.status === 'pending').length
