@@ -1002,9 +1002,14 @@ async function startBreakCheckTimer() {
 /**
  * Activa la pausa obligatoria: crida a l'API per iniciar-la i mostra el modal.
  */
+// El temporitzador i la comprovació cada 10 s podien disparar-se alhora i enviar dues peticions
+// d'inici: mentre n'hi ha una en marxa, la segona no surt.
+let iniciantPausa = false
 async function triggerBreak(settings) {
-  if (breakModalVisible.value) return
+  if (breakModalVisible.value || iniciantPausa) return
   if (!workLogStore.isWorking || !workLogStore.currentLog?.id) return
+  iniciantPausa = true
+  stopBreakCheckTimer()
   try {
     currentWorkLogId.value = workLogStore.currentLog.id
     breakDuration.value = settings.break_duration_minutes
@@ -1031,6 +1036,8 @@ async function triggerBreak(settings) {
         console.error('[Break] Error recuperant la pausa oberta:', e2)
       }
     }
+  } finally {
+    iniciantPausa = false
   }
 }
 

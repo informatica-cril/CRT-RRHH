@@ -291,35 +291,46 @@ class WorkLogController extends Controller
     public function startBreak(Request $request, WorkLog $workLog)
     {
         $this->ensureOwnerOrStaff($request, $workLog->user_id);
-        if ($workLog->break_status === 'active') {
-            return response()->json(['message' => 'La pausa ja està en curs'], 409);
-        }
-        // Una pausa ja feta no es torna a obrir: sobreescriuria break_start_time de la primera
-        // i el registre quedaria amb un inici nou i el final de l'antiga.
-        if (in_array($workLog->break_status, ['completed', 'skipped'], true) || $workLog->break_end_time) {
-            return response()->json(['message' => 'La pausa d\'aquesta jornada ja s\'ha fet', 'ja_feta' => true], 409);
-        }
-
+        $geo = $request->validate(['location_match' => 'nullable|boolean']);
         $now = $this->workLogs->getAccurateTime();
         $settings = \App\Models\BreakSetting::getSettings();
-        $geo = $request->validate(['location_match' => 'nullable|boolean']);
-
         // Hora de Madrid directa (mateix conveni que start_time/end_time).
         $nowLocal = $now->toDateTimeString();
-        $workLog->update([
-            'break_start_time' => $nowLocal,
-            'break_start_location_match' => $geo['location_match'] ?? null,
-            'break_status' => 'active',
-            'break_required' => true,
-        ]);
 
-        \App\Models\WorkLogModification::create([
-            'work_log_id' => $workLog->id,
-            'user_id' => $request->user()->id,
-            'action' => 'break_started',
-            'new_values' => ['break_start_time' => $now->toDateTimeString()],
-            'comment' => 'Pausa obligatòria iniciada (' . $settings->break_duration_minutes . ' minuts)',
-        ]);
+        // Dues peticions alhora (el temporitzador i la comprovació periòdica del front) passaven
+        // totes dues la comprovació i quedaven dues «pausa iniciada». Comprovar i escriure van dins
+        // de la mateixa transacció amb la fila bloquejada: la segona espera i ja veu la pausa en curs.
+        $rebuig = \Illuminate\Support\Facades\DB::transaction(function () use ($workLog, $request, $geo, $now, $nowLocal, $settings) {
+            $log = WorkLog::whereKey($workLog->id)->lockForUpdate()->first();
+            if ($log->break_status === 'active') {
+                return ['message' => 'La pausa ja està en curs'];
+            }
+            // Una pausa ja feta no es torna a obrir: sobreescriuria break_start_time de la primera
+            // i el registre quedaria amb un inici nou i el final de l'antiga.
+            if (in_array($log->break_status, ['completed', 'skipped'], true) || $log->break_end_time) {
+                return ['message' => 'La pausa d\'aquesta jornada ja s\'ha fet', 'ja_feta' => true];
+            }
+
+            $log->update([
+                'break_start_time' => $nowLocal,
+                'break_start_location_match' => $geo['location_match'] ?? null,
+                'break_status' => 'active',
+                'break_required' => true,
+            ]);
+
+            \App\Models\WorkLogModification::create([
+                'work_log_id' => $log->id,
+                'user_id' => $request->user()->id,
+                'action' => 'break_started',
+                'new_values' => ['break_start_time' => $now->toDateTimeString()],
+                'comment' => 'Pausa obligatòria iniciada (' . $settings->break_duration_minutes . ' minuts)',
+            ]);
+
+            return null;
+        });
+        if ($rebuig) {
+            return response()->json($rebuig, 409);
+        }
 
         return response()->json([
             'work_log' => $workLog->fresh(),
