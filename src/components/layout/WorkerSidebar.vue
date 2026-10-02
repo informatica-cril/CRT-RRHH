@@ -17,7 +17,7 @@
 
     <div class="sidebar-section-title">{{ t('worker_portal') }}</div>
     <ul class="sidebar-nav">
-      <li>
+      <li v-if="teApps">
         <router-link to="/portal" :class="{ active: $route.name === 'portal' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
           <span>Les meves apps</span>
@@ -147,6 +147,7 @@ const newPayrollsCount = ref(0)
 const unreadChatCount = ref(0)
 const safataPendingCount = ref(0)
 const esRepresentant = ref(false)
+const teApps = ref(false)
 
 async function fetchCounts() {
   if (!authStore.userId) return
@@ -172,6 +173,8 @@ onMounted(() => {
   fetchCounts()
   // Una sola consulta: el mandat no canvia d'un minut a l'altre.
   api.get('/v1/comite/me').then(r => { esRepresentant.value = !!r?.membre }).catch(() => {})
+  // «Les meves apps» només té sentit si n'hi ha alguna concedida (a un compte d'administració, cap).
+  api.get('/v1/portal/apps').then(r => { teApps.value = (r?.apps || []).length > 0 }).catch(() => {})
   // Refresh counts every 30 seconds
   const interval = setInterval(fetchCounts, 30000)
   onUnmounted(() => clearInterval(interval))

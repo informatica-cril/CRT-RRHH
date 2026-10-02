@@ -432,7 +432,7 @@
           </router-link>
 
           <!-- Les meves apps (SSO) -->
-          <router-link to="/portal" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
+          <router-link v-if="teApps" to="/portal" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
             <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(13, 175, 131, 0.12); color: var(--color-success); display: flex; align-items: center; justify-content: center;">
               <svg style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
             </div>
@@ -1100,6 +1100,7 @@ const ambulatoryCenterHistory = ref([])
 const holidays = ref([])
 const bossa = ref(null)
 const esRepresentant = ref(false)
+const teApps = ref(false)
 const jornadaPla = ref([])
 function plaDelDia(day) {
   if (!day || !day.currentMonth) return null
@@ -1575,6 +1576,8 @@ onMounted(async () => {
     api.get('/v1/bossa-anual').then(b => { bossa.value = b }).catch(() => {}))
   import('../services/apiClient').then(({ api }) =>
     api.get('/v1/comite/me').then(r => { esRepresentant.value = !!r?.membre }).catch(() => {}))
+  import('../services/apiClient').then(({ api }) =>
+    api.get('/v1/portal/apps').then(r => { teApps.value = (r?.apps || []).length > 0 }).catch(() => {}))
   await checkLocation()
   // Init worker map if already on clock tab
   if (activeTab.value === 'clock') {

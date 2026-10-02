@@ -208,7 +208,7 @@
 
     <div class="sidebar-section-title">{{ t('general') }}</div>
     <ul class="sidebar-nav">
-      <li>
+      <li v-if="teApps">
         <router-link to="/portal" :class="{ active: $route.name === 'portal' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
           <span>Les meves apps</span>
@@ -261,6 +261,7 @@ async function handleLogout() {
 
 const pendingCount = ref(0)
 const esRepresentant = ref(false)
+const teApps = ref(false)
 const unreadCount = ref(0)
 const expedientObert = ref(['expedient', 'disciplinary'].includes(router.currentRoute.value.name))
 
@@ -279,6 +280,8 @@ onMounted(() => {
   fetchCounts()
   // Personal de gestió que també és representant: enllaç a les seves pròpies hores.
   api.get('/v1/comite/me').then(r => { esRepresentant.value = !!r?.membre }).catch(() => {})
+  // «Les meves apps» només té sentit si n'hi ha alguna concedida (a un compte d'administració, cap).
+  api.get('/v1/portal/apps').then(r => { teApps.value = (r?.apps || []).length > 0 }).catch(() => {})
   const interval = setInterval(fetchCounts, 60000)
   onUnmounted(() => clearInterval(interval))
 })
