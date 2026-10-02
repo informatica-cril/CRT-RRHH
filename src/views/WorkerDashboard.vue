@@ -359,6 +359,9 @@
                   <strong :style="l.hour_status === 'ok' ? 'color:var(--color-success)' : 'color:var(--color-text)'">
                     {{ formatHM(l.effective_hours ?? l.total_hours_worked ?? l.hours_worked) }}
                   </strong>
+                  <div v-if="sortidaAltreDia(l)" style="margin-top:3px;font-size:.74rem;font-weight:700;color:var(--color-danger);white-space:nowrap;" :title="'La jornada es va iniciar el ' + String(l.date).slice(0, 10).split('-').reverse().join('/') + ' i la sortida no es va fitxar fins al ' + sortidaAltreDia(l).data">
+                    ⚠ Sortida fitxada el {{ sortidaAltreDia(l).data }}<span v-if="sortidaAltreDia(l).dies > 1"> (+{{ sortidaAltreDia(l).dies }} dies)</span>
+                  </div>
                 </td>
                 <td>
                   <span v-if="(l.extra_hours_unauthorized||0) > 0" style="color:#f97316;font-weight:600;">{{ formatHM(l.extra_hours_unauthorized) }}</span>
@@ -776,6 +779,7 @@ import { getPolygon } from '../services/geoPolygonService'
 import { auditLog } from '../services/audit'
 import { i18n } from '../i18n'
 import { formatHM } from '../utils/formatHours'
+import { sortidaAltreDia } from '../utils/sortidaAltreDia'
 import WorkLogAlertBanner from '../components/WorkLogAlertBanner.vue'
 import PacteComplementaries from '../components/PacteComplementaries.vue'
 import BreakTimerModal from '../components/BreakTimerModal.vue'

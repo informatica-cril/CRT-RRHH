@@ -13,6 +13,11 @@
           <option value="all">{{ t('total') }} {{ t('employees') }}</option>
           <option v-for="u in workers" :key="u.id" :value="u.id">{{ u.name }}</option>
         </select>
+        <button v-if="authStore.isStaff" type="button" class="btn btn-outline wl-excel" :disabled="exportant" @click="exportaExcel"
+          title="Descarrega en Excel el que es veu: el mes, la persona i el filtre triats">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13l3 4M11 13l-3 4"/><line x1="14" y1="15" x2="17" y2="15"/></svg>
+          {{ exportant ? 'Generant…' : 'Exportar Excel' }}
+        </button>
       </div>
     </div>
 
@@ -55,6 +60,9 @@
                 </strong>
                 <span v-else>—</span>
                 <span v-if="log.segmented && Number(log.effective_hours) !== Number(log.total_hours_worked)" class="badge badge-warning" style="font-size:0.7rem; margin-left:4px;" title="Temps efectiu segons trams aprovats">efectiu</span>
+                <div v-if="sortidaAltreDia(log)" class="sortida-altre-dia" :title="'La jornada es va iniciar el ' + String(log.date).slice(0, 10).split('-').reverse().join('/') + ' i la sortida no es va fitxar fins al ' + sortidaAltreDia(log).data">
+                    ⚠ Sortida fitxada el {{ sortidaAltreDia(log).data }}<span v-if="sortidaAltreDia(log).dies > 1"> (+{{ sortidaAltreDia(log).dies }} dies)</span>
+                  </div>
               </td>
               <td>
                 <div style="display:flex;flex-direction:column;gap:2px;">
@@ -142,8 +150,10 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useWorkLogStore } from '../stores/workLog'
 import { db } from '../services/db'
+import { apiFetchRaw } from '../services/apiClient'
 import { i18n } from '../i18n'
 import { formatHM } from '../utils/formatHours'
+import { sortidaAltreDia } from '../utils/sortidaAltreDia'
 
 const authStore = useAuthStore()
 const workLogStore = useWorkLogStore()
@@ -241,6 +251,26 @@ const logsDelMes = computed(() => {
   return logs
 })
 
+const exportant = ref(false)
+async function exportaExcel() {
+  exportant.value = true
+  try {
+    const q = new URLSearchParams({ mes: selectedMonth.value, vista: vista.value })
+    if (selectedUser.value !== 'all') q.set('user_id', selectedUser.value)
+    const resp = await apiFetchRaw(`/v1/work-logs/export?${q}`)
+    if (!resp.ok) throw new Error()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(await resp.blob())
+    a.download = `registre_jornada_${selectedMonth.value}${vista.value !== 'tots' ? '_' + vista.value : ''}.xlsx`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  } catch (e) {
+    alert("No s'ha pogut generar l'Excel.")
+  } finally {
+    exportant.value = false
+  }
+}
+
 const recomptes = computed(() => Object.fromEntries(filtres.map(f => [f.clau, logsDelMes.value.filter(f.fn).length])))
 
 const filteredLogs = computed(() => {
@@ -276,6 +306,9 @@ function statusBadge(s) { return { 'badge-pending': s === 'pending', 'badge-succ
 </script>
 
 <style scoped>
+/* Jornada tancada un altre dia (sortida oblidada): s'ha de veure d'un cop d'ull. */
+.sortida-altre-dia { margin-top: 3px; font-size: .74rem; font-weight: 700; color: var(--color-danger, #B3352F); white-space: nowrap; }
+.wl-excel { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; white-space: nowrap; }
 .wl-filtres { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .wl-filtre {
   display: inline-flex; align-items: center; gap: 7px;
