@@ -13,14 +13,19 @@
           <option value="all">{{ t('total') }} {{ t('employees') }}</option>
           <option v-for="u in workers" :key="u.id" :value="u.id">{{ u.name }}</option>
         </select>
-        <!-- Cua de revisió d'ubicació: el mateix criteri que a domi — es revisa amb la
-             DISTÀNCIA a la zona, mai amb la posició (les coordenades no viatgen al llistat). -->
-        <label v-if="authStore.isStaff" class="fz-toggle" :class="{ actiu: foraZona }">
-          <input type="checkbox" v-model="foraZona">
-          📍 Només fora de zona
-          <span v-if="foraZonaCount" class="fz-n">{{ foraZonaCount }}</span>
-        </label>
       </div>
+    </div>
+
+    <!-- Vistes de revisió: un filtre alhora, amb el recompte del mes i la persona triats.
+         Fora de zona es revisa amb la DISTÀNCIA a la zona, mai amb la posició (les coordenades
+         no viatgen al llistat). -->
+    <div v-if="authStore.isStaff" class="wl-filtres">
+      <button v-for="f in filtres" :key="f.clau" type="button" class="wl-filtre"
+        :class="[f.to, { actiu: vista === f.clau, buit: !recomptes[f.clau] && f.clau !== 'tots' }]"
+        @click="vista = f.clau">
+        <span>{{ f.icona }}</span> {{ f.nom }}
+        <span class="wl-n">{{ recomptes[f.clau] || 0 }}</span>
+      </button>
     </div>
 
     <div class="card">
@@ -188,7 +193,6 @@ const months = computed(() => {
   return result
 })
 
-const foraZona = ref(false)
 
 // Fora de zona = alguna verificació d'ubicació fallida o hores descomptades per zona.
 // Es treballa amb el booleà i la DISTÀNCIA que ja viatgen al llistat; les coordenades
@@ -208,11 +212,25 @@ function distanciaTxt(l) {
   return d >= 1000 ? (d / 1000).toFixed(1).replace('.', ',') + ' km de la zona' : Math.round(d) + ' m de la zona'
 }
 
-const foraZonaCount = computed(() =>
-  workLogStore.logs.filter(l => l.date && l.date.substring(0, 7) === selectedMonth.value
-    && esForaZona(l) && l.status === 'pending').length)
+// Més de 14 h: gairebé sempre una sortida que no es va fitxar a temps (molts venen de l'app antiga).
+function esLlarg(l) {
+  return l.start_time && l.end_time && (new Date(l.end_time) - new Date(l.start_time)) > 14 * 3600 * 1000
+}
 
-const filteredLogs = computed(() => {
+const vista = ref('tots')
+const filtres = [
+  { clau: 'tots', nom: 'Tots', icona: '📋', to: 'neutre', fn: () => true },
+  { clau: 'pendents', nom: "Pendents d'aprovar", icona: '⏳', to: 'groc', fn: l => l.status === 'pending' },
+  { clau: 'forazona', nom: 'Fora de zona', icona: '📍', to: 'vermell', fn: esForaZona },
+  { clau: 'extra', nom: 'Hores extra no autoritzades', icona: '⏱', to: 'taronja', fn: l => Number(l.extra_hours_unauthorized || 0) > 0 },
+  { clau: 'sensesortida', nom: 'Sense sortida', icona: '🕒', to: 'taronja', fn: l => !l.end_time },
+  { clau: 'llargs', nom: 'Més de 14 h', icona: '⚠️', to: 'vermell', fn: esLlarg },
+  { clau: 'aprovats', nom: 'Aprovats', icona: '✅', to: 'verd', fn: l => l.status === 'approved' },
+  { clau: 'rebutjats', nom: 'Rebutjats', icona: '❌', to: 'neutre', fn: l => l.status === 'rejected' },
+]
+
+// Mes i persona: la base sobre la qual compten i filtren les vistes.
+const logsDelMes = computed(() => {
   let logs = workLogStore.logs.filter(l => l.date && l.date.substring(0, 7) === selectedMonth.value)
   if (authStore.isStaff && selectedUser.value !== 'all') {
     logs = logs.filter(l => l.user_id == selectedUser.value)
@@ -220,10 +238,14 @@ const filteredLogs = computed(() => {
   if (authStore.isWorker) {
     logs = logs.filter(l => l.user_id === authStore.userId)
   }
-  if (foraZona.value) {
-    logs = logs.filter(esForaZona)
-  }
-  return logs.sort((a, b) => new Date(b.date) - new Date(a.date))
+  return logs
+})
+
+const recomptes = computed(() => Object.fromEntries(filtres.map(f => [f.clau, logsDelMes.value.filter(f.fn).length])))
+
+const filteredLogs = computed(() => {
+  const f = filtres.find(x => x.clau === vista.value) || filtres[0]
+  return logsDelMes.value.filter(f.fn).sort((a, b) => new Date(b.date) - new Date(a.date))
 })
 
 // onMounted moved up
@@ -254,19 +276,30 @@ function statusBadge(s) { return { 'badge-pending': s === 'pending', 'badge-succ
 </script>
 
 <style scoped>
-.fz-toggle {
+.wl-filtres { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.wl-filtre {
   display: inline-flex; align-items: center; gap: 7px;
   border: 1px solid var(--color-border, #e2e8f0); border-radius: 999px;
-  padding: 10px 16px; min-height: 44px; /* objectiu tàctil (regla Zeno 5) */
-  font-size: .84rem; font-weight: 700; cursor: pointer; user-select: none;
+  padding: 8px 14px; min-height: 40px; /* objectiu tàctil */
+  font-size: .82rem; font-weight: 700; cursor: pointer; user-select: none;
   background: var(--color-surface, #fff); color: var(--color-text-secondary, #64748B);
+  transition: background .15s, border-color .15s;
 }
-.fz-toggle.actiu { background: #FDF1F0; border-color: #B3352F; color: #B3352F; }
-.fz-toggle input { margin: 0; }
-.fz-n {
-  background: #B3352F; color: #fff; border-radius: 999px;
-  padding: 1px 9px; font-size: .74rem; font-weight: 800;
+.wl-filtre.buit { opacity: .55; }
+.wl-n {
+  border-radius: 999px; padding: 1px 9px; font-size: .74rem; font-weight: 800;
+  background: #e2e8f0; color: #475569; font-variant-numeric: tabular-nums;
 }
+.wl-filtre.groc .wl-n { background: #D9A400; color: #fff; }
+.wl-filtre.vermell .wl-n { background: #B3352F; color: #fff; }
+.wl-filtre.taronja .wl-n { background: #f97316; color: #fff; }
+.wl-filtre.verd .wl-n { background: #0DAF83; color: #fff; }
+.wl-filtre.buit .wl-n { background: #e2e8f0; color: #94a3b8; }
+.wl-filtre.actiu { border-color: var(--color-primary, #094E8C); background: rgba(9, 78, 140, .08); color: var(--color-primary, #094E8C); }
+.wl-filtre.actiu.groc { border-color: #D9A400; background: #FFF8E1; color: #8a6a00; }
+.wl-filtre.actiu.vermell { border-color: #B3352F; background: #FDF1F0; color: #B3352F; }
+.wl-filtre.actiu.taronja { border-color: #f97316; background: #FFF4EC; color: #c2560c; }
+.wl-filtre.actiu.verd { border-color: #0DAF83; background: #E8F8F2; color: #0A7C5E; }
 .fz-dist {
   font-size: .74rem; font-weight: 700; color: #B3352F; white-space: nowrap;
 }
