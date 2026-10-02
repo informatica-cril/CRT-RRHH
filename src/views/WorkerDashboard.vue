@@ -161,6 +161,26 @@
       <div class="dashboard-grid" style="margin-top:16px">
         <div style="grid-column:1/-1;">
           <PacteComplementaries />
+          <!-- Pràctiques: hores del conveni i les que queden (es resten quan RRHH valida els fitxatges) -->
+          <div v-if="mevesPractiques?.practiques && mevesPractiques.hores_conveni" class="card mt-md">
+            <div class="card-header">
+              <h3 class="card-title">🎓 Les meves pràctiques</h3>
+              <span v-if="mevesPractiques.centre" class="text-small text-muted">{{ mevesPractiques.centre }}</span>
+            </div>
+            <div style="display:flex;gap:24px;flex-wrap:wrap;margin:10px 0;">
+              <div><div class="text-small text-muted">Conveni</div><strong>{{ formatHM(mevesPractiques.hores_conveni) }}</strong></div>
+              <div><div class="text-small text-muted">Fetes i validades</div><strong style="color:var(--color-success);">{{ formatHM(mevesPractiques.fetes) }}</strong></div>
+              <div><div class="text-small text-muted">En queden</div><strong>{{ formatHM(mevesPractiques.restants) }}</strong></div>
+              <div v-if="mevesPractiques.pendents_validar"><div class="text-small text-muted">Pendents de validar</div><strong style="color:#ca8a04;">{{ formatHM(mevesPractiques.pendents_validar) }}</strong></div>
+            </div>
+            <div style="height:10px;border-radius:999px;background:#e2e8f0;overflow:hidden;">
+              <div :style="{ width: mevesPractiques.percentatge + '%', height: '100%', background: 'linear-gradient(90deg,#0DAF83,#0A7C5E)', borderRadius: '999px' }"></div>
+            </div>
+            <div class="text-small text-muted" style="margin-top:6px;">
+              {{ mevesPractiques.percentatge }}% del conveni · des del {{ String(mevesPractiques.inici).split('-').reverse().join('/') }}<template v-if="mevesPractiques.fi"> fins al {{ String(mevesPractiques.fi).split('-').reverse().join('/') }}</template>.
+              Només compten els fitxatges que RRHH ja ha validat.
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1101,6 +1121,7 @@ const holidays = ref([])
 const bossa = ref(null)
 const esRepresentant = ref(false)
 const teApps = ref(false)
+const mevesPractiques = ref(null)
 const jornadaPla = ref([])
 function plaDelDia(day) {
   if (!day || !day.currentMonth) return null
@@ -1578,6 +1599,8 @@ onMounted(async () => {
     api.get('/v1/comite/me').then(r => { esRepresentant.value = !!r?.membre }).catch(() => {}))
   import('../services/apiClient').then(({ api }) =>
     api.get('/v1/portal/apps').then(r => { teApps.value = (r?.apps || []).length > 0 }).catch(() => {}))
+  if (authStore.userId) import('../services/apiClient').then(({ api }) =>
+    api.get(`/v1/practiques/${authStore.userId}`).then(r => { mevesPractiques.value = r }).catch(() => {}))
   await checkLocation()
   // Init worker map if already on clock tab
   if (activeTab.value === 'clock') {

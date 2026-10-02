@@ -402,6 +402,10 @@ Route::prefix('v1')->group(function () {
             });
         });
 
+        // Pràctiques: hores del conveni i les que queden (les fetes surten dels fitxatges aprovats).
+        Route::get('practiques/{user}', [\App\Http\Controllers\Api\PractiquesController::class, 'show']);
+        Route::put('practiques/{user}', [\App\Http\Controllers\Api\PractiquesController::class, 'update'])->middleware('role:admin,hr');
+
         // Recompte de la Safata per a la campana de la capçalera (només COUNTs).
         Route::get('safata/resum', [\App\Http\Controllers\Api\SafataController::class, 'resum'])->middleware('role:admin,coordinator,hr');
 
