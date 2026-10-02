@@ -169,6 +169,31 @@
     <div v-else-if="activeTab === 'calendar'">
       <div class="dashboard-grid">
         <div style="grid-column:1/-1;">
+          <!-- Horari de tota la setmana: fins ara només es veia el d'avui, sota el mapa del fitxatge. -->
+          <div class="card mb-md">
+            <div class="card-header">
+              <h3 class="card-title">🗓️ El meu horari setmanal</h3>
+              <span v-if="workerSchedule" class="text-small text-muted">{{ workerSchedule.name }} · {{ formatHM(horesSetmana) }} a la setmana</span>
+            </div>
+            <div v-if="!workerSchedule" class="text-small text-muted" style="margin-top:8px;">
+              Encara no tens cap horari assignat. Comenta-ho a Recursos Humans.
+            </div>
+            <div v-else style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:12px;">
+              <div v-for="d in horariSetmana" :key="d.jsDay"
+                style="border-radius:10px;padding:10px 12px;border:1px solid var(--color-border-light);"
+                :style="d.avui ? 'border:2px solid var(--color-primary);background:rgba(9,78,140,.06);' : (d.trams.length ? '' : 'opacity:.6;background:var(--color-bg);')">
+                <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;" :style="{ color: d.avui ? 'var(--color-primary)' : 'var(--color-text-secondary)' }">
+                  {{ d.nom }}<span v-if="d.avui"> · avui</span>
+                </div>
+                <template v-if="d.trams.length">
+                  <div v-for="(tr, i) in d.trams" :key="i" style="font-weight:700;font-size:.95rem;font-variant-numeric:tabular-nums;margin-top:4px;">{{ tr }}</div>
+                  <div class="text-small text-muted" style="margin-top:2px;">{{ formatHM(d.hores) }}</div>
+                </template>
+                <div v-else style="font-size:.85rem;margin-top:4px;" class="text-muted">Lliure</div>
+              </div>
+            </div>
+          </div>
+
           <div class="card">
             <div class="card-header">
               <button class="btn btn-outline btn-sm" @click="prevMonth">◂</button>
@@ -1004,6 +1029,24 @@ async function loadWorkerSchedule() {
   if (!sid) { workerSchedule.value = null; return }
   workerSchedule.value = await db.getWorkSchedule(sid).catch(() => null)
 }
+// Horari de tota la setmana (pestanya Calendari), de dilluns a diumenge.
+const NOMS_DIES = { 1: 'Dilluns', 2: 'Dimarts', 3: 'Dimecres', 4: 'Dijous', 5: 'Divendres', 6: 'Dissabte', 0: 'Diumenge' }
+const horariSetmana = computed(() => {
+  const dies = workerSchedule.value?.days
+  if (!Array.isArray(dies)) return []
+  const avui = new Date().getDay()
+  const min = (h) => { const [a, b] = String(h).split(':').map(Number); return a * 60 + (b || 0) }
+  return [1, 2, 3, 4, 5, 6, 0].map(jsDay => {
+    const entrades = dies.filter(d => d.day === jsDay && d.active !== false && d.start && d.end)
+    return {
+      jsDay, nom: NOMS_DIES[jsDay], avui: jsDay === avui,
+      trams: entrades.map(d => `${d.start.substring(0, 5)} – ${d.end.substring(0, 5)}`),
+      hores: entrades.reduce((s, d) => s + Math.max(0, min(d.end) - min(d.start)), 0) / 60,
+    }
+  })
+})
+const horesSetmana = computed(() => horariSetmana.value.reduce((s, d) => s + d.hores, 0))
+
 // Horari (entrada-sortida) del dia d'avui, per omplir el buit sota el mapa de zona.
 const todayScheduleLabel = computed(() => {
   const sched = workerSchedule.value

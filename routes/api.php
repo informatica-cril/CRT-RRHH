@@ -274,6 +274,8 @@ Route::prefix('v1')->group(function () {
             Route::get('/', [WorkLogController::class, 'index'])->middleware('role:admin,coordinator,hr');
             // Excel del que es veu a la pantalla de registres (mes, persona i vista).
             Route::get('export', [\App\Http\Controllers\Api\WorkLogExportController::class, 'export'])->middleware('role:admin,coordinator,hr');
+            // Aprovar una selecció de fitxatges d'una sola vegada.
+            Route::post('aprova-seleccionats', [\App\Http\Controllers\Api\WorkLogBulkController::class, 'aprova'])->middleware('role:admin,coordinator,hr');
             Route::get('user/{userId}', [WorkLogController::class, 'byUser'])->middleware('owner');
             // store/update: el controlador comprova propietat (el propi titular o staff).
             Route::post('/', [WorkLogController::class, 'store']);

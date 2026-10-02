@@ -33,11 +33,24 @@
       </button>
     </div>
 
+    <!-- Aprovació conjunta: apareix quan hi ha fitxatges seleccionats -->
+    <div v-if="authStore.isStaff && seleccionats.length" class="wl-seleccio">
+      <strong>{{ seleccionats.length }}</strong> fitxatge{{ seleccionats.length === 1 ? '' : 's' }} seleccionat{{ seleccionats.length === 1 ? '' : 's' }}
+      <button type="button" class="btn btn-success btn-sm" :disabled="aprovant" @click="aprovaSeleccionats">
+        {{ aprovant ? 'Aprovant…' : '✅ Aprovar seleccionats' }}
+      </button>
+      <button type="button" class="btn btn-outline btn-sm" @click="seleccionats = []">Treure la selecció</button>
+    </div>
+
     <div class="card">
       <div class="table-container">
         <table>
           <thead>
             <tr>
+              <th v-if="authStore.isStaff" class="wl-check">
+                <input type="checkbox" :checked="totsSeleccionats" :indeterminate.prop="seleccionats.length > 0 && !totsSeleccionats"
+                  :disabled="!pendentsVisibles.length" title="Seleccionar tots els pendents visibles" @change="seleccionaTots($event.target.checked)" />
+              </th>
               <th v-for="c in columnes" :key="c.clau" v-show="c.clau !== 'treballador' || authStore.isStaff"
                 class="th-ord" :class="{ actiu: ordre.col === c.clau }" :aria-sort="ordre.col === c.clau ? (ordre.dir === 'asc' ? 'ascending' : 'descending') : 'none'"
                 @click="ordena(c.clau)" :title="'Ordenar per ' + t(c.text).toLowerCase()">
@@ -48,7 +61,10 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="log in filteredLogs" :key="log.id">
+            <tr v-for="log in filteredLogs" :key="log.id" :class="{ 'wl-fila-sel': seleccionats.includes(log.id) }">
+              <td v-if="authStore.isStaff" class="wl-check">
+                <input v-if="log.status === 'pending'" type="checkbox" :value="log.id" v-model="seleccionats" :title="'Seleccionar per aprovar'" />
+              </td>
               <td v-if="authStore.isStaff">{{ getUserName(log.user_id) }}</td>
               <td>{{ formatDate(log.date) }}</td>
               <td>{{ formatTime(log.start_time) }}</td>
@@ -112,7 +128,7 @@
               </td>
             </tr>
             <tr v-if="filteredLogs.length === 0">
-              <td :colspan="authStore.isStaff ? 8 : 7" class="text-center text-muted" style="padding: 32px;">
+              <td :colspan="authStore.isStaff ? 9 : 7" class="text-center text-muted" style="padding: 32px;">
                 No hi ha registres per aquest període
               </td>
             </tr>
@@ -149,7 +165,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useWorkLogStore } from '../stores/workLog'
 import { db } from '../services/db'
-import { apiFetchRaw } from '../services/apiClient'
+import api, { apiFetchRaw } from '../services/apiClient'
 import { i18n } from '../i18n'
 import { formatHM } from '../utils/formatHours'
 import { sortidaAltreDia } from '../utils/sortidaAltreDia'
@@ -250,6 +266,32 @@ const logsDelMes = computed(() => {
   return logs
 })
 
+// ── Aprovació conjunta ──
+const seleccionats = ref([])
+const aprovant = ref(false)
+const pendentsVisibles = computed(() => filteredLogs.value.filter(l => l.status === 'pending').map(l => l.id))
+const totsSeleccionats = computed(() => pendentsVisibles.value.length > 0 && pendentsVisibles.value.every(id => seleccionats.value.includes(id)))
+function seleccionaTots(marcat) {
+  seleccionats.value = marcat ? [...pendentsVisibles.value] : []
+}
+// Canviar de mes, persona o vista buida la selecció: no s'han d'aprovar fitxatges que ja no es veuen.
+watch([selectedMonth, selectedUser, vista], () => { seleccionats.value = [] })
+async function aprovaSeleccionats() {
+  const n = seleccionats.value.length
+  if (!confirm(`Aprovar ${n} fitxatge${n === 1 ? '' : 's'}?`)) return
+  aprovant.value = true
+  try {
+    const r = await api.post('/v1/work-logs/aprova-seleccionats', { ids: seleccionats.value })
+    seleccionats.value = []
+    await workLogStore.loadLogs()
+    if (r?.omesos) alert(`${r.aprovats} aprovats. ${r.omesos} ja no eren pendents i no s'han tocat.`)
+  } catch (e) {
+    alert(e?.message || "No s'han pogut aprovar.")
+  } finally {
+    aprovant.value = false
+  }
+}
+
 const exportant = ref(false)
 async function exportaExcel() {
   exportant.value = true
@@ -348,6 +390,10 @@ function statusBadge(s) { return { 'badge-pending': s === 'pending', 'badge-succ
 <style scoped>
 /* Jornada tancada un altre dia (sortida oblidada): s'ha de veure d'un cop d'ull. */
 .sortida-altre-dia { margin-top: 3px; font-size: .74rem; font-weight: 700; color: var(--color-danger, #B3352F); white-space: nowrap; }
+.wl-seleccio { position: sticky; top: 8px; z-index: 5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 12px; border-radius: 12px; background: #E8F8F2; border: 1px solid #0DAF83; color: #0A5C46; font-size: .88rem; box-shadow: 0 4px 14px rgba(10, 92, 70, .12); }
+.wl-check { width: 34px; text-align: center; }
+.wl-check input { width: 17px; height: 17px; cursor: pointer; }
+.wl-fila-sel td { background: rgba(13, 175, 131, .07); }
 .th-ord { cursor: pointer; user-select: none; white-space: nowrap; }
 .th-ord:hover { color: var(--color-primary, #094E8C); }
 .th-ord.actiu { color: var(--color-primary, #094E8C); }
