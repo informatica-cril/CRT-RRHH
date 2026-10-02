@@ -56,8 +56,13 @@
                 <!-- DOMICILIARIA: postal codes -->
                 <div v-if="user.work_type === 'DOMICILIARIA'">
                   <div v-if="extraData[user.id]?.cpAssignment" style="display:flex;gap:3px;flex-wrap:wrap;">
-                    <span v-for="cp in extraData[user.id].cpAssignment.postal_codes" :key="cp"
-                      style="background:var(--color-bg);border:1px solid var(--color-border-light);border-radius:4px;padding:2px 5px;font-size:0.72rem;">{{ cp }}</span>
+                    <template v-if="resumCps(extraData[user.id].cpAssignment.postal_codes).totaBcn">
+                      <span class="cp-xip-mini tota" :title="resumCps(extraData[user.id].cpAssignment.postal_codes).tots.join(', ')">🏙️ Tota Barcelona · {{ resumCps(extraData[user.id].cpAssignment.postal_codes).total }} CP</span>
+                    </template>
+                    <template v-else>
+                      <span v-for="cp in resumCps(extraData[user.id].cpAssignment.postal_codes).visibles" :key="cp" class="cp-xip-mini">{{ cp }}</span>
+                      <span v-if="resumCps(extraData[user.id].cpAssignment.postal_codes).resta" class="cp-xip-mini mes" :title="resumCps(extraData[user.id].cpAssignment.postal_codes).tots.join(', ')">+{{ resumCps(extraData[user.id].cpAssignment.postal_codes).resta }}</span>
+                    </template>
                   </div>
                   <span v-else class="text-muted">—</span>
                 </div>
@@ -464,7 +469,10 @@
         <div v-if="activeCpAssignment" class="cp-actual">
           <div class="text-small" style="color:var(--color-success);font-weight:700;">✓ Assignació actual</div>
           <div class="cp-xips">
-            <span v-for="cp in activeCpAssignment.postal_codes" :key="cp" class="cp-xip fixa"><strong>{{ cp }}</strong> {{ getCpZoneFn(cp) }}</span>
+            <span v-if="resumCps(activeCpAssignment.postal_codes).totaBcn" class="cp-xip fixa"><strong>🏙️ Tota Barcelona</strong> {{ activeCpAssignment.postal_codes.length }} CP</span>
+            <template v-else>
+              <span v-for="cp in [...activeCpAssignment.postal_codes].sort()" :key="cp" class="cp-xip fixa"><strong>{{ cp }}</strong> {{ getCpZoneFn(cp) }}</span>
+            </template>
           </div>
         </div>
         <div v-else class="text-small text-muted" style="margin-bottom:14px;">Aquesta persona encara no té cap codi postal assignat.</div>
@@ -474,13 +482,22 @@
         <div class="cp-triats">
           <span class="text-small" style="font-weight:700;">Triats ({{ newCpForm.postal_codes.length }}):</span>
           <span v-if="!newCpForm.postal_codes.length" class="text-small text-muted">cap — tria'n a la llista de sota</span>
-          <span v-for="cp in [...newCpForm.postal_codes].sort()" :key="cp" class="cp-xip triat">
-            <strong>{{ cp }}</strong> {{ getCpZoneFn(cp) }}
-            <button type="button" class="cp-treu" :title="'Treure ' + cp" @click="toggleCp(cp)">✕</button>
-          </span>
+          <span v-if="resumCps(newCpForm.postal_codes).totaBcn" class="cp-xip triat"><strong>🏙️ Tota Barcelona</strong> {{ newCpForm.postal_codes.length }} CP</span>
+          <template v-else>
+            <span v-for="cp in [...newCpForm.postal_codes].sort()" :key="cp" class="cp-xip triat">
+              <strong>{{ cp }}</strong> {{ getCpZoneFn(cp) }}
+              <button type="button" class="cp-treu" :title="'Treure ' + cp" @click="toggleCp(cp)">✕</button>
+            </span>
+          </template>
           <button v-if="newCpForm.postal_codes.length" type="button" class="btn btn-outline btn-sm" @click="newCpForm.postal_codes = []">Treure'ls tots</button>
         </div>
-        <input v-model="cercaCp" type="search" class="form-input" style="margin-bottom:8px;" placeholder="🔍 Cerca per codi o barri (p. ex. «sants», «gràcia», «08015»)" />
+        <div class="cp-cerca-fila">
+          <input v-model="cercaCp" type="search" class="form-input" placeholder="🔍 Cerca per codi o barri (p. ex. «sants», «gràcia», «08015»)" />
+          <!-- Amb una cerca, selecciona només els que es veuen (p. ex. tot l'Eixample); sense, tots. -->
+          <button type="button" class="btn btn-outline btn-sm cp-tots" :disabled="!cpsPerAfegir" @click="seleccionaTotsCp">
+            {{ cercaCp.trim() ? `Seleccionar els ${cpsFiltrats.length} trobats` : 'Seleccionar tots' }}
+          </button>
+        </div>
         <div class="cp-graella">
           <button v-for="cp in cpsFiltrats" :key="cp.code" type="button" class="cp-opcio" :class="{ sel: newCpForm.postal_codes.includes(cp.code) }" @click="toggleCp(cp.code)">
             <span class="cp-codi">{{ newCpForm.postal_codes.includes(cp.code) ? '✓ ' : '' }}{{ cp.code }}</span>
@@ -658,6 +675,7 @@ import { auditLog } from '../services/audit'
 import { useAuthStore } from '../stores/auth'
 import { i18n } from '../i18n'
 import { getPostalCodeList, BARCELONA_POSTAL_CODES, getMunicipalityList, VALLES_MUNICIPALITIES } from '../services/geolocation'
+import { resumCps } from '../utils/resumCps'
 import CalendarPdfViewer from '../components/CalendarPdfViewer.vue'
 import { formatHM } from '../utils/formatHours'
 
@@ -1129,6 +1147,10 @@ const cobertura = computed(() => {
   })
   return n
 })
+const cpsPerAfegir = computed(() => cpsFiltrats.value.filter(cp => !newCpForm.postal_codes.includes(cp.code)).length)
+function seleccionaTotsCp() {
+  cpsFiltrats.value.forEach(cp => { if (!newCpForm.postal_codes.includes(cp.code)) newCpForm.postal_codes.push(cp.code) })
+}
 function toggleCp(cp) {
   const i = newCpForm.postal_codes.indexOf(cp)
   if (i >= 0) newCpForm.postal_codes.splice(i, 1)
@@ -1307,6 +1329,10 @@ async function saveMuniAssignment() {
 </script>
 
 <style scoped>
+/* ── Codis postals compactes a la taula ── */
+.cp-xip-mini { background: var(--color-bg); border: 1px solid var(--color-border-light); border-radius: 4px; padding: 2px 6px; font-size: .72rem; font-variant-numeric: tabular-nums; }
+.cp-xip-mini.mes { background: rgba(9, 78, 140, .08); border-color: rgba(9, 78, 140, .25); color: var(--color-primary, #094E8C); font-weight: 700; cursor: help; }
+.cp-xip-mini.tota { background: rgba(13, 175, 131, .1); border-color: rgba(13, 175, 131, .35); color: #0A7C5E; font-weight: 700; cursor: help; }
 /* ── Modal d'assignació de codis postals ── */
 .cp-actual { background: rgba(76, 175, 80, .07); border-radius: 10px; padding: 12px; border-left: 3px solid var(--color-success); margin-bottom: 16px; }
 .cp-xips { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
@@ -1315,6 +1341,9 @@ async function saveMuniAssignment() {
 .cp-treu { background: none; border: none; cursor: pointer; color: inherit; font-size: .8rem; padding: 0 0 0 2px; opacity: .7; }
 .cp-treu:hover { opacity: 1; }
 .cp-triats { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; min-height: 30px; }
+.cp-cerca-fila { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.cp-cerca-fila .form-input { flex: 1; min-width: 0; }
+.cp-tots { white-space: nowrap; min-height: 42px; }
 .cp-graella { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; max-height: 260px; overflow-y: auto; border: 1px solid var(--color-border-light, #e5eaf0); border-radius: 10px; padding: 8px; margin-bottom: 14px; }
 .cp-opcio { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--color-border-light, #e5eaf0); background: var(--color-surface, #fff); cursor: pointer; min-height: 44px; }
 .cp-opcio:hover { border-color: var(--color-primary, #094E8C); }

@@ -588,7 +588,13 @@
               <thead><tr><th>Codis postals</th><th>Des de</th><th>Fins a</th><th>Notes</th></tr></thead>
               <tbody>
                 <tr v-for="a in myCpHistory" :key="a.id" :style="a.id === activeCpAssignment?.id ? 'background:rgba(76,175,80,0.04);' : ''">
-                  <td><span v-for="cp in a.postal_codes" :key="cp" class="badge badge-info" style="margin-right:4px;font-size:0.72rem;">{{ cp }}</span></td>
+                  <td>
+                    <span v-if="resumCps(a.postal_codes).totaBcn" class="badge badge-success" style="font-size:0.72rem;" :title="resumCps(a.postal_codes).tots.join(', ')">🏙️ Tota Barcelona · {{ resumCps(a.postal_codes).total }} CP</span>
+                    <template v-else>
+                      <span v-for="cp in resumCps(a.postal_codes, 6).visibles" :key="cp" class="badge badge-info" style="margin-right:4px;font-size:0.72rem;">{{ cp }}</span>
+                      <span v-if="resumCps(a.postal_codes, 6).resta" class="badge badge-primary" style="font-size:0.72rem;cursor:help;" :title="resumCps(a.postal_codes, 6).tots.join(', ')">+{{ resumCps(a.postal_codes, 6).resta }}</span>
+                    </template>
+                  </td>
                   <td class="text-small">{{ formatDate(a.pivot?.valid_from) }}</td>
                   <td class="text-small">{{ a.pivot?.valid_to ? formatDate(a.pivot.valid_to) : '— (indefinit)' }}</td>
                   <td class="text-small">{{ a.notes || '—' }}</td>
@@ -809,6 +815,7 @@ import { i18n } from '../i18n'
 import { formatHM } from '../utils/formatHours'
 import { sortidaAltreDia } from '../utils/sortidaAltreDia'
 import { etiqueta } from '../utils/etiquetes'
+import { resumCps } from '../utils/resumCps'
 import WorkLogAlertBanner from '../components/WorkLogAlertBanner.vue'
 import PacteComplementaries from '../components/PacteComplementaries.vue'
 import BreakTimerModal from '../components/BreakTimerModal.vue'
