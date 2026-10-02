@@ -262,7 +262,29 @@
             🎓 Alumne/a en pràctiques
           </label>
           <template v-if="prac.practiques">
+            <div class="form-group">
+              <label class="form-label">Tipus de conveni</label>
+              <select class="form-select" v-model="prac.practiques_tipus" :disabled="desantPrac">
+                <option value="" disabled>Tria la modalitat…</option>
+                <option v-for="(t, clau) in pracCataleg" :key="clau" :value="clau">{{ t.nom }}</option>
+              </select>
+            </div>
+            <!-- Recordatoris de la modalitat triada (no són validacions: mana el conveni signat) -->
+            <div v-for="(a, i) in (tipusPrac?.avisos || [])" :key="i" class="prac-avis">ℹ️ {{ a }}</div>
             <div class="fitxa-graella">
+              <div v-if="tePrac('estudis')" class="form-group">
+                <label class="form-label">{{ tipusPrac?.estudis || 'Estudis' }}</label>
+                <input class="form-input" v-model="prac.detall.estudis" placeholder="p. ex. Tècnic superior en…" :disabled="desantPrac" />
+              </div>
+              <div v-if="tePrac('curs')" class="form-group">
+                <label class="form-label">Curs</label>
+                <input class="form-input" v-model="prac.detall.curs" placeholder="p. ex. 2n / 2026-27" :disabled="desantPrac" />
+              </div>
+              <div v-if="tePrac('ects')" class="form-group">
+                <label class="form-label">Crèdits ECTS</label>
+                <input class="form-input" type="number" min="0" step="0.5" v-model.number="prac.detall.ects" @input="horesDesDeEcts" :disabled="desantPrac" />
+                <small class="text-muted">Les hores es calculen a {{ pracHoresEcts }} h per crèdit (es poden corregir).</small>
+              </div>
               <div class="form-group">
                 <label class="form-label">Hores del conveni</label>
                 <input class="form-input" type="number" min="1" step="0.5" v-model.number="prac.practiques_hores" placeholder="p. ex. 300" :disabled="desantPrac" />
@@ -279,7 +301,40 @@
                 <label class="form-label">Centre formatiu <span class="text-muted">(opcional)</span></label>
                 <input class="form-input" v-model="prac.practiques_centre" placeholder="Institut, universitat…" :disabled="desantPrac" />
               </div>
+              <div v-if="tePrac('tutor_centre_nom')" class="form-group">
+                <label class="form-label">Tutor/a del centre</label>
+                <input class="form-input" v-model="prac.detall.tutor_centre_nom" placeholder="Nom i cognoms" :disabled="desantPrac" />
+              </div>
+              <div v-if="tePrac('tutor_centre_email')" class="form-group">
+                <label class="form-label">Correu del tutor/a del centre</label>
+                <input class="form-input" type="email" v-model="prac.detall.tutor_centre_email" :disabled="desantPrac" />
+              </div>
+              <div v-if="tePrac('tutor_empresa')" class="form-group">
+                <label class="form-label">Tutor/a a l'empresa</label>
+                <input class="form-input" v-model="prac.detall.tutor_empresa" placeholder="Qui l'acompanya a CRIL" :disabled="desantPrac" />
+              </div>
+              <div v-if="tePrac('num_conveni')" class="form-group">
+                <label class="form-label">Núm. de conveni</label>
+                <input class="form-input" v-model="prac.detall.num_conveni" :disabled="desantPrac" />
+              </div>
+              <div v-if="tePrac('alta_ss')" class="form-group">
+                <label class="form-label">Alta a la Seguretat Social</label>
+                <input class="form-input" type="date" v-model="prac.detall.alta_ss" :disabled="desantPrac" />
+              </div>
+              <div v-if="tePrac('remunerada')" class="form-group">
+                <label class="form-label" style="display:flex;align-items:center;gap:8px;">
+                  <input type="checkbox" v-model="prac.detall.remunerada" :disabled="desantPrac || tipusPrac?.beca_obligatoria" />
+                  Remunerada (beca)
+                </label>
+                <input v-if="prac.detall.remunerada || tipusPrac?.beca_obligatoria" class="form-input" type="number" min="0" step="0.01"
+                  v-model.number="prac.detall.beca_mensual" placeholder="Import mensual (€)" :disabled="desantPrac" />
+              </div>
             </div>
+            <div v-if="tePrac('observacions')" class="form-group">
+              <label class="form-label">Observacions</label>
+              <textarea class="form-textarea" rows="2" v-model="prac.detall.observacions" :disabled="desantPrac"></textarea>
+            </div>
+            <div v-if="tePrac('alta_ss') && !prac.detall.alta_ss" class="prac-avis prac-avis-alerta">⚠ {{ pracAvisSs }}</div>
             <div v-if="pracEstat?.practiques && pracEstat.hores_conveni" class="prac-progres">
               <div class="prac-barra"><div :style="{ width: pracEstat.percentatge + '%' }"></div></div>
               <div class="prac-xifres">
@@ -287,6 +342,7 @@
                 <span><strong>{{ formatHM(pracEstat.restants) }}</strong> en queden</span>
                 <span v-if="pracEstat.pendents_validar" class="text-muted">· {{ formatHM(pracEstat.pendents_validar) }} pendents de validar</span>
               </div>
+              <div v-if="pracEstat.excedides > 0" class="prac-avis prac-avis-alerta">⚠ S'han superat les hores del conveni en {{ formatHM(pracEstat.excedides) }}: el conveni no les cobreix.</div>
             </div>
           </template>
           <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
@@ -1009,19 +1065,36 @@ const pestanyesFitxa = computed(() => [
 ])
 
 // ── Pràctiques ──
-const prac = reactive({ practiques: false, practiques_hores: null, practiques_inici: '', practiques_fi: '', practiques_centre: '' })
+const detallBuit = () => ({ estudis: '', curs: '', ects: null, tutor_centre_nom: '', tutor_centre_email: '', tutor_empresa: '',
+  num_conveni: '', remunerada: false, beca_mensual: null, alta_ss: '', observacions: '' })
+const prac = reactive({ practiques: false, practiques_tipus: '', practiques_hores: null, practiques_inici: '', practiques_fi: '', practiques_centre: '', detall: detallBuit() })
 const pracEstat = ref(null)
+// El catàleg de modalitats ve del servidor: les regles de cada tipus no s'escriuen dues vegades.
+const pracCataleg = ref({})
+const pracAvisSs = ref('')
+const pracHoresEcts = ref(25)
+const tipusPrac = computed(() => pracCataleg.value[prac.practiques_tipus] || null)
+const tePrac = (camp) => !!tipusPrac.value?.camps?.includes(camp)
+function horesDesDeEcts() {
+  const e = Number(prac.detall.ects)
+  if (e > 0) prac.practiques_hores = Math.round(e * pracHoresEcts.value * 2) / 2
+}
 const desantPrac = ref(false)
 const pracMsg = ref('')
 const pracOk = ref(true)
 async function carregaPractiques(id) {
   pracMsg.value = ''
   pracEstat.value = null
-  Object.assign(prac, { practiques: false, practiques_hores: null, practiques_inici: '', practiques_fi: '', practiques_centre: '' })
+  Object.assign(prac, { practiques: false, practiques_tipus: '', practiques_hores: null, practiques_inici: '', practiques_fi: '', practiques_centre: '', detall: detallBuit() })
   try {
     const e = await api.get(`/v1/practiques/${id}`)
     pracEstat.value = e
-    Object.assign(prac, { practiques: !!e.practiques, practiques_hores: e.hores_conveni, practiques_inici: e.inici || '', practiques_fi: e.fi || '', practiques_centre: e.centre || '' })
+    pracCataleg.value = e.cataleg || {}
+    pracAvisSs.value = e.avis_ss || ''
+    pracHoresEcts.value = e.hores_ects || 25
+    Object.assign(prac, { practiques: !!e.practiques, practiques_tipus: e.tipus || '', practiques_hores: e.hores_conveni,
+      practiques_inici: e.inici || '', practiques_fi: e.fi || '', practiques_centre: e.centre || '',
+      detall: { ...detallBuit(), ...(e.detall || {}) } })
   } catch { /* sense dades, el bloc surt buit */ }
 }
 async function desaPractiques() {
@@ -1030,6 +1103,9 @@ async function desaPractiques() {
   try {
     pracEstat.value = await api.put(`/v1/practiques/${editingUser.value.id}`, {
       ...prac, practiques_fi: prac.practiques_fi || null, practiques_centre: prac.practiques_centre || null,
+      practiques_tipus: prac.practiques_tipus || null,
+      // Els buits no viatgen: el servidor només desa les dades que té la modalitat.
+      detall: Object.fromEntries(Object.entries(prac.detall).filter(([, v]) => v !== '' && v !== null && v !== undefined)),
     })
     pracOk.value = true
     pracMsg.value = prac.practiques ? 'Desat.' : 'Pràctiques desactivades.'
@@ -1449,6 +1525,8 @@ async function saveMuniAssignment() {
 .fitxa-graella { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 16px; }
 .fitxa-bloc { border: 1px solid var(--color-border-light, #e5eaf0); border-radius: 10px; padding: 12px 14px; margin: 8px 0 14px; background: var(--color-bg, #f8fafc); }
 .prac-progres { margin-top: 4px; }
+.prac-avis { font-size: .8rem; background: rgba(9, 78, 140, .06); border-left: 3px solid var(--color-primary, #094E8C); border-radius: 6px; padding: 7px 10px; margin: 0 0 10px; color: var(--color-text-secondary, #475569); }
+.prac-avis-alerta { background: #FFF8E1; border-left-color: #D9A400; color: #7a5a00; margin-top: 8px; }
 .prac-barra { height: 10px; border-radius: 999px; background: #e2e8f0; overflow: hidden; }
 .prac-barra > div { height: 100%; background: linear-gradient(90deg, #0DAF83, #0A7C5E); border-radius: 999px; transition: width .3s; }
 .prac-xifres { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; font-size: .82rem; }

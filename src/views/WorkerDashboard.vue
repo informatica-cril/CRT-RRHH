@@ -165,7 +165,13 @@
           <div v-if="mevesPractiques?.practiques && mevesPractiques.hores_conveni" class="card mt-md">
             <div class="card-header">
               <h3 class="card-title">🎓 Les meves pràctiques</h3>
-              <span v-if="mevesPractiques.centre" class="text-small text-muted">{{ mevesPractiques.centre }}</span>
+              <span v-if="mevesPractiques.tipus_nom" class="badge badge-info" style="font-size:.72rem;">{{ mevesPractiques.tipus_nom }}</span>
+            </div>
+            <div class="text-small" style="display:flex;gap:16px;flex-wrap:wrap;margin-top:6px;color:var(--color-text-secondary);">
+              <span v-if="mevesPractiques.detall?.estudis">📚 {{ mevesPractiques.detall.estudis }}</span>
+              <span v-if="mevesPractiques.centre">🏫 {{ mevesPractiques.centre }}</span>
+              <span v-if="mevesPractiques.detall?.tutor_centre_nom">👩‍🏫 Tutor/a del centre: {{ mevesPractiques.detall.tutor_centre_nom }}</span>
+              <span v-if="mevesPractiques.detall?.tutor_empresa">🤝 Tutor/a a CRIL: {{ mevesPractiques.detall.tutor_empresa }}</span>
             </div>
             <div style="display:flex;gap:24px;flex-wrap:wrap;margin:10px 0;">
               <div><div class="text-small text-muted">Conveni</div><strong>{{ formatHM(mevesPractiques.hores_conveni) }}</strong></div>
@@ -179,6 +185,9 @@
             <div class="text-small text-muted" style="margin-top:6px;">
               {{ mevesPractiques.percentatge }}% del conveni · des del {{ String(mevesPractiques.inici).split('-').reverse().join('/') }}<template v-if="mevesPractiques.fi"> fins al {{ String(mevesPractiques.fi).split('-').reverse().join('/') }}</template>.
               Només compten els fitxatges que RRHH ja ha validat.
+            </div>
+            <div v-if="mevesPractiques.excedides > 0" class="text-small" style="margin-top:6px;color:#7a5a00;background:#FFF8E1;border-radius:6px;padding:6px 10px;">
+              ⚠ Has superat les hores del conveni en {{ formatHM(mevesPractiques.excedides) }}. Parla-ho amb RRHH.
             </div>
           </div>
         </div>
