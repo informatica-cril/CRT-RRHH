@@ -84,8 +84,9 @@ return new class extends Migration
             if (DB::getDriverName() === 'mysql') {
                 DB::statement('ALTER TABLE comite_hores ADD CONSTRAINT chk_comite_hores_franja
                     CHECK (hora_fi > hora_inici)');
-                DB::statement("ALTER TABLE comite_hores ADD CONSTRAINT chk_comite_hores_validacio
-                    CHECK (estat = 'pendent' OR (validat_per IS NOT NULL AND validat_ts IS NOT NULL))");
+                // Sense CHECK sobre validat_per: MySQL 8 no admet un CHECK en una columna amb FK
+                // ON DELETE SET NULL (error 3823). Que una hora resolta tingui qui i quan ho garanteix
+                // ComiteController::resol().
             }
         }
 

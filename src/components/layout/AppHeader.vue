@@ -30,9 +30,15 @@
         <div v-if="alertesObert" class="alertes-panel">
           <div class="alertes-cap">
             <strong>{{ t('alerts') }}</strong>
-            <span class="text-small text-muted">{{ alertes.length }}</span>
+            <span class="text-small text-muted">{{ totalAlertes }}</span>
           </div>
-          <div v-if="alertes.length === 0" class="alertes-buit">✓ No tens cap avís pendent</div>
+          <!-- Personal de gestió: el que espera una decisió seva (el mateix recompte que la Safata) -->
+          <router-link v-for="c in pendents" :key="c.clau" :to="c.enllac" class="alertes-item alertes-cua" :class="c.urgencia" @click="alertesObert = false">
+            <span class="alertes-ico">{{ c.icona }}</span>
+            <div class="alertes-cos"><div class="alertes-msg">{{ c.titol }}</div></div>
+            <span class="alertes-n">{{ c.n }}</span>
+          </router-link>
+          <div v-if="totalAlertes === 0" class="alertes-buit">✓ No tens cap avís pendent</div>
           <div v-for="a in alertes" :key="a.id" class="alertes-item">
             <span class="alertes-ico">{{ iconaAlerta(a.type) }}</span>
             <div class="alertes-cos">
@@ -68,6 +74,7 @@ import { useAuthStore } from '../../stores/auth'
 import { useSettingsStore } from '../../stores/settings'
 import { i18n } from '../../i18n'
 import db from '../../services/db'
+import api from '../../services/apiClient'
 
 const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
@@ -89,7 +96,9 @@ const initials = computed(() => {
 const alertes = ref([])
 const alertesObert = ref(false)
 const alertesWrap = ref(null)
-const hasNotifications = computed(() => alertes.value.length > 0)
+const pendents = ref([])
+const totalAlertes = computed(() => alertes.value.length + pendents.value.reduce((s, c) => s + c.n, 0))
+const hasNotifications = computed(() => totalAlertes.value > 0)
 
 async function carregaAlertes() {
   if (!authStore.userId) return
@@ -97,6 +106,9 @@ async function carregaAlertes() {
     const r = await db.getPendingAlerts(authStore.userId)
     alertes.value = Array.isArray(r) ? r : []
   } catch { /* la campana no ha de trencar la capçalera */ }
+  if (authStore.isStaff) {
+    try { pendents.value = (await api.get('/v1/safata/resum'))?.cues || [] } catch { /* idem */ }
+  }
 }
 
 function toggleAlertes() {
@@ -170,5 +182,13 @@ onUnmounted(() => {
 .alertes-meta a { color: var(--color-primary, #094E8C); font-weight: 600; text-decoration: none; }
 .alertes-x { background: none; border: none; cursor: pointer; color: var(--color-text-muted, #7a8aa0); font-size: .85rem; padding: 2px 4px; }
 .alertes-x:hover { color: var(--color-danger, #B3352F); }
+.alertes-cua { text-decoration: none; align-items: center; border-left: 4px solid #cfd8e3; }
+.alertes-cua:hover { background: rgba(10, 42, 74, .04); }
+.alertes-cua.alta { border-left-color: #B3352F; }
+.alertes-cua.mitjana { border-left-color: #D9A400; }
+.alertes-cua.baixa { border-left-color: #0DAF83; }
+.alertes-n { min-width: 26px; height: 22px; padding: 0 7px; border-radius: 99px; background: #B3352F; color: #fff; font-size: .78rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
+.alertes-cua.mitjana .alertes-n { background: #D9A400; }
+.alertes-cua.baixa .alertes-n { background: #0DAF83; }
 .alertes-peu { display: block; padding: 10px 14px; text-align: center; font-size: .82rem; font-weight: 600; color: var(--color-primary, #094E8C); text-decoration: none; }
 </style>

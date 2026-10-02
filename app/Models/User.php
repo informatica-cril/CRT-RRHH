@@ -29,6 +29,8 @@ class User extends Authenticatable
         'must_change_password',
         'chat_status', 'last_chat_heartbeat',
         'geo_consent_accepted_at',
+        // CRIL, CRT o CRIL_CRT: qui treballa a totes dues entitats té accés a totes dues plataformes.
+        'entitat',
     ];
 
     /**

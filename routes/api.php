@@ -398,6 +398,9 @@ Route::prefix('v1')->group(function () {
             });
         });
 
+        // Recompte de la Safata per a la campana de la capçalera (només COUNTs).
+        Route::get('safata/resum', [\App\Http\Controllers\Api\SafataController::class, 'resum'])->middleware('role:admin,coordinator,hr');
+
         // ── Representació legal: crèdit horari (art. 68.e ET) ──
         // Les hores les registra la persona representant (el controlador comprova el mandat);
         // validar-les i gestionar els mandats és d'admin/hr.
