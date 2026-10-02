@@ -53,9 +53,13 @@ async function n(promise, filtre) {
 
 onMounted(async () => {
   const esAdmin = authStore.user?.role === 'admin'
-  const [fitxatges, foraZona, absencies, excedencies, suggeriments, conciliacio] = await Promise.all([
-    n(db.getWorkLogs(), l => l.status === 'pending'),
-    n(db.getWorkLogs(), l => l.hour_status === 'out_of_area' && l.status === 'pending'),
+  // Fitxatges: recompte al servidor. Descarregar-los per comptar-los només en portava 500 i, amb
+  // l'històric importat, deixava fora els pendents de mesos anteriors.
+  const resum = await api.get('/v1/safata/resum').catch(() => null)
+  const nCua = (clau) => (resum?.cues || []).find(c => c.clau === clau)?.n || 0
+  const fitxatges = nCua('fitxatges')
+  const foraZona = nCua('forazona')
+  const [absencies, excedencies, suggeriments, conciliacio] = await Promise.all([
     n(db.getAbsences(), a => a.approved === null || a.approved === undefined),
     n(db.getExcedencias(), e => e.status === 'pending'),
     n(db.disciplinarySuggestions()),

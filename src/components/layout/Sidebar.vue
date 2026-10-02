@@ -255,8 +255,10 @@ const expedientObert = ref(['expedient', 'disciplinary'].includes(router.current
 async function fetchCounts() {
   if (!authStore.isStaff) return
   try {
-    await workLogStore.loadLogs()
-    pendingCount.value = workLogStore.logs.filter(l => l.status === 'pending').length
+    // Recompte al servidor (només COUNTs): descarregar els fitxatges per comptar-los es quedava curt
+    // amb l'històric (només en venien 500) i a més pesava cada minut.
+    const r = await api.get('/v1/safata/resum')
+    pendingCount.value = (r?.cues || []).find(c => c.clau === 'fitxatges')?.n || 0
     // unreadCount.value = await db.getTotalUnreadCount(authStore.userId)
   } catch (e) { console.error(e) }
 }

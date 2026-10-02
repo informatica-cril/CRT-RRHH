@@ -8,6 +8,8 @@ import { formatHM } from '../utils/formatHours'
 export const useWorkLogStore = defineStore('workLog', {
   state: () => ({
     currentLog: null,
+    // Mes (AAAA-MM) que mira la pantalla de registres; null = els últims (per defecte).
+    mes: null,
     logs: [],
     elapsed: 0,
     timerInterval: null,
@@ -34,7 +36,7 @@ export const useWorkLogStore = defineStore('workLog', {
       
       try {
         if (authStore.isStaff) {
-          this.logs = await db.getWorkLogs()
+          this.logs = await db.getWorkLogs(this.mes)
         } else {
           this.logs = await db.getWorkLogsByUser(authStore.userId)
         }

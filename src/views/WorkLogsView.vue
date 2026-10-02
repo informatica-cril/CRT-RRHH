@@ -132,7 +132,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useWorkLogStore } from '../stores/workLog'
@@ -164,6 +164,7 @@ async function fetchData() {
     const allUsers = await db.getUsers()
     users.value = allUsers
     workers.value = allUsers.filter(u => u.role === 'worker')
+    workLogStore.mes = selectedMonth.value
     await workLogStore.loadLogs()
   } catch (e) {
     console.error(e)
@@ -171,10 +172,13 @@ async function fetchData() {
 }
 
 onMounted(fetchData)
+// Cada mes es demana sencer a l'API (abans es filtrava sobre els 500 últims i els mesos vells sortien buits).
+watch(selectedMonth, (m) => { workLogStore.mes = m; workLogStore.loadLogs() })
+onUnmounted(() => { workLogStore.mes = null })
 
 const months = computed(() => {
   const result = []
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
     result.push({
       value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,

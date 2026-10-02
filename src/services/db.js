@@ -31,7 +31,8 @@ const db = {
   updateWorkSchedule: (s) => api.put(`/v1/work-schedules/${s.id}`, s),
 
   // ── Work Logs ──
-  getWorkLogs: () => api.get('/v1/work-logs'),
+  // mes (AAAA-MM) opcional: el mes sencer. Sense, els 500 últims (comportament de sempre).
+  getWorkLogs: (mes) => api.get('/v1/work-logs' + (mes ? `?mes=${mes}` : '')),
   getWorkLogsByUser: (userId) => api.get(`/v1/work-logs/user/${userId}`),
   addWorkLog: (log) => api.post('/v1/work-logs', log),
   updateWorkLog: (log) => api.put(`/v1/work-logs/${log.id}`, log),

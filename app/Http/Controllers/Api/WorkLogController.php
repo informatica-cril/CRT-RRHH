@@ -24,14 +24,23 @@ class WorkLogController extends Controller
     {
         $this->logLocationAccess($request, 'Consulta del llistat de fichatges');
 
+        // Amb ?mes=AAAA-MM es torna el mes sencer: amb l'històric importat, els 500 últims
+        // ja no arriben més enllà de les últimes setmanes i els mesos anteriors sortien buits.
+        // Sense el paràmetre, igual que sempre (l'app mòbil publicada no l'envia).
+        $mes = (string) $request->query('mes', '');
+        $perMes = preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $mes) === 1;
+
         // Limitar a los últimos 500 registros para evitar respuestas enormes
         // y seleccionar solo las columnas necesarias de la relación user.
         // MINIMITZACIÓ (EIPD §6.3): el llistat MAI inclou coordenades — només el
         // detall, i sota les condicions de coordsVisibles().
         return response()->json(
             WorkLog::with('user:id,name')
+                ->when($perMes, function ($q) use ($mes) {
+                    $ini = \Carbon\Carbon::createFromFormat('Y-m-d', $mes . '-01');
+                    $q->whereBetween('date', [$ini->toDateString(), $ini->copy()->endOfMonth()->toDateString()]);
+                }, fn ($q) => $q->limit(500))
                 ->orderBy('date', 'desc')
-                ->limit(500)
                 ->get()
                 ->each(fn ($w) => $w->makeHidden([
                     'start_location_lat', 'start_location_lng',
