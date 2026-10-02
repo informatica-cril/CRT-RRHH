@@ -32,7 +32,7 @@ class User extends Authenticatable
         // CRIL, CRT o CRIL_CRT: qui treballa a totes dues entitats té accés a totes dues plataformes.
         'entitat',
         // Alumnat en pràctiques (hores del conveni). Només les escriu PractiquesController.
-        'practiques', 'practiques_hores', 'practiques_inici', 'practiques_fi', 'practiques_centre',
+        'practiques', 'practiques_tipus', 'practiques_hores', 'practiques_inici', 'practiques_fi', 'practiques_centre', 'practiques_detall',
     ];
 
     /**
