@@ -52,6 +52,12 @@ class ExpedientTest extends TestCase
     {
         $_ENV[$clau] = $_SERVER[$clau] = $valor;
         putenv("$clau=$valor");
+        // Els controladors llegeixen config(), no env() (amb config:cache env() torna null).
+        $mapa = ['DOMI_EXPEDIENT_TOKEN' => 'services.domi.token', 'DOMI_EXPEDIENT_URL' => 'services.domi.expedient_url',
+                 'DOMI_EXPEDIENT_DETALL_URL' => 'services.domi.expedient_detall_url'];
+        if (isset($mapa[$clau])) {
+            config([$mapa[$clau] => $valor]);
+        }
     }
 
     private function comA(string $rol): void
@@ -110,7 +116,7 @@ class ExpedientTest extends TestCase
 
         $r = $this->getJson('/api/v1/expedient/' . self::PROF);
 
-        $r->assertStatus(502)->assertJsonPath('ok', false);
+        $r->assertStatus(424)->assertJsonPath('ok', false);
         $this->assertNotSame(200, $r->status(), 'Un error de domi no pot semblar un expedient net.');
     }
 
@@ -120,7 +126,7 @@ class ExpedientTest extends TestCase
         $this->comA('admin');
 
         $this->getJson('/api/v1/expedient/' . self::PROF)
-            ->assertStatus(502)
+            ->assertStatus(424)
             ->assertJsonPath('ok', false);
     }
 

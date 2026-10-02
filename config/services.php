@@ -38,6 +38,10 @@ return [
         // Aprovisionament automàtic de comptes domi a l'alta (servei-a-servei).
         'provisiona_url' => env('DOMI_PROVISIONA_URL'),
         'token'          => env('DOMI_EXPEDIENT_TOKEN'),
+        // Expedient i conciliació. Han de passar per aquí, no per env() al controlador: amb
+        // `php artisan config:cache` (el desplegament el fa sempre) env() torna null fora de config/.
+        'expedient_url'        => env('DOMI_EXPEDIENT_URL', 'http://127.0.0.1:8080/api/rrhh_expedient.php'),
+        'expedient_detall_url' => env('DOMI_EXPEDIENT_DETALL_URL', 'http://127.0.0.1:8080/api/rrhh_expedient_detall.php'),
     ],
 
     // Identitat de dispositiu corporatiu (Hexnode): clau d'aprovisionament compartida

@@ -69,8 +69,8 @@ class ConciliacioController extends Controller
             return response()->json(['ok' => false, 'error' => "Aquest usuari ja està vinculat a «{$user->domi_username}»."], 422);
         }
         // Primer domi (pot rebutjar per conflicte); només si accepta, es desa a RRHH.
-        $url   = str_replace('rrhh_expedient.php', 'rrhh_conciliacio.php', (string) env('DOMI_EXPEDIENT_URL'));
-        $token = (string) env('DOMI_EXPEDIENT_TOKEN');
+        $url   = str_replace('rrhh_expedient.php', 'rrhh_conciliacio.php', (string) config('services.domi.expedient_url'));
+        $token = (string) config('services.domi.token');
         try {
             $resp = Http::withToken($token)->timeout(8)
                 ->post($url, ['username' => $data['username'], 'rrhh_user_id' => $user->id]);
@@ -89,8 +89,8 @@ class ConciliacioController extends Controller
     /** @return array|string llista de comptes o missatge d'error */
     private function comptesDomi()
     {
-        $url   = str_replace('rrhh_expedient.php', 'rrhh_conciliacio.php', (string) env('DOMI_EXPEDIENT_URL'));
-        $token = (string) env('DOMI_EXPEDIENT_TOKEN');
+        $url   = str_replace('rrhh_expedient.php', 'rrhh_conciliacio.php', (string) config('services.domi.expedient_url'));
+        $token = (string) config('services.domi.token');
         if ($token === '') {
             return 'DOMI_EXPEDIENT_TOKEN no configurat';
         }
