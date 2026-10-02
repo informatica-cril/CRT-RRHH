@@ -38,13 +38,12 @@
         <table>
           <thead>
             <tr>
-              <th v-if="authStore.isStaff">{{ t('employee') }}</th>
-              <th>{{ t('date') }}</th>
-              <th>{{ t('start_time') }}</th>
-              <th>{{ t('end_time') }}</th>
-              <th>{{ t('worked_hours') }}</th>
-              <th>{{ t('extra_hours') }}</th>
-              <th>{{ t('status') }}</th>
+              <th v-for="c in columnes" :key="c.clau" v-show="c.clau !== 'treballador' || authStore.isStaff"
+                class="th-ord" :class="{ actiu: ordre.col === c.clau }" :aria-sort="ordre.col === c.clau ? (ordre.dir === 'asc' ? 'ascending' : 'descending') : 'none'"
+                @click="ordena(c.clau)" :title="'Ordenar per ' + t(c.text).toLowerCase()">
+                {{ t(c.text) }}
+                <span class="ord-fletxa">{{ ordre.col === c.clau ? (ordre.dir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              </th>
               <th>{{ t('actions') }}</th>
             </tr>
           </thead>
@@ -273,9 +272,50 @@ async function exportaExcel() {
 
 const recomptes = computed(() => Object.fromEntries(filtres.map(f => [f.clau, logsDelMes.value.filter(f.fn).length])))
 
+// Ordenació per columna: un clic ordena, el segon inverteix. Per defecte, data més recent primer.
+const columnes = [
+  { clau: 'treballador', text: 'employee' },
+  { clau: 'data', text: 'date' },
+  { clau: 'inici', text: 'start_time' },
+  { clau: 'fi', text: 'end_time' },
+  { clau: 'hores', text: 'worked_hours' },
+  { clau: 'extres', text: 'extra_hours' },
+  { clau: 'estat', text: 'status' },
+]
+const ordre = ref({ col: 'data', dir: 'desc' })
+function ordena(col) {
+  ordre.value = ordre.value.col === col
+    ? { col, dir: ordre.value.dir === 'asc' ? 'desc' : 'asc' }
+    // Text i hores comencen per A→Z / menys→més; dates, per la més recent.
+    : { col, dir: ['data'].includes(col) ? 'desc' : 'asc' }
+}
+// start_time/end_time arriben en hora de Madrid sense zona: l'hora es llegeix del text, no via Date.
+const horaDe = (ts) => (ts ? String(ts).slice(11, 16) : null)
+const ORDRE_ESTAT = { pending: 0, approved: 1, rejected: 2 }
+const valorOrdre = {
+  treballador: l => getUserName(l.user_id),
+  data: l => String(l.date).slice(0, 10) + ' ' + (horaDe(l.start_time) || ''),
+  inici: l => horaDe(l.start_time),
+  fi: l => horaDe(l.end_time),
+  hores: l => (l.end_time ? Number(l.effective_hours ?? l.total_hours_worked ?? 0) : null),
+  extres: l => Number(l.extra_hours_authorized || 0) + Number(l.extra_hours_unauthorized || 0),
+  estat: l => ORDRE_ESTAT[l.status] ?? 9,
+}
+
 const filteredLogs = computed(() => {
   const f = filtres.find(x => x.clau === vista.value) || filtres[0]
-  return logsDelMes.value.filter(f.fn).sort((a, b) => new Date(b.date) - new Date(a.date))
+  const { col, dir } = ordre.value
+  const val = valorOrdre[col]
+  const sign = dir === 'asc' ? 1 : -1
+  return logsDelMes.value.filter(f.fn).sort((a, b) => {
+    const va = val(a), vb = val(b)
+    // Els buits (sense sortida, sense hores) sempre al final, ordenis com ordenis.
+    if (va === null && vb !== null) return 1
+    if (vb === null && va !== null) return -1
+    const c = typeof va === 'string' ? va.localeCompare(vb, 'ca') : (va ?? 0) - (vb ?? 0)
+    // Desempat: data més recent primer.
+    return c !== 0 ? c * sign : String(b.date).localeCompare(String(a.date))
+  })
 })
 
 // onMounted moved up
@@ -308,6 +348,11 @@ function statusBadge(s) { return { 'badge-pending': s === 'pending', 'badge-succ
 <style scoped>
 /* Jornada tancada un altre dia (sortida oblidada): s'ha de veure d'un cop d'ull. */
 .sortida-altre-dia { margin-top: 3px; font-size: .74rem; font-weight: 700; color: var(--color-danger, #B3352F); white-space: nowrap; }
+.th-ord { cursor: pointer; user-select: none; white-space: nowrap; }
+.th-ord:hover { color: var(--color-primary, #094E8C); }
+.th-ord.actiu { color: var(--color-primary, #094E8C); }
+.ord-fletxa { font-size: .7rem; margin-left: 3px; opacity: .45; }
+.th-ord.actiu .ord-fletxa { opacity: 1; }
 .wl-excel { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; white-space: nowrap; }
 .wl-filtres { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .wl-filtre {
