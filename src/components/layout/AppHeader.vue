@@ -1,8 +1,22 @@
 <template>
   <header class="app-header">
-    <div class="header-search hide-mobile" id="header-search">
+    <!-- Cercador: pantalles (segons el rol) i, per al personal de gestió, persones. Ctrl+K hi va directe. -->
+    <div class="header-search hide-mobile cerca-wrap" id="header-search" ref="cercaWrap">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" :placeholder="t('search')" />
+      <input ref="cercaInput" v-model="cerca" type="text" :placeholder="authStore.isStaff ? 'Cercar persones o pantalles…' : 'Cercar pantalles…'"
+        autocomplete="off" @focus="obreCerca" @keydown="tecla" />
+      <kbd class="cerca-kbd">Ctrl K</kbd>
+      <div v-if="cercaOberta && cerca.trim()" class="cerca-panel">
+        <div v-if="!resultats.length" class="cerca-buit">Cap resultat per «{{ cerca }}»</div>
+        <template v-for="grup in grupsResultats" :key="grup.titol">
+          <div v-if="grup.items.length" class="cerca-grup">{{ grup.titol }}</div>
+          <button v-for="r in grup.items" :key="r.clau" type="button" class="cerca-item" :class="{ actiu: resultats[seleccio]?.clau === r.clau }"
+            @mouseenter="seleccio = resultats.findIndex(x => x.clau === r.clau)" @click="tria(r)">
+            <span class="cerca-ico">{{ r.icona }}</span>
+            <span class="cerca-txt"><strong>{{ r.nom }}</strong><span v-if="r.sub" class="cerca-sub">{{ r.sub }}</span></span>
+          </button>
+        </template>
+      </div>
     </div>
 
     <div class="header-actions">
@@ -80,12 +94,13 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useAuthStore } from '../../stores/auth'
 import { useSettingsStore } from '../../stores/settings'
 import { i18n } from '../../i18n'
 import db from '../../services/db'
 import { useRouter } from 'vue-router'
+import { cercaPantalles, normCerca } from '../../utils/cercaPantalles'
 import api from '../../services/apiClient'
 
 const authStore = useAuthStore()
@@ -108,6 +123,61 @@ const initials = computed(() => {
 const alertes = ref([])
 const alertesObert = ref(false)
 const alertesWrap = ref(null)
+// ── Cercador ──
+const cerca = ref('')
+const cercaOberta = ref(false)
+const cercaWrap = ref(null)
+const cercaInput = ref(null)
+const seleccio = ref(0)
+const persones = ref(null) // es carreguen la primera vegada que s'obre (només gestió)
+async function obreCerca() {
+  cercaOberta.value = true
+  if (authStore.isStaff && persones.value === null) {
+    persones.value = []
+    try {
+      const us = await api.get('/v1/users')
+      persones.value = (us || []).filter(u => u.role !== 'service')
+    } catch { /* sense persones, el cercador segueix amb les pantalles */ }
+  }
+}
+const nomBonic = (n) => String(n || '').toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (m, sep, l) => sep + l.toUpperCase())
+const grupsResultats = computed(() => {
+  const q = normCerca(cerca.value.trim())
+  const pantalles = cercaPantalles(cerca.value, authStore).map(p => ({ clau: 'p' + p.ruta, icona: p.icona, nom: p.nom, ruta: p.ruta }))
+  let gent = []
+  if (authStore.isStaff && q.length >= 2 && persones.value?.length) {
+    gent = persones.value
+      .filter(u => normCerca(`${u.name} ${u.dni || ''} ${u.email || ''}`).includes(q))
+      .slice(0, 6)
+      .map(u => ({ clau: 'u' + u.id, icona: u.active === false ? '⚪' : '👤', nom: nomBonic(u.name),
+        sub: [u.dni, u.job_profile, u.active === false ? 'inactiu' : null].filter(Boolean).join(' · '), persona: u.id }))
+  }
+  return [{ titol: 'Persones', items: gent }, { titol: 'Pantalles', items: pantalles }]
+})
+const resultats = computed(() => grupsResultats.value.flatMap(g => g.items))
+watch(cerca, () => { seleccio.value = 0; cercaOberta.value = true })
+function tria(r) {
+  if (!r) return
+  if (r.persona) router.push({ path: '/employees', query: { obre: r.persona } })
+  else router.push(r.ruta)
+  cerca.value = ''
+  cercaOberta.value = false
+  cercaInput.value?.blur()
+}
+function tecla(e) {
+  const n = resultats.value.length
+  if (e.key === 'ArrowDown') { e.preventDefault(); seleccio.value = n ? (seleccio.value + 1) % n : 0 }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); seleccio.value = n ? (seleccio.value - 1 + n) % n : 0 }
+  else if (e.key === 'Enter') { e.preventDefault(); tria(resultats.value[seleccio.value]) }
+  else if (e.key === 'Escape') { cercaOberta.value = false; cercaInput.value?.blur() }
+}
+function dreceraCerca(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault()
+    cercaInput.value?.focus()
+  }
+}
+
 const usuariObert = ref(false)
 const usuariWrap = ref(null)
 const router = useRouter()
@@ -176,6 +246,7 @@ function quan(ts) {
 function tancaFora(e) {
   if (alertesObert.value && alertesWrap.value && !alertesWrap.value.contains(e.target)) alertesObert.value = false
   if (usuariObert.value && usuariWrap.value && !usuariWrap.value.contains(e.target)) usuariObert.value = false
+  if (cercaOberta.value && cercaWrap.value && !cercaWrap.value.contains(e.target)) cercaOberta.value = false
 }
 
 let interval = null
@@ -183,14 +254,27 @@ onMounted(() => {
   carregaAlertes()
   interval = setInterval(carregaAlertes, 60000)
   document.addEventListener('click', tancaFora)
+  document.addEventListener('keydown', dreceraCerca)
 })
 onUnmounted(() => {
   clearInterval(interval)
   document.removeEventListener('click', tancaFora)
+  document.removeEventListener('keydown', dreceraCerca)
 })
 </script>
 
 <style scoped>
+.cerca-wrap { position: relative; }
+.cerca-wrap input { flex: 1; min-width: 0; }
+.cerca-kbd { font-size: .66rem; font-family: inherit; color: var(--color-text-muted, #94a3b8); border: 1px solid var(--color-border, #DCE4EE); border-radius: 5px; padding: 1px 5px; white-space: nowrap; }
+.cerca-panel { position: absolute; left: 0; top: calc(100% + 6px); width: 100%; min-width: 320px; max-height: 70vh; overflow-y: auto; background: var(--color-surface, #fff); border: 1px solid var(--color-border, #DCE4EE); border-radius: 12px; box-shadow: 0 10px 30px rgba(10, 42, 74, .15); z-index: 1000; padding: 6px; }
+.cerca-grup { font-size: .68rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted, #94a3b8); padding: 8px 10px 4px; }
+.cerca-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: none; border-radius: 8px; padding: 8px 10px; cursor: pointer; font: inherit; color: var(--color-text); }
+.cerca-item.actiu { background: rgba(9, 78, 140, .08); }
+.cerca-ico { width: 22px; text-align: center; }
+.cerca-txt { display: flex; flex-direction: column; min-width: 0; font-size: .86rem; }
+.cerca-sub { font-size: .72rem; color: var(--color-text-muted, #7a8aa0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cerca-buit { padding: 14px 10px; font-size: .84rem; color: var(--color-text-muted, #7a8aa0); }
 .usuari-wrap { position: relative; }
 .header-user { background: none; border: none; font: inherit; color: inherit; }
 .usuari-menu { position: absolute; right: 0; top: calc(100% + 8px); min-width: 230px; background: var(--color-surface, #fff); border: 1px solid var(--color-border, #DCE4EE); border-radius: 12px; box-shadow: 0 10px 30px rgba(10, 42, 74, .15); z-index: 1000; overflow: hidden; }

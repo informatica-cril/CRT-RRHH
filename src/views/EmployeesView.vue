@@ -668,7 +668,8 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted } from 'vue'
+import { ref, computed, reactive, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { db } from '../services/db'
 import api from '../services/apiClient'
 import { auditLog } from '../services/audit'
@@ -892,7 +893,16 @@ async function fetchData() {
   }
 }
 
-onMounted(fetchData)
+// ?obre=<id> (des del cercador de la capçalera): obre directament la fitxa d'aquella persona.
+const route = useRoute()
+async function obreDesDeRuta() {
+  const id = Number(route.query.obre)
+  if (!id) return
+  const u = workers.value.find(w => w.id === id) || await db.getUser(id).catch(() => null)
+  if (u) openEditModal(u)
+}
+onMounted(async () => { await fetchData(); obreDesDeRuta() })
+watch(() => route.query.obre, obreDesDeRuta)
 
 const csvPreview = ref([])
 const importResults = ref([])
