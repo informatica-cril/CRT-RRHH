@@ -121,12 +121,12 @@
           </div>
           <div v-else id="worker-zone-map" style="height:320px;width:100%;min-width:0;border-radius:12px;overflow:hidden;margin-top:12px;border:1px solid var(--color-border-light);"></div>
 
-          <!-- Horari d'avui: dins la mateixa targeta, just sota el mapa -->
-          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--color-border-light);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-            <div>
-              <div class="text-small text-muted">📅 Horari d'avui</div>
-              <span v-if="todayScheduleLabel" style="font-size:1.15rem;font-weight:700;color:var(--color-primary);">{{ todayScheduleLabel }}</span>
-              <span v-else class="text-small text-muted">Avui no tens jornada prevista.</span>
+          <!-- Horari d'avui i de demà: dins la mateixa targeta, just sota el mapa -->
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--color-border-light);display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;">
+            <div v-for="d in [horariDia(0), horariDia(1)]" :key="d.etiqueta">
+              <div class="text-small text-muted">📅 {{ d.etiqueta }} <span style="opacity:.75;">· {{ d.data }}</span></div>
+              <span v-if="d.horari" style="font-size:1.15rem;font-weight:700;" :style="{ color: d.avui ? 'var(--color-primary)' : 'var(--color-text)' }">{{ d.horari }}</span>
+              <span v-else class="text-small" :style="{ color: d.motiu ? 'var(--color-danger)' : 'var(--color-text-muted)', fontWeight: d.motiu ? 600 : 400 }">{{ d.motiu || 'Lliure' }}</span>
             </div>
           </div>
 
@@ -1063,6 +1063,21 @@ const todayScheduleLabel = computed(() => {
   if (!entries.length) return ''
   return entries.map(d => `${d.start.substring(0, 5)} – ${d.end.substring(0, 5)}`).join('  ·  ')
 })
+// Avui (offset 0) i demà (offset 1): horari del quadrant, o per què no es treballa (festiu o permís aprovat).
+function horariDia(offset) {
+  const d = new Date()
+  d.setDate(d.getDate() + offset)
+  const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const etiqueta = offset === 0 ? 'Avui' : 'Demà'
+  const data = d.toLocaleDateString('ca-ES', { weekday: 'short', day: 'numeric', month: 'numeric' })
+  const festiu = (holidays.value || []).find(h => h.date === dateStr)
+  if (festiu) return { etiqueta, data, horari: '', motiu: `Festiu · ${festiu.name}`, avui: offset === 0 }
+  const permis = (myAbsences.value || []).find(a => a.approved === true && dateStr >= a.start_date && dateStr <= a.end_date)
+  if (permis) return { etiqueta, data, horari: '', motiu: getAbsenceTypeName(permis.absence_type_id), avui: offset === 0 }
+  const entrades = (workerSchedule.value?.days || []).filter(x => x.day === d.getDay() && x.active !== false && x.start && x.end)
+  const horari = entrades.map(x => `${x.start.substring(0, 5)} – ${x.end.substring(0, 5)}`).join('  ·  ')
+  return { etiqueta, data, horari, motiu: '', avui: offset === 0 }
+}
 const locationStatus = ref('checking'), locationText = ref('')
 const lastKnownPos = ref(null)
 const locationClass = computed(() => locationStatus.value)
