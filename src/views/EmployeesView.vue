@@ -145,6 +145,20 @@
             <input class="form-input" type="date" v-model="form.seniority_date" :disabled="isSaving" />
           </div>
           </div>
+
+          <!-- Estat: desactivar no esborra res; la persona deixa d'entrar però conserva el seu historial. -->
+          <div v-if="editingUser && potGestionar2fa" class="fitxa-bloc estat-bloc">
+            <div>
+              <div class="form-label" style="margin-bottom:2px;">Estat</div>
+              <span class="estat-xip" :class="estatActiu ? 'actiu' : 'inactiu'">{{ estatActiu ? '✅ Actiu' : '⛔ Inactiu' }}</span>
+              <div class="text-small text-muted" style="margin-top:4px;">
+                {{ estatActiu ? 'Pot entrar a l\u2019aplicació i fitxar.' : 'No pot entrar a l\u2019aplicació. Conserva fitxatges, nòmines i historial.' }}
+              </div>
+            </div>
+            <button type="button" class="btn btn-sm" :class="estatActiu ? 'btn-danger' : 'btn-success'" :disabled="canviantEstat" @click="canviaEstat">
+              {{ canviantEstat ? 'Desant…' : (estatActiu ? 'Desactivar' : 'Reactivar') }}
+            </button>
+          </div>
         </div>
 
         <div v-show="pestanyaFitxa === 'lloc'">
@@ -1117,8 +1131,29 @@ async function desaPractiques() {
   }
 }
 
+// ── Estat actiu / inactiu ──
+const estatActiu = ref(true)
+const canviantEstat = ref(false)
+async function canviaEstat() {
+  const nou = !estatActiu.value
+  const nom = editingUser.value?.name || ''
+  if (!confirm(nou ? `Reactivar ${nom}? Podrà tornar a entrar a l'aplicació.` : `Desactivar ${nom}? Deixarà d'entrar a l'aplicació, però es conserva tot el seu historial.`)) return
+  canviantEstat.value = true
+  try {
+    const r = await api.put(`/v1/users/${editingUser.value.id}/estat`, { active: nou })
+    estatActiu.value = !!r.active
+    editingUser.value.active = !!r.active
+    await fetchData()
+  } catch (e) {
+    alert(e?.message || "No s'ha pogut canviar l'estat.")
+  } finally {
+    canviantEstat.value = false
+  }
+}
+
 async function openEditModal(user) {
   editingUser.value = user
+  estatActiu.value = user ? user.active !== false && user.active !== 0 : true
   pestanyaFitxa.value = 'dades'
   if (user) carregaPractiques(user.id)
   if (user) {
@@ -1518,6 +1553,11 @@ async function saveMuniAssignment() {
 </script>
 
 <style scoped>
+/* ── Estat a la fitxa ── */
+.estat-bloc { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.estat-xip { display: inline-block; font-size: .82rem; font-weight: 700; padding: 3px 12px; border-radius: 999px; }
+.estat-xip.actiu { background: #E8F8F2; color: #0A7C5E; }
+.estat-xip.inactiu { background: #FDECEA; color: #A12A22; }
 /* ── Fitxa del treballador ── */
 .fitxa-tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--color-border-light, #e5eaf0); margin-bottom: 16px; overflow-x: auto; }
 .fitxa-tab { background: none; border: none; padding: 9px 14px; font: inherit; font-size: .86rem; font-weight: 700; color: var(--color-text-muted, #7a8aa0); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap; }

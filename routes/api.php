@@ -98,6 +98,8 @@ Route::prefix('v1')->group(function () {
             // un no-staff (només el seu perfil bàsic; MAI role/password/altri).
             Route::put('{user}', [UserController::class, 'update']);
             Route::delete('{user}', [UserController::class, 'destroy'])->middleware('role:admin,hr');
+            // Activar / desactivar des de la fitxa (també per a RRHH, que a les fitxes alienes només toca el contacte).
+            Route::put('{user}/estat', [\App\Http\Controllers\Api\UserEstatController::class, 'update'])->middleware('role:admin,hr');
             /* ENS: qui determina el segon factor d'un usuari (dispositiu|totp).
                Direcció (01-08-2026): «el 2FA ha de poder activar-lo l'admin O RRHH per a cada
                usuari». Fins ara només l'admin, i això volia dir que donar d'alta algú i
