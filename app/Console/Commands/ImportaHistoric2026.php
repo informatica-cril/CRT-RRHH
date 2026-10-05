@@ -21,7 +21,7 @@ use Illuminate\Support\Str;
  *    toca la fitxa, només l'estat actiu/inactiu i l'entitat. Es creen les del bloc usuaris_nous, amb el
  *    hash bcrypt del portal tal qual; qui no en té rep una contrasenya aleatòria i l'ha de canviar.
  *  - Actiu/inactiu: la llista de personal actiu mana. Qui és a RRHH i no hi surt queda inactiu (no pot
- *    entrar però conserva tot el seu històric). Els comptes d'administració i de servei no es toquen.
+ *    entrar però conserva tot el seu històric). Els comptes de gestió (administració, RRHH, coordinació i servei) no es toquen: la llista és de plantilla.
  *  - Nòmines: s'afegeixen totes, també les duplicades (decisió de RRHH). Les que ja tenia RRHH es queden.
  *  - Fitxatges: s'afegeixen tots. Si RRHH ja té un fitxatge d'aquella persona aquell dia (d'abans de
  *    l'import), el dia es queda com està. Els que no tenen sortida o duren més de 14 h entren pendents
@@ -177,7 +177,7 @@ class ImportaHistoric2026 extends Command
             return null;
         };
 
-        $persones = DB::table('users')->whereNotIn('role', ['admin', 'service'])
+        $persones = DB::table('users')->whereNotIn('role', ['admin', 'hr', 'coordinator', 'service'])
             ->get(['id', 'name', 'dni', 'email', 'active', 'entitat']);
         foreach ($persones as $r) {
             $actiu = $troba($r, $actius) !== null;
