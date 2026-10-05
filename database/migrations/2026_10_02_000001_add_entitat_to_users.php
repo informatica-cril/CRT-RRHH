@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Schema;
  *
  * Hi ha personal que treballa a CRIL i a CRT i ha de poder entrar a totes dues plataformes; fins ara
  * no constava enlloc i calia deduir-ho del domini del correu (@crtbcn.cat), que no és fiable: n'hi ha
- * amb correu de CRIL que també treballen a CRT. Per defecte CRIL, que és qui és a aquesta app.
+ * amb correu de CRIL que també treballen a CRT. Per defecte CRT, que és qui és a aquesta app.
  */
 return new class extends Migration
 {
@@ -18,7 +18,7 @@ return new class extends Migration
     {
         if (! Schema::hasColumn('users', 'entitat')) {
             Schema::table('users', function (Blueprint $table) {
-                $table->enum('entitat', ['CRIL', 'CRT', 'CRIL_CRT'])->default('CRIL')->after('relacio');
+                $table->enum('entitat', ['CRIL', 'CRT', 'CRIL_CRT'])->default('CRT')->after('relacio');
             });
         }
 
@@ -36,7 +36,7 @@ return new class extends Migration
                    CASE u.role WHEN 'admin' THEN 'Administració' WHEN 'hr' THEN 'RRHH'
                                WHEN 'coordinator' THEN 'Coordinació' WHEN 'service' THEN 'Servei (integració)'
                                ELSE 'Treballador/a' END AS rol,
-                   CASE u.entitat WHEN 'CRT' THEN 'CRT' WHEN 'CRIL_CRT' THEN 'CRIL i CRT' ELSE 'CRIL' END AS entitat,
+                   CASE u.entitat WHEN 'CRT' THEN 'CRT' WHEN 'CRIL_CRT' THEN 'CRIL i CRT' WHEN 'CRIL' THEN 'CRIL' ELSE 'CRT' END AS entitat,
                    CASE u.relacio WHEN 'autonom' THEN 'Autònom' ELSE 'Laboral' END AS relacio,
                    u.job_profile AS perfil,
                    (SELECT GROUP_CONCAT(d.name ORDER BY d.sort SEPARATOR ', ')

@@ -171,7 +171,7 @@
               <span v-if="mevesPractiques.detall?.estudis">📚 {{ mevesPractiques.detall.estudis }}</span>
               <span v-if="mevesPractiques.centre">🏫 {{ mevesPractiques.centre }}</span>
               <span v-if="mevesPractiques.detall?.tutor_centre_nom">👩‍🏫 Tutor/a del centre: {{ mevesPractiques.detall.tutor_centre_nom }}</span>
-              <span v-if="mevesPractiques.detall?.tutor_empresa">🤝 Tutor/a a CRIL: {{ mevesPractiques.detall.tutor_empresa }}</span>
+              <span v-if="mevesPractiques.detall?.tutor_empresa">🤝 Tutor/a a CRT: {{ mevesPractiques.detall.tutor_empresa }}</span>
             </div>
             <div style="display:flex;gap:24px;flex-wrap:wrap;margin:10px 0;">
               <div><div class="text-small text-muted">Conveni</div><strong>{{ formatHM(mevesPractiques.hores_conveni) }}</strong></div>

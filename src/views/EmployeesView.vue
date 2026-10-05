@@ -311,7 +311,7 @@
               </div>
               <div v-if="tePrac('tutor_empresa')" class="form-group">
                 <label class="form-label">Tutor/a a l'empresa</label>
-                <input class="form-input" v-model="prac.detall.tutor_empresa" placeholder="Qui l'acompanya a CRIL" :disabled="desantPrac" />
+                <input class="form-input" v-model="prac.detall.tutor_empresa" placeholder="Qui l'acompanya a CRT" :disabled="desantPrac" />
               </div>
               <div v-if="tePrac('num_conveni')" class="form-group">
                 <label class="form-label">Núm. de conveni</label>
