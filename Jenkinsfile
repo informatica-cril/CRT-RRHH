@@ -1,5 +1,8 @@
 // Desplegament únic de CRT RRHH (web + API + panell) a https://crtrrhh.crtbcn.cat
 //
+// Es dispara amb cada push a branch-deploy (no a main): main és on es prepara el canvi i fusionar-lo
+// a branch-deploy és el «sí, publica'l», igual que branch-api/branch-app a CRIL.
+//
 // Tot és una sola aplicació Laravel: la web Vue ja va compilada a public/app i el panell
 // Inertia a public/build (tots dos versionats), de manera que el servidor NO necessita Node.
 //
@@ -14,11 +17,11 @@ pipeline {
         disableConcurrentBuilds()
     }
     environment {
-        SSH_CRED_ID   = 'crt-ssh-deploy'
-        SSH_HOST      = 'CAMBIAR_HOST_O_IP'
+        SSH_CRED_ID   = 'credenciales-ssh'   // la mateixa credencial que fa servir el desplegament de CRIL
+        SSH_HOST      = '192.168.1.184'      // IP interna del servidor (el mateix que CRIL), no la pública
         SSH_USER      = 'administrador'
         REMOTE_PATH   = '/www/wwwroot/crtrrhh.crtbcn.cat'
-        DEPLOY_BRANCH = 'main'
+        DEPLOY_BRANCH = 'branch-deploy'      // main és per preparar; publicar = fusionar main aquí i fer push
         APP_URL       = 'https://crtrrhh.crtbcn.cat'
     }
     triggers {
@@ -54,7 +57,9 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 # -- Desplegament --
-git pull origin "__DEPLOY_BRANCH__"
+# El servidor es col·loca exactament en el que s'ha publicat (sense barrejar-ho amb la branca que tingués).
+git fetch -q origin "__DEPLOY_BRANCH__"
+git checkout -q -B "__DEPLOY_BRANCH__" "origin/__DEPLOY_BRANCH__"
 composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 php artisan migrate --force
 php artisan config:cache

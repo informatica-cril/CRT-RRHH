@@ -15,12 +15,18 @@ use Illuminate\Support\Facades\Hash;
  */
 class CreaAdmin extends Command
 {
-    protected $signature = 'crt:crea-admin {email : Correu de l\'administrador} {nom : Nom complet entre cometes}';
+    protected $signature = 'crt:crea-admin {email : Correu de l\'administrador} {nom : Nom complet entre cometes}
+        {--rol=admin : admin (administració) o hr (Recursos Humans)}';
 
-    protected $description = 'Crea (o reactiva) un usuari administrador demanant la contrasenya per terminal';
+    protected $description = 'Crea (o reactiva) un usuari d\'administració o de RRHH demanant la contrasenya per terminal';
 
     public function handle(): int
     {
+        $rol = $this->option('rol');
+        if (! in_array($rol, ['admin', 'hr'], true)) {
+            $this->error('--rol ha de ser admin o hr.');
+            return self::FAILURE;
+        }
         $email = strtolower(trim($this->argument('email')));
         if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $this->error("Correu no vàlid: {$email}");
@@ -40,12 +46,13 @@ class CreaAdmin extends Command
         $user = User::updateOrCreate(['email' => $email], [
             'name' => $this->argument('nom'),
             'password' => Hash::make($password),
-            'role' => 'admin',
+            'role' => $rol,
             'active' => true,
             'must_change_password' => false,
         ]);
 
-        $this->info(($user->wasRecentlyCreated ? 'Creat' : 'Actualitzat') . " l'administrador {$user->name} <{$user->email}> (id {$user->id}).");
+        $this->info(($user->wasRecentlyCreated ? 'Creat' : 'Actualitzat') . ' ' . ($rol === 'hr' ? "l'usuari de RRHH" : "l'administrador")
+            . " {$user->name} <{$user->email}> (id {$user->id}).");
 
         return self::SUCCESS;
     }
