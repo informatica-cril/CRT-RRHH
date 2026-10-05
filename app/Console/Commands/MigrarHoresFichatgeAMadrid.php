@@ -24,6 +24,7 @@ class MigrarHoresFichatgeAMadrid extends Command
 {
     protected $signature = 'worklogs:migrar-hores-a-madrid
         {--apply : Aplica els canvis de debò (sense això, només simula)}
+        {--desfer : Conversió inversa (Madrid → UTC). Per desfer una conversió aplicada de més}
         {--before= : Data/hora límit (Y-m-d H:i:s, hora de Madrid). Només es toquen files amb updated_at ANTERIOR a aquest moment — imprescindible per no re-desplaçar fitxatges ja fets amb el codi nou}';
     protected $description = 'Converteix start_time/end_time/break_* de work_logs i work_log_segments de UTC a hora de Madrid directa';
 
@@ -59,14 +60,18 @@ class MigrarHoresFichatgeAMadrid extends Command
             }
         }
 
-        $this->migrarTaula('work_logs', self::CAMPS_WORKLOG, $apply, $before);
-        $this->migrarTaula('work_log_segments', self::CAMPS_SEGMENT, $apply, $before);
+        $desfer = (bool) $this->option('desfer');
+        if ($desfer) {
+            $this->warn('DESFER: es converteix de Madrid a UTC (inversa exacta d\'una conversió).');
+        }
+        $this->migrarTaula('work_logs', self::CAMPS_WORKLOG, $apply, $before, $desfer);
+        $this->migrarTaula('work_log_segments', self::CAMPS_SEGMENT, $apply, $before, $desfer);
 
         $this->info($apply ? 'Fet.' : 'Simulació acabada. Executa amb --apply per aplicar-ho de debò.');
         return self::SUCCESS;
     }
 
-    private function migrarTaula(string $taula, array $camps, bool $apply, Carbon $before): void
+    private function migrarTaula(string $taula, array $camps, bool $apply, Carbon $before, bool $desfer = false): void
     {
         $this->info("--- {$taula} ---");
         // updated_at es guarda en hora de Madrid directa (mai s'ha tocat): es pot
@@ -82,8 +87,11 @@ class MigrarHoresFichatgeAMadrid extends Command
                 if ($raw === null) {
                     continue;
                 }
-                // Convenció actual (abans de migrar): el valor guardat és UTC real.
-                $nou = Carbon::parse($raw, 'UTC')->setTimezone('Europe/Madrid')->toDateTimeString();
+                // Convenció actual (abans de migrar): el valor guardat és UTC real. Amb --desfer,
+                // a l'inrevés: el valor és hora de Madrid i torna a UTC (inversa exacta).
+                $nou = $desfer
+                    ? Carbon::parse($raw, 'Europe/Madrid')->utc()->toDateTimeString()
+                    : Carbon::parse($raw, 'UTC')->setTimezone('Europe/Madrid')->toDateTimeString();
                 if ($nou !== $raw) {
                     $canvis[$camp] = $nou;
                 }
@@ -101,7 +109,9 @@ class MigrarHoresFichatgeAMadrid extends Command
             }
 
             if ($apply) {
-                DB::table($taula)->where('id', $fila->id)->update($canvis);
+                // updated_at = ara: així una segona execució amb el mateix --before ja no la torna a
+                // convertir (abans no es tocava i repetir la comanda desplaçava les hores dues vegades).
+                DB::table($taula)->where('id', $fila->id)->update($canvis + ['updated_at' => now()->toDateTimeString()]);
             }
         }
 
