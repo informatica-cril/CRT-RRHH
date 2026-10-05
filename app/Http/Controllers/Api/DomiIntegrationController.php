@@ -479,7 +479,9 @@ class DomiIntegrationController extends Controller
         $worker = $this->resolveWorker($data['user_id'] ?? null, $data['dni'] ?? null);
         $this->abortIfAutonom($worker, 'hito de servei');
 
-        $moment = Carbon::parse($data['moment'])->utc();
+        // Es desa en hora de Madrid directa (mateix conveni que la resta del fichatge),
+        // no UTC: veure WorkLogController::store()/update().
+        $moment = Carbon::parse($data['moment'])->setTimezone('Europe/Madrid');
         if (abs(now()->diffInMinutes($moment, false)) > self::HITO_MAX_SKEW_MIN) {
             return response()->json([
                 'message' => 'Hito fora de temps real (±' . self::HITO_MAX_SKEW_MIN . ' min). '
@@ -521,15 +523,15 @@ class DomiIntegrationController extends Controller
         $inSchedule = $this->isScheduledDayPublic($worker, $moment->copy())
             || $this->hitoHasAuthCode($worker, $moment->copy());
 
-        // CONVENCIÓ BD: les hores es guarden com a strings UTC. Els casts d'Eloquent les
-        // llegeixen en tz d'app (Madrid) — per a DIFERÈNCIES cal parsejar el RAW com UTC,
-        // si no cada durada surt inflada exactament amb l'offset (bug de 120 min).
+        // CONVENCIÓ BD: les hores es guarden com a strings en hora de Madrid directa
+        // (no UTC). Per a DIFERÈNCIES cal parsejar el RAW declarant aquesta zona
+        // explícitament (veure WorkLogController::store()/update()).
         $segments = \App\Models\WorkLogSegment::where('work_log_id', $log->id)
             ->orderBy('segment_number')->get();
         $rawLastEnd = $segments->map(fn ($s) => $s->getRawOriginal('end_time'))->filter()->max();
         $lastBoundary = $rawLastEnd
-            ? Carbon::parse($rawLastEnd, 'UTC')
-            : Carbon::parse($log->getRawOriginal('start_time'), 'UTC');
+            ? Carbon::parse($rawLastEnd, 'Europe/Madrid')
+            : Carbon::parse($log->getRawOriginal('start_time'), 'Europe/Madrid');
         $nextNum = ((int) $segments->max('segment_number')) + 1;
 
         // Visita "provisional" oberta = kind visita amb end_time == start_time
@@ -572,7 +574,7 @@ class DomiIntegrationController extends Controller
                 $worst = ($rank[$verif] ?? 1) > ($rank[$openVisit->home_verification] ?? 1)
                     ? $verif : $openVisit->home_verification;
                 $inZone = $openVisit->in_zone && (bool) ($data['radi_ok'] ?? true);
-                $visitStart = Carbon::parse($openVisit->getRawOriginal('start_time'), 'UTC');
+                $visitStart = Carbon::parse($openVisit->getRawOriginal('start_time'), 'Europe/Madrid');
                 // Evidència per a l'audiència: es conserva la PITJOR distància dels dos hitos
                 $newDist = isset($data['dist_domicili_m']) ? (int) round($data['dist_domicili_m']) : null;
                 $keepWorst = $newDist !== null && ($openVisit->home_distance_m === null || $newDist > $openVisit->home_distance_m);

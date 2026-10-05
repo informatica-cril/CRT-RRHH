@@ -17,7 +17,7 @@
 
     <div class="sidebar-section-title">{{ t('worker_portal') }}</div>
     <ul class="sidebar-nav">
-      <li>
+      <li v-if="teApps">
         <router-link to="/portal" :class="{ active: $route.name === 'portal' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
           <span>Les meves apps</span>
@@ -27,6 +27,13 @@
         <router-link to="/worker" :class="{ active: $route.name === 'worker-dashboard' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span>{{ t('time_tracking') }}</span>
+        </router-link>
+      </li>
+      <li>
+        <router-link to="/worker/safata" :class="{ active: $route.name === 'worker-safata' }">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+          <span>📥 Safata</span>
+          <span v-if="safataPendingCount > 0" class="nav-badge">{{ safataPendingCount }}</span>
         </router-link>
       </li>
       <li>
@@ -80,6 +87,12 @@
           <span>El meu rendiment</span>
         </router-link>
       </li>
+      <li v-if="esRepresentant">
+        <router-link to="/worker/comite" :class="{ active: $route.name === 'worker-comite' }">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><path d="M16 3.5l2 2"/></svg>
+          <span>Hores de comitè</span>
+        </router-link>
+      </li>
       <li>
         <router-link to="/worker/compliance" :class="{ active: $route.name === 'worker-compliance' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15l2 2 4-4"/></svg>
@@ -115,6 +128,7 @@ import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '../../stores/auth'
 import { useRouter } from 'vue-router'
 import { db } from '../../services/db'
+import api from '../../services/apiClient'
 import { i18n } from '../../i18n'
 
 const authStore = useAuthStore()
@@ -131,19 +145,25 @@ const initials = computed(() => authStore.userName.split(' ').map(w => w[0]).joi
 const pendingDocsCount = ref(0)
 const newPayrollsCount = ref(0)
 const unreadChatCount = ref(0)
+const safataPendingCount = ref(0)
+const esRepresentant = ref(false)
+const teApps = ref(false)
 
 async function fetchCounts() {
   if (!authStore.userId) return
   try {
-    const [docs, sigs, payrolls, unreadCount] = await Promise.all([
+    const [docs, sigs, payrolls, unreadCount, alerts] = await Promise.all([
       db.getDocumentsForUser(authStore.userId),
       db.getDocSignaturesByUser(authStore.userId),
       db.getWorkerPayrolls(authStore.userId),
-      db.getTotalUnreadCount(authStore.userId)
+      db.getTotalUnreadCount(authStore.userId),
+      db.getPendingAlerts(authStore.userId).catch(() => [])
     ])
     pendingDocsCount.value = docs.filter(d => d.requires_signature && !sigs.find(s => s.document_id === d.id && s.signed_at)).length
     newPayrollsCount.value = payrolls.filter(p => !p.viewed_at).length
     unreadChatCount.value = unreadCount
+    // Coincide con lo que agrupa La meva safata: audiencia previa + rebuig de tram.
+    safataPendingCount.value = (alerts || []).filter(a => ['audiencia', 'segment_rejected'].includes(a.type)).length
   } catch (e) {
     console.error('[WorkerSidebar] Error fetching counts:', e)
   }
@@ -151,6 +171,10 @@ async function fetchCounts() {
 
 onMounted(() => {
   fetchCounts()
+  // Una sola consulta: el mandat no canvia d'un minut a l'altre.
+  api.get('/v1/comite/me').then(r => { esRepresentant.value = !!r?.membre }).catch(() => {})
+  // «Les meves apps» només té sentit si n'hi ha alguna concedida (a un compte d'administració, cap).
+  api.get('/v1/portal/apps').then(r => { teApps.value = (r?.apps || []).length > 0 }).catch(() => {})
   // Refresh counts every 30 seconds
   const interval = setInterval(fetchCounts, 30000)
   onUnmounted(() => clearInterval(interval))

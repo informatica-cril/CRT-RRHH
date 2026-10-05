@@ -29,6 +29,10 @@ class User extends Authenticatable
         'must_change_password',
         'chat_status', 'last_chat_heartbeat',
         'geo_consent_accepted_at',
+        // CRIL, CRT o CRIL_CRT: qui treballa a totes dues entitats té accés a totes dues plataformes.
+        'entitat',
+        // Alumnat en pràctiques (hores del conveni). Només les escriu PractiquesController.
+        'practiques', 'practiques_tipus', 'practiques_hores', 'practiques_inici', 'practiques_fi', 'practiques_centre', 'practiques_detall',
     ];
 
     /**
@@ -118,6 +122,7 @@ class User extends Authenticatable
         'second_factor_at' => 'datetime',
         'domi_provisioned_at' => 'datetime',
         'totp_recovery_generated_at' => 'datetime',
+        'practiques' => 'boolean',
     ];
 
     // ── Relationships ──

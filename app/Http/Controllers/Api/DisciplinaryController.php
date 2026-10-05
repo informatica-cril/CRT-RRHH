@@ -164,7 +164,7 @@ class DisciplinaryController extends Controller
 
         [$recollida, $errRecollida] = $this->recollidaDomi($request, $data);
         if ($errRecollida) {
-            return response()->json(['message' => $errRecollida], 502);
+            return response()->json(['message' => $errRecollida], 424);
         }
 
         $creats = [];

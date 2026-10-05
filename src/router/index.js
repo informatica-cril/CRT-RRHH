@@ -89,6 +89,21 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true }
   },
   {
+    // Comitè: representants, crèdit horari i validació de les hores. L'API talla amb role:admin,hr.
+    path: '/comite',
+    name: 'comite',
+    component: () => import('../views/ComiteAdminView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    // Hores de representació pròpies. Sense requiresWorker: un representant pot tenir qualsevol rol;
+    // si no té mandat, la pantalla ho diu i l'API no deixa registrar res.
+    path: '/worker/comite',
+    name: 'worker-comite',
+    component: () => import('../views/ComiteHoresView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/comunicacio-certificada',
     name: 'certified-mail',
     component: () => import('../views/CertifiedMailView.vue'),

@@ -1,8 +1,22 @@
 <template>
   <header class="app-header">
-    <div class="header-search hide-mobile" id="header-search">
+    <!-- Cercador: pantalles (segons el rol) i, per al personal de gestió, persones. Ctrl+K hi va directe. -->
+    <div class="header-search hide-mobile cerca-wrap" id="header-search" ref="cercaWrap">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" :placeholder="t('search')" />
+      <input ref="cercaInput" v-model="cerca" type="text" :placeholder="authStore.isStaff ? 'Cercar persones o pantalles…' : 'Cercar pantalles…'"
+        autocomplete="off" @focus="obreCerca" @keydown="tecla" />
+      <kbd class="cerca-kbd">Ctrl K</kbd>
+      <div v-if="cercaOberta && cerca.trim()" class="cerca-panel">
+        <div v-if="!resultats.length" class="cerca-buit">Cap resultat per «{{ cerca }}»</div>
+        <template v-for="grup in grupsResultats" :key="grup.titol">
+          <div v-if="grup.items.length" class="cerca-grup">{{ grup.titol }}</div>
+          <button v-for="r in grup.items" :key="r.clau" type="button" class="cerca-item" :class="{ actiu: resultats[seleccio]?.clau === r.clau }"
+            @mouseenter="seleccio = resultats.findIndex(x => x.clau === r.clau)" @click="tria(r)">
+            <span class="cerca-ico">{{ r.icona }}</span>
+            <span class="cerca-txt"><strong>{{ r.nom }}</strong><span v-if="r.sub" class="cerca-sub">{{ r.sub }}</span></span>
+          </button>
+        </template>
+      </div>
     </div>
 
     <div class="header-actions">
@@ -22,28 +36,72 @@
       </button>
 
       <!-- Notifications -->
-      <button class="icon-btn" id="btn-notifications" :title="t('alerts')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        <span class="badge" v-if="hasNotifications"></span>
-      </button>
+      <div class="alertes-wrap" ref="alertesWrap">
+        <button class="icon-btn" id="btn-notifications" :title="t('alerts')" @click="toggleAlertes">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="badge" v-if="hasNotifications"></span>
+        </button>
+        <div v-if="alertesObert" class="alertes-panel">
+          <div class="alertes-cap">
+            <strong>{{ t('alerts') }}</strong>
+            <span class="text-small text-muted">{{ totalAlertes }}</span>
+          </div>
+          <!-- Personal de gestió: el que espera una decisió seva (el mateix recompte que la Safata) -->
+          <router-link v-for="c in pendents" :key="c.clau" :to="c.enllac" class="alertes-item alertes-cua" :class="c.urgencia" @click="alertesObert = false">
+            <span class="alertes-ico">{{ c.icona }}</span>
+            <div class="alertes-cos"><div class="alertes-msg">{{ c.titol }}</div></div>
+            <span class="alertes-n">{{ c.n }}</span>
+          </router-link>
+          <div v-if="totalAlertes === 0" class="alertes-buit">✓ No tens cap avís pendent</div>
+          <div v-for="a in alertes" :key="a.id" class="alertes-item">
+            <span class="alertes-ico">{{ iconaAlerta(a.type) }}</span>
+            <div class="alertes-cos">
+              <div class="alertes-msg">{{ a.message || missatgeAlerta(a.type) }}</div>
+              <div class="alertes-meta">
+                <span>{{ quan(a.sent_at || a.scheduled_at || a.created_at) }}</span>
+                <router-link v-if="enllacAlerta(a)" :to="enllacAlerta(a)" @click="alertesObert = false">Obrir ▸</router-link>
+              </div>
+            </div>
+            <button class="alertes-x" title="Descartar" @click="descarta(a)">✕</button>
+          </div>
+          <router-link :to="authStore.isWorker ? '/worker/safata' : '/safata'" class="alertes-peu" @click="alertesObert = false">
+            {{ authStore.isWorker ? 'Obrir la meva safata' : 'Obrir la safata de pendents' }} ▸
+          </router-link>
+        </div>
+      </div>
 
       <!-- User -->
-      <div class="header-user" id="header-user">
-        <div class="header-user-info hide-mobile">
-          <div class="header-user-name">{{ authStore.userName }}</div>
-          <div class="header-user-email">{{ authStore.userEmail }}</div>
+      <div class="usuari-wrap" ref="usuariWrap">
+        <button type="button" class="header-user" id="header-user" :aria-expanded="usuariObert" @click="usuariObert = !usuariObert; alertesObert = false">
+          <div class="header-user-info hide-mobile">
+            <div class="header-user-name">{{ authStore.userName }}</div>
+            <div class="header-user-email">{{ authStore.userEmail }}</div>
+          </div>
+          <div class="header-avatar">{{ initials }}</div>
+        </button>
+        <div v-if="usuariObert" class="usuari-menu">
+          <div class="usuari-cap">
+            <strong>{{ authStore.userName }}</strong>
+            <span>{{ authStore.userEmail }}</span>
+          </div>
+          <router-link :to="authStore.isWorker ? '/worker/settings' : '/settings'" class="usuari-op" @click="usuariObert = false">⚙️ Configuració</router-link>
+          <router-link to="/privacy" class="usuari-op" @click="usuariObert = false">🔐 Privadesa</router-link>
+          <button type="button" class="usuari-op usuari-sortir" @click="tancaSessio">🚪 Tancar sessió</button>
         </div>
-        <div class="header-avatar">{{ initials }}</div>
       </div>
     </div>
   </header>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useAuthStore } from '../../stores/auth'
 import { useSettingsStore } from '../../stores/settings'
 import { i18n } from '../../i18n'
+import db from '../../services/db'
+import { useRouter } from 'vue-router'
+import { cercaPantalles, normCerca } from '../../utils/cercaPantalles'
+import api from '../../services/apiClient'
 
 const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
@@ -61,5 +119,189 @@ const initials = computed(() => {
   return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
 })
 
-const hasNotifications = computed(() => false)
+// ── Alertes: els avisos pendents de la persona (work_log_alerts), els mateixos que el bàner ──
+const alertes = ref([])
+const alertesObert = ref(false)
+const alertesWrap = ref(null)
+// ── Cercador ──
+const cerca = ref('')
+const cercaOberta = ref(false)
+const cercaWrap = ref(null)
+const cercaInput = ref(null)
+const seleccio = ref(0)
+const persones = ref(null) // es carreguen la primera vegada que s'obre (només gestió)
+async function obreCerca() {
+  cercaOberta.value = true
+  if (authStore.isStaff && persones.value === null) {
+    persones.value = []
+    try {
+      const us = await api.get('/v1/users')
+      persones.value = (us || []).filter(u => u.role !== 'service')
+    } catch { /* sense persones, el cercador segueix amb les pantalles */ }
+  }
+}
+const nomBonic = (n) => String(n || '').toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (m, sep, l) => sep + l.toUpperCase())
+const grupsResultats = computed(() => {
+  const q = normCerca(cerca.value.trim())
+  const pantalles = cercaPantalles(cerca.value, authStore).map(p => ({ clau: 'p' + p.ruta, icona: p.icona, nom: p.nom, ruta: p.ruta }))
+  let gent = []
+  if (authStore.isStaff && q.length >= 2 && persones.value?.length) {
+    gent = persones.value
+      .filter(u => normCerca(`${u.name} ${u.dni || ''} ${u.email || ''}`).includes(q))
+      .slice(0, 6)
+      .map(u => ({ clau: 'u' + u.id, icona: u.active === false ? '⚪' : '👤', nom: nomBonic(u.name),
+        sub: [u.dni, u.job_profile, u.active === false ? 'inactiu' : null].filter(Boolean).join(' · '), persona: u.id }))
+  }
+  return [{ titol: 'Persones', items: gent }, { titol: 'Pantalles', items: pantalles }]
+})
+const resultats = computed(() => grupsResultats.value.flatMap(g => g.items))
+watch(cerca, () => { seleccio.value = 0; cercaOberta.value = true })
+function tria(r) {
+  if (!r) return
+  if (r.persona) router.push({ path: '/employees', query: { obre: r.persona } })
+  else router.push(r.ruta)
+  cerca.value = ''
+  cercaOberta.value = false
+  cercaInput.value?.blur()
+}
+function tecla(e) {
+  const n = resultats.value.length
+  if (e.key === 'ArrowDown') { e.preventDefault(); seleccio.value = n ? (seleccio.value + 1) % n : 0 }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); seleccio.value = n ? (seleccio.value - 1 + n) % n : 0 }
+  else if (e.key === 'Enter') { e.preventDefault(); tria(resultats.value[seleccio.value]) }
+  else if (e.key === 'Escape') { cercaOberta.value = false; cercaInput.value?.blur() }
+}
+function dreceraCerca(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault()
+    cercaInput.value?.focus()
+  }
+}
+
+const usuariObert = ref(false)
+const usuariWrap = ref(null)
+const router = useRouter()
+async function tancaSessio() {
+  usuariObert.value = false
+  await authStore.logout()
+  router.push('/login')
+}
+const pendents = ref([])
+const totalAlertes = computed(() => alertes.value.length + pendents.value.reduce((s, c) => s + c.n, 0))
+const hasNotifications = computed(() => totalAlertes.value > 0)
+
+async function carregaAlertes() {
+  if (!authStore.userId) return
+  try {
+    const r = await db.getPendingAlerts(authStore.userId)
+    alertes.value = Array.isArray(r) ? r : []
+  } catch { /* la campana no ha de trencar la capçalera */ }
+  if (authStore.isStaff) {
+    try { pendents.value = (await api.get('/v1/safata/resum'))?.cues || [] } catch { /* idem */ }
+  }
+}
+
+function toggleAlertes() {
+  alertesObert.value = !alertesObert.value
+  if (alertesObert.value) carregaAlertes()
+}
+
+async function descarta(a) {
+  try {
+    await db.dismissAlert(a.id)
+    alertes.value = alertes.value.filter(x => x.id !== a.id)
+  } catch (e) { console.error(e) }
+}
+
+function iconaAlerta(type) {
+  return { no_clock_in: '⏰', no_clock_out: '🚪', break_required: '☕', audiencia: '🗣️',
+    segment_rejected: '⚠️', out_of_zone: '📍', resolucio_rrhh: '📬' }[type] || '🔔'
+}
+
+function missatgeAlerta(type) {
+  return {
+    no_clock_in: "No has fitxat l'entrada avui.",
+    no_clock_out: 'Tens un fitxatge sense tancar.',
+    break_required: 'Has de fer la pausa obligatòria.',
+    audiencia: 'Tens un marcatge pendent de revisió: pots presentar la teva explicació.',
+    segment_rejected: 'Un tram del teu fitxatge ha estat rebutjat.',
+    out_of_zone: "S'ha detectat fitxatge fora de zona.",
+    resolucio_rrhh: 'Tens una sol·licitud resolta.',
+  }[type] || 'Tens un avís nou.'
+}
+
+function enllacAlerta(a) {
+  if (['audiencia', 'segment_rejected', 'out_of_zone'].includes(a.type) && a.work_log_id) return `/work-logs/${a.work_log_id}/detail`
+  if (a.type === 'resolucio_rrhh') return authStore.isWorker ? '/worker/absences' : '/absences'
+  if (['no_clock_in', 'no_clock_out', 'break_required'].includes(a.type)) return authStore.isWorker ? '/worker' : null
+  return null
+}
+
+function quan(ts) {
+  if (!ts) return ''
+  const d = new Date(ts)
+  return isNaN(d) ? '' : d.toLocaleString('ca-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+function tancaFora(e) {
+  if (alertesObert.value && alertesWrap.value && !alertesWrap.value.contains(e.target)) alertesObert.value = false
+  if (usuariObert.value && usuariWrap.value && !usuariWrap.value.contains(e.target)) usuariObert.value = false
+  if (cercaOberta.value && cercaWrap.value && !cercaWrap.value.contains(e.target)) cercaOberta.value = false
+}
+
+let interval = null
+onMounted(() => {
+  carregaAlertes()
+  interval = setInterval(carregaAlertes, 60000)
+  document.addEventListener('click', tancaFora)
+  document.addEventListener('keydown', dreceraCerca)
+})
+onUnmounted(() => {
+  clearInterval(interval)
+  document.removeEventListener('click', tancaFora)
+  document.removeEventListener('keydown', dreceraCerca)
+})
 </script>
+
+<style scoped>
+.cerca-wrap { position: relative; }
+.cerca-wrap input { flex: 1; min-width: 0; }
+.cerca-kbd { font-size: .66rem; font-family: inherit; color: var(--color-text-muted, #94a3b8); border: 1px solid var(--color-border, #DCE4EE); border-radius: 5px; padding: 1px 5px; white-space: nowrap; }
+.cerca-panel { position: absolute; left: 0; top: calc(100% + 6px); width: 100%; min-width: 320px; max-height: 70vh; overflow-y: auto; background: var(--color-surface, #fff); border: 1px solid var(--color-border, #DCE4EE); border-radius: 12px; box-shadow: 0 10px 30px rgba(10, 42, 74, .15); z-index: 1000; padding: 6px; }
+.cerca-grup { font-size: .68rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted, #94a3b8); padding: 8px 10px 4px; }
+.cerca-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: none; border-radius: 8px; padding: 8px 10px; cursor: pointer; font: inherit; color: var(--color-text); }
+.cerca-item.actiu { background: rgba(9, 78, 140, .08); }
+.cerca-ico { width: 22px; text-align: center; }
+.cerca-txt { display: flex; flex-direction: column; min-width: 0; font-size: .86rem; }
+.cerca-sub { font-size: .72rem; color: var(--color-text-muted, #7a8aa0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cerca-buit { padding: 14px 10px; font-size: .84rem; color: var(--color-text-muted, #7a8aa0); }
+.usuari-wrap { position: relative; }
+.header-user { background: none; border: none; font: inherit; color: inherit; }
+.usuari-menu { position: absolute; right: 0; top: calc(100% + 8px); min-width: 230px; background: var(--color-surface, #fff); border: 1px solid var(--color-border, #DCE4EE); border-radius: 12px; box-shadow: 0 10px 30px rgba(10, 42, 74, .15); z-index: 1000; overflow: hidden; }
+.usuari-cap { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-bottom: 1px solid var(--color-border, #e5eaf0); font-size: .85rem; }
+.usuari-cap span { font-size: .75rem; color: var(--color-text-muted, #7a8aa0); }
+.usuari-op { display: block; width: 100%; text-align: left; padding: 11px 14px; font-size: .86rem; color: var(--color-text); text-decoration: none; background: none; border: none; cursor: pointer; font: inherit; }
+.usuari-op:hover { background: rgba(10, 42, 74, .05); }
+.usuari-sortir { color: var(--color-danger, #B3352F); font-weight: 700; border-top: 1px solid var(--color-border, #e5eaf0); }
+.alertes-wrap { position: relative; }
+.alertes-panel { position: absolute; right: 0; top: calc(100% + 8px); width: 340px; max-width: calc(100vw - 32px); max-height: 70vh; overflow-y: auto; background: var(--color-surface, #fff); border: 1px solid var(--color-border, #DCE4EE); border-radius: 12px; box-shadow: 0 10px 30px rgba(10, 42, 74, .15); z-index: 1000; }
+.alertes-cap { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--color-border, #DCE4EE); }
+.alertes-buit { padding: 20px 14px; text-align: center; color: #0A7C5E; font-size: .88rem; }
+.alertes-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px; border-bottom: 1px solid var(--color-border, #eef2f6); }
+.alertes-ico { font-size: 1.1rem; line-height: 1.3; }
+.alertes-cos { flex: 1; min-width: 0; }
+.alertes-msg { font-size: .85rem; color: var(--color-text); line-height: 1.35; }
+.alertes-meta { display: flex; gap: 10px; margin-top: 4px; font-size: .74rem; color: var(--color-text-muted, #7a8aa0); }
+.alertes-meta a { color: var(--color-primary, #094E8C); font-weight: 600; text-decoration: none; }
+.alertes-x { background: none; border: none; cursor: pointer; color: var(--color-text-muted, #7a8aa0); font-size: .85rem; padding: 2px 4px; }
+.alertes-x:hover { color: var(--color-danger, #B3352F); }
+.alertes-cua { text-decoration: none; align-items: center; border-left: 4px solid #cfd8e3; }
+.alertes-cua:hover { background: rgba(10, 42, 74, .04); }
+.alertes-cua.alta { border-left-color: #B3352F; }
+.alertes-cua.mitjana { border-left-color: #D9A400; }
+.alertes-cua.baixa { border-left-color: #0DAF83; }
+.alertes-n { min-width: 26px; height: 22px; padding: 0 7px; border-radius: 99px; background: #B3352F; color: #fff; font-size: .78rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
+.alertes-cua.mitjana .alertes-n { background: #D9A400; }
+.alertes-cua.baixa .alertes-n { background: #0DAF83; }
+.alertes-peu { display: block; padding: 10px 14px; text-align: center; font-size: .82rem; font-weight: 600; color: var(--color-primary, #094E8C); text-decoration: none; }
+</style>

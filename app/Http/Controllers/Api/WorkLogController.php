@@ -24,14 +24,23 @@ class WorkLogController extends Controller
     {
         $this->logLocationAccess($request, 'Consulta del llistat de fichatges');
 
+        // Amb ?mes=AAAA-MM es torna el mes sencer: amb l'històric importat, els 500 últims
+        // ja no arriben més enllà de les últimes setmanes i els mesos anteriors sortien buits.
+        // Sense el paràmetre, igual que sempre (l'app mòbil publicada no l'envia).
+        $mes = (string) $request->query('mes', '');
+        $perMes = preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $mes) === 1;
+
         // Limitar a los últimos 500 registros para evitar respuestas enormes
         // y seleccionar solo las columnas necesarias de la relación user.
         // MINIMITZACIÓ (EIPD §6.3): el llistat MAI inclou coordenades — només el
         // detall, i sota les condicions de coordsVisibles().
         return response()->json(
             WorkLog::with('user:id,name')
+                ->when($perMes, function ($q) use ($mes) {
+                    $ini = \Carbon\Carbon::createFromFormat('Y-m-d', $mes . '-01');
+                    $q->whereBetween('date', [$ini->toDateString(), $ini->copy()->endOfMonth()->toDateString()]);
+                }, fn ($q) => $q->limit(500))
                 ->orderBy('date', 'desc')
-                ->limit(500)
                 ->get()
                 ->each(fn ($w) => $w->makeHidden([
                     'start_location_lat', 'start_location_lng',
@@ -93,7 +102,10 @@ class WorkLogController extends Controller
         unset($data['justificacio']);
 
         $now = $this->workLogs->getAccurateTime();
-        $data['start_time'] = $now->copy()->utc()->toDateTimeString();
+        // Hora de Madrid directa (sense convertir a UTC): perque qualsevol consulta
+        // directa a BD (auditoria, inspeccio de treball) sigui llegible tal qual,
+        // conveni consistent amb created_at/updated_at.
+        $data['start_time'] = $now->toDateTimeString();
         $data['date'] = $now->toDateString();
 
         // Prevent duplicate open sessions for the same user on the same date
@@ -150,12 +162,13 @@ class WorkLogController extends Controller
         // (client clock may lag behind NTP, causing totalHours to be 0 or negative)
         if (array_key_exists('end_time', $data) && $data['end_time'] !== null) {
             $endNow = $this->workLogs->getAccurateTime();
-            $data['end_time'] = $endNow->copy()->utc()->toDateTimeString();
+            // Hora de Madrid directa (mateix conveni que start_time, veure store()).
+            $data['end_time'] = $endNow->toDateTimeString();
 
             $startRaw = $workLog->getRawOriginal('start_time');
             if ($startRaw) {
-                $startUtc = Carbon::parse($startRaw, 'UTC');
-                $serverHours = round($startUtc->diffInSeconds($endNow) / 3600, 4);
+                $startLocal = Carbon::parse($startRaw, 'Europe/Madrid');
+                $serverHours = round($startLocal->diffInSeconds($endNow) / 3600, 4);
                 $hoursOutOfArea = round(floatval($data['hours_out_of_area'] ?? $workLog->hours_out_of_area ?? 0), 4);
                 $data['total_hours_worked'] = $serverHours;
                 $data['hours_worked']       = round(max(0, $serverHours - $hoursOutOfArea), 4);
@@ -261,7 +274,14 @@ class WorkLogController extends Controller
             $workLog->setAttribute('coords_restringides', true);
         }
 
-        return response()->json($workLog);
+        // server_time: perque el frontend pugui corregir comptadors (p.ex. la pausa
+        // obligatoria) si el rellotge del dispositiu del treballador va desquadrat,
+        // sense dependre que el seu rellotge local sigui fiable. Convertit a UTC real
+        // explicitament (mateix conveni que start_time): aixi Carbon el serialitza amb
+        // una 'Z' veritable i el frontend el pot comparar be amb el seu Date.now().
+        return response()->json(array_merge($workLog->toArray(), [
+            'server_time' => now()->copy()->utc()->toISOString(),
+        ]));
     }
 
     /**
@@ -271,33 +291,54 @@ class WorkLogController extends Controller
     public function startBreak(Request $request, WorkLog $workLog)
     {
         $this->ensureOwnerOrStaff($request, $workLog->user_id);
-        if ($workLog->break_status === 'active') {
-            return response()->json(['message' => 'La pausa ja està en curs'], 409);
-        }
-
+        $geo = $request->validate(['location_match' => 'nullable|boolean']);
         $now = $this->workLogs->getAccurateTime();
         $settings = \App\Models\BreakSetting::getSettings();
-        $geo = $request->validate(['location_match' => 'nullable|boolean']);
+        // Hora de Madrid directa (mateix conveni que start_time/end_time).
+        $nowLocal = $now->toDateTimeString();
 
-        $workLog->update([
-            'break_start_time' => $now,
-            'break_start_location_match' => $geo['location_match'] ?? null,
-            'break_status' => 'active',
-            'break_required' => true,
-        ]);
+        // Dues peticions alhora (el temporitzador i la comprovació periòdica del front) passaven
+        // totes dues la comprovació i quedaven dues «pausa iniciada». Comprovar i escriure van dins
+        // de la mateixa transacció amb la fila bloquejada: la segona espera i ja veu la pausa en curs.
+        $rebuig = \Illuminate\Support\Facades\DB::transaction(function () use ($workLog, $request, $geo, $now, $nowLocal, $settings) {
+            $log = WorkLog::whereKey($workLog->id)->lockForUpdate()->first();
+            if ($log->break_status === 'active') {
+                return ['message' => 'La pausa ja està en curs'];
+            }
+            // Una pausa ja feta no es torna a obrir: sobreescriuria break_start_time de la primera
+            // i el registre quedaria amb un inici nou i el final de l'antiga.
+            if (in_array($log->break_status, ['completed', 'skipped'], true) || $log->break_end_time) {
+                return ['message' => 'La pausa d\'aquesta jornada ja s\'ha fet', 'ja_feta' => true];
+            }
 
-        \App\Models\WorkLogModification::create([
-            'work_log_id' => $workLog->id,
-            'user_id' => $request->user()->id,
-            'action' => 'break_started',
-            'new_values' => ['break_start_time' => $now->toDateTimeString()],
-            'comment' => 'Pausa obligatòria iniciada (' . $settings->break_duration_minutes . ' minuts)',
-        ]);
+            $log->update([
+                'break_start_time' => $nowLocal,
+                'break_start_location_match' => $geo['location_match'] ?? null,
+                'break_status' => 'active',
+                'break_required' => true,
+            ]);
+
+            \App\Models\WorkLogModification::create([
+                'work_log_id' => $log->id,
+                'user_id' => $request->user()->id,
+                'action' => 'break_started',
+                'new_values' => ['break_start_time' => $now->toDateTimeString()],
+                'comment' => 'Pausa obligatòria iniciada (' . $settings->break_duration_minutes . ' minuts)',
+            ]);
+
+            return null;
+        });
+        if ($rebuig) {
+            return response()->json($rebuig, 409);
+        }
 
         return response()->json([
             'work_log' => $workLog->fresh(),
             'break_duration_minutes' => $settings->break_duration_minutes,
-            'break_start_time' => $now,
+            'break_start_time' => $nowLocal,
+            // server_time SÍ va en UTC real (amb 'Z' veritable): només serveix perquè el
+            // frontend calculi un offset relatiu contra Date.now(), no es guarda a BD.
+            'server_time' => $now->copy()->utc()->toISOString(),
         ]);
     }
 
@@ -312,7 +353,7 @@ class WorkLogController extends Controller
 
         $geo = $request->validate(['location_match' => 'nullable|boolean']);
         $workLog->update([
-            'break_end_time' => $now,
+            'break_end_time' => $now->toDateTimeString(),
             'break_end_location_match' => $geo['location_match'] ?? null,
             'break_status' => 'completed',
         ]);

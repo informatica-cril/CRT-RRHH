@@ -30,10 +30,10 @@ class FormacioController extends Controller
                 'campanya' => $request->query('campanya'),
             ]));
         } catch (\Throwable $e) {
-            return response()->json(['ok' => false, 'error' => 'domi no accessible'], 502);
+            return response()->json(['ok' => false, 'error' => 'domi no accessible'], 424);
         }
         if (! $resp->ok()) {
-            return response()->json(['ok' => false, 'error' => 'error de domi', 'status' => $resp->status()], 502);
+            return response()->json(['ok' => false, 'error' => 'error de domi', 'status' => $resp->status()], 424);
         }
         return response()->json($resp->json());
     }

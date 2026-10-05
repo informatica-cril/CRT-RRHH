@@ -30,7 +30,7 @@ class SendWorkLogReminders extends Command
                 continue;
             }
 
-            $scheduledEnd = $this->scheduledEndTimeFor($log->user, Carbon::parse($log->getRawOriginal('start_time'), 'UTC')->setTimezone('Europe/Madrid'));
+            $scheduledEnd = $this->scheduledEndTimeFor($log->user, Carbon::parse($log->getRawOriginal('start_time'), 'Europe/Madrid'));
 
             // ── Reminder 1: 10 min before scheduled end ───────────────────────
             if ($scheduledEnd && is_null($log->reminder_pre_sent_at)) {

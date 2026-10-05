@@ -54,15 +54,15 @@ class DomiDelegacioCaracteritzacioTest extends TestCase
 
         $log = WorkLog::where('user_id', $w->id)->whereNull('end_time')->first();
         $this->assertNotNull($log, 'clockIn ha de deixar una jornada oberta');
-        $startUtc = Carbon::parse($log->getRawOriginal('start_time'), 'UTC');
-        $this->assertTrue($startUtc->diffInMinutes(Carbon::now('UTC')) < 2);
+        $startLocal = Carbon::parse($log->getRawOriginal('start_time'), 'Europe/Madrid');
+        $this->assertTrue($startLocal->diffInMinutes(Carbon::now('Europe/Madrid')) < 2);
     }
 
     public function test_clock_out_via_domi_tanca_i_calcula_hores(): void
     {
         Sanctum::actingAs($this->servei(), \App\Support\DomiScopes::permisos());
         $w = $this->worker();
-        $start = Carbon::now('UTC')->subHours(3);
+        $start = Carbon::now('Europe/Madrid')->subHours(3);
         WorkLog::create([
             'user_id' => $w->id,
             'date' => $start->copy()->setTimezone('Europe/Madrid')->toDateString(),

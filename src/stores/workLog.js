@@ -3,14 +3,21 @@ import { db } from '../services/db'
 import { auditLog } from '../services/audit'
 import { useAuthStore } from './auth'
 import { checkUserLocation } from '../services/geolocation'
+import { formatHM } from '../utils/formatHours'
 
 export const useWorkLogStore = defineStore('workLog', {
   state: () => ({
     currentLog: null,
+    // Mes (AAAA-MM) que mira la pantalla de registres; null = els últims (per defecte).
+    mes: null,
     logs: [],
     elapsed: 0,
     timerInterval: null,
-    isWorking: false
+    isWorking: false,
+    // Diferencia (ms) entre el rellotge del servidor i el del dispositiu. Si el
+    // rellotge del treballador va desquadrat (passa sovint i no sempre es pot
+    // arreglar), el comptador seguiria sent correcte igualment.
+    clockOffsetMs: 0
   }),
 
   getters: {
@@ -29,7 +36,7 @@ export const useWorkLogStore = defineStore('workLog', {
       
       try {
         if (authStore.isStaff) {
-          this.logs = await db.getWorkLogs()
+          this.logs = await db.getWorkLogs(this.mes)
         } else {
           this.logs = await db.getWorkLogsByUser(authStore.userId)
         }
@@ -85,6 +92,9 @@ export const useWorkLogStore = defineStore('workLog', {
         const log = await db.addWorkLog(logData)
         this.currentLog = log
         this.isWorking = true
+        // log.start_time l'ha posat el servidor just ara: la diferència amb
+        // Date.now() és (aprox.) el desquadre del rellotge del dispositiu.
+        this.clockOffsetMs = log.start_time ? (new Date(log.start_time).getTime() - Date.now()) : 0
         this.startTimer()
         auditLog(authStore.userId, 'START_WORKDAY', 'work_log', log.id,
           `Inici jornada: ${now.toLocaleTimeString('ca-ES')} · ` + (hasCoords ? `match: ${geoResult.valid}` : 'registre manual sense GPS'))
@@ -225,9 +235,9 @@ export const useWorkLogStore = defineStore('workLog', {
           `${hoursToAuthorize}h autoritzades amb codi ${code} (${remainingUnauthorized}h resten pendents)`)
         this.logs = await db.getWorkLogsByUser(authStore.userId)
 
-        const baseMsg = `✓ ${hoursToAuthorize.toFixed(2)}h extra autoritzades correctament.`
+        const baseMsg = `✓ ${formatHM(hoursToAuthorize)} extra autoritzades correctament.`
         const warningMsg = remainingUnauthorized > 0
-          ? ` Només s'han actualitzat ${hoursToAuthorize.toFixed(2)}h de les ${extraPending.toFixed(2)}h acumulades. Per gestionar les ${remainingUnauthorized.toFixed(2)}h restants, contacta amb el teu responsable.`
+          ? ` Només s'han actualitzat ${formatHM(hoursToAuthorize)} de les ${formatHM(extraPending)} acumulades. Per gestionar les ${formatHM(remainingUnauthorized)} restants, contacta amb el teu responsable.`
           : ''
         return { success: true, message: baseMsg + warningMsg, hasRemaining: remainingUnauthorized > 0 }
       } catch (e) {
@@ -239,20 +249,19 @@ export const useWorkLogStore = defineStore('workLog', {
     startTimer() {
       this.stopTimer()
       if (this.currentLog && this.currentLog.start_time) {
-        let startTimeStr = this.currentLog.start_time
-        // If it's a naive string from PHP (e.g. "2026-03-31 09:21:21"), append Z to force UTC
-        if (typeof startTimeStr === 'string' && !startTimeStr.includes('Z') && !startTimeStr.includes('+')) {
-          startTimeStr = startTimeStr.replace(' ', 'T') + 'Z'
-        }
-        const start = new Date(startTimeStr)
-        const diff = Math.floor((Date.now() - start.getTime()) / 1000)
+        // start_time arriba en hora de Madrid directa (sense Z): el navegador ja
+        // l'interpreta com a hora local seva correctament, sense forçar res.
+        // Date.now() + clockOffsetMs corregeix si el rellotge del dispositiu va
+        // desquadrat (veure clockOffsetMs).
+        const start = new Date(this.currentLog.start_time)
+        const diff = Math.floor(((Date.now() + this.clockOffsetMs) - start.getTime()) / 1000)
         // Prevent negative elapsed times due to clock skew
         this.elapsed = Math.max(0, diff)
       }
       this.timerInterval = setInterval(() => {
         if (this.currentLog && this.currentLog.start_time) {
           const start = new Date(this.currentLog.start_time).getTime()
-          this.elapsed = Math.max(0, Math.floor((Date.now() - start) / 1000))
+          this.elapsed = Math.max(0, Math.floor(((Date.now() + this.clockOffsetMs) - start) / 1000))
         }
       }, 1000)
     },

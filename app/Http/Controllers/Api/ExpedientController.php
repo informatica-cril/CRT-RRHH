@@ -21,8 +21,8 @@ class ExpedientController extends Controller
 {
     public function show(Request $request, string $professional)
     {
-        $url   = env('DOMI_EXPEDIENT_URL', 'http://127.0.0.1:8080/api/rrhh_expedient.php');
-        $token = (string) env('DOMI_EXPEDIENT_TOKEN', '');
+        $url   = config('services.domi.expedient_url');
+        $token = (string) config('services.domi.token', '');
         if ($token === '') {
             return response()->json(['ok' => false, 'error' => 'DOMI_EXPEDIENT_TOKEN no configurat a .env'], 500);
         }
@@ -34,11 +34,11 @@ class ExpedientController extends Controller
                 'fins'         => $request->query('fins'),
             ]));
         } catch (\Throwable $e) {
-            return response()->json(['ok' => false, 'error' => 'domi no accessible'], 502);
+            return response()->json(['ok' => false, 'error' => 'domi no accessible'], 424);
         }
 
         if (! $resp->ok()) {
-            return response()->json(['ok' => false, 'error' => 'error de domi', 'status' => $resp->status()], 502);
+            return response()->json(['ok' => false, 'error' => 'error de domi', 'status' => $resp->status()], 424);
         }
 
         // Es retorna tal com ve de domi (ja porta objectiu/valoratiu + font per bloc).
@@ -48,8 +48,8 @@ class ExpedientController extends Controller
     /** Detall PER-FET de la recollida (F1.bis de domi): la matèria primera per incorporar elements. */
     public function detall(Request $request, string $professional)
     {
-        $url   = env('DOMI_EXPEDIENT_DETALL_URL', 'http://127.0.0.1:8080/api/rrhh_expedient_detall.php');
-        $token = (string) env('DOMI_EXPEDIENT_TOKEN', '');
+        $url   = config('services.domi.expedient_detall_url');
+        $token = (string) config('services.domi.token', '');
         if ($token === '') {
             return response()->json(['ok' => false, 'error' => 'DOMI_EXPEDIENT_TOKEN no configurat a .env'], 500);
         }
@@ -60,10 +60,10 @@ class ExpedientController extends Controller
                 'fins'         => $request->query('fins'),
             ]));
         } catch (\Throwable $e) {
-            return response()->json(['ok' => false, 'error' => 'domi no accessible'], 502);
+            return response()->json(['ok' => false, 'error' => 'domi no accessible'], 424);
         }
         if (! $resp->ok()) {
-            return response()->json(['ok' => false, 'error' => 'error de domi', 'status' => $resp->status()], 502);
+            return response()->json(['ok' => false, 'error' => 'error de domi', 'status' => $resp->status()], 424);
         }
 
         return response()->json($resp->json());

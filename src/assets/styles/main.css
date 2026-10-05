@@ -1420,10 +1420,14 @@ tbody tr:last-child td {
 }
 
 /* ---- Mobile List Cards (Recent Activity) ---- */
+/* Sense display aquí: el posa .show-on-mobile (només en mòbil). Amb un display:flex fix, aquesta
+   regla, que va després, trepitjava l'amagat d'escriptori i es veien taula i targetes alhora. */
 .mobile-activity-list {
-  display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+}
+@media (max-width: 768px) {
+  .mobile-activity-list.show-on-mobile { display: flex !important; }
 }
 
 .mobile-log-card {

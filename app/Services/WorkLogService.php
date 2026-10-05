@@ -78,17 +78,18 @@ class WorkLogService
      */
     public function closeMilestoneTail(WorkLog $workLog): void
     {
-        $end = Carbon::parse($workLog->getRawOriginal('end_time'), 'UTC');
+        $end = Carbon::parse($workLog->getRawOriginal('end_time'), 'Europe/Madrid');
         $segments = \App\Models\WorkLogSegment::where('work_log_id', $workLog->id)
             ->orderBy('segment_number')->get();
         if ($segments->isEmpty() || $segments->whereNotNull('kind')->isEmpty()) {
             return; // no és una jornada per hitos
         }
 
-        // Convenció BD: strings UTC → per a diferències, parsejar el RAW com UTC
+        // Convenció BD: strings en hora de Madrid directa → per a diferències, parsejar
+        // el RAW amb aquesta zona (veure WorkLogController::store()/update()).
         $openVisit = $segments->last(fn ($s) => $s->kind === 'visita' && $s->status === 'pending' && $s->end_time->eq($s->start_time));
         if ($openVisit) {
-            $visitStart = Carbon::parse($openVisit->getRawOriginal('start_time'), 'UTC');
+            $visitStart = Carbon::parse($openVisit->getRawOriginal('start_time'), 'Europe/Madrid');
             if ($visitStart->lt($end)) {
                 $openVisit->update([
                     'end_time' => $end,
@@ -102,7 +103,7 @@ class WorkLogService
         }
 
         $rawLastEnd = $segments->map(fn ($s) => $s->getRawOriginal('end_time'))->filter()->max();
-        $lastBoundary = Carbon::parse($rawLastEnd, 'UTC');
+        $lastBoundary = Carbon::parse($rawLastEnd, 'Europe/Madrid');
         if ($lastBoundary->lt($end)) {
             \App\Models\WorkLogSegment::create([
                 'work_log_id' => $workLog->id,
@@ -124,8 +125,10 @@ class WorkLogService
      */
     public function segmentWorkLog(WorkLog $workLog, $user): void
     {
-        $startTime = Carbon::parse($workLog->getRawOriginal('start_time'), 'UTC');
-        $endTime = Carbon::parse($workLog->getRawOriginal('end_time'), 'UTC');
+        // start_time/end_time es guarden en hora de Madrid directa (no UTC): veure
+        // WorkLogController::store()/update().
+        $startTime = Carbon::parse($workLog->getRawOriginal('start_time'), 'Europe/Madrid');
+        $endTime = Carbon::parse($workLog->getRawOriginal('end_time'), 'Europe/Madrid');
 
         // Obtener horario del trabajador
         $workSchedule = $workLog->user->workSchedule;
@@ -156,7 +159,7 @@ class WorkLogService
                   ['break_end_time', 'break_end_location_match']] as [$tCol, $mCol]) {
             $rawT = $workLog->getRawOriginal($tCol);
             if ($rawT !== null && $workLog->{$mCol} !== null) {
-                $t = Carbon::parse($rawT, 'UTC');
+                $t = Carbon::parse($rawT, 'Europe/Madrid');
                 if ($t->gt($startTime) && $t->lt($endTime)) {
                     $anchors[] = [$t, (bool) $workLog->{$mCol}];
                 }
@@ -186,6 +189,7 @@ class WorkLogService
 
         $segments = [];
 
+        $iniciJornada = $startTime->copy();
         if ($scheduleStart && $scheduleEnd) {
             $localDate = $startTime->copy()->setTimezone('Europe/Madrid')->toDateString();
             $authStart = Carbon::parse("{$localDate} {$scheduleStart}", 'Europe/Madrid')->utc();
@@ -240,6 +244,22 @@ class WorkLogService
                     'duration_minutes' => intval($tIni->diffInMinutes($tFi)),
                     'status' => $dins ? 'approved' : 'pending',
                 ];
+            }
+        }
+
+        // La posició de l'entrada i la de la sortida van al tram que obren o tanquen, caigui on caigui
+        // respecte a l'horari: abans només es copiaven als trams de fora d'horari i un tram que
+        // començava amb l'entrada dins d'horari quedava sense cap posició.
+        if ($segments) {
+            $primer = 0;
+            $ultim = count($segments) - 1;
+            if (empty($segments[$primer]['start_lat']) && $segments[$primer]['start_time']->equalTo($iniciJornada)) {
+                $segments[$primer]['start_lat'] = $workLog->start_location_lat;
+                $segments[$primer]['start_lng'] = $workLog->start_location_lng;
+            }
+            if (empty($segments[$ultim]['end_lat']) && $segments[$ultim]['end_time']->equalTo($endTime)) {
+                $segments[$ultim]['end_lat'] = $workLog->end_location_lat;
+                $segments[$ultim]['end_lng'] = $workLog->end_location_lng;
             }
         }
 

@@ -17,19 +17,19 @@
     <div class="stats-grid mb-lg">
       <div class="stat-card primary">
         <div class="stat-label">{{ t('worked_hours') }}</div>
-        <div class="stat-value">{{ summary.totalHours }}h</div>
+        <div class="stat-value">{{ formatHM(summary.totalHours) }}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">{{ t('theoretical_hours') }}</div>
-        <div class="stat-value">{{ summary.theoreticalHours }}h</div>
+        <div class="stat-value">{{ formatHM(summary.theoreticalHours) }}</div>
       </div>
       <div class="stat-card" style="border-bottom:3px solid var(--color-success);">
         <div class="stat-label" style="color:var(--color-success);">✓ H. Autoritzades</div>
-        <div class="stat-value" style="color:var(--color-success);">{{ summary.authorizedHours }}h</div>
+        <div class="stat-value" style="color:var(--color-success);">{{ formatHM(summary.authorizedHours) }}</div>
       </div>
       <div class="stat-card" style="border-bottom:3px solid var(--color-danger);">
         <div class="stat-label" style="color:var(--color-danger);">✗ H. No autoritzades</div>
-        <div class="stat-value" style="color:var(--color-danger);">{{ summary.unauthorizedHours }}h</div>
+        <div class="stat-value" style="color:var(--color-danger);">{{ formatHM(summary.unauthorizedHours) }}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">{{ t('absences') }}</div>
@@ -45,7 +45,7 @@
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px;">
         <div style="background:var(--color-bg);padding:12px;border-radius:8px;">
           <div class="text-small text-muted">Mitjana diària</div>
-          <div style="font-size:1.3rem;font-weight:700;">{{ workerAvg }}h</div>
+          <div style="font-size:1.3rem;font-weight:700;">{{ formatHM(workerAvg) }}</div>
         </div>
         <div style="background:var(--color-bg);padding:12px;border-radius:8px;">
           <div class="text-small text-muted">Dies treballats</div>
@@ -53,11 +53,11 @@
         </div>
         <div style="background:rgba(76,175,80,0.08);padding:12px;border-radius:8px;border-bottom:3px solid var(--color-success);">
           <div class="text-small" style="color:var(--color-success);">✓ Hores autoritzades</div>
-          <div style="font-size:1.3rem;font-weight:700;color:var(--color-success);">{{ summary.authorizedHours }}h</div>
+          <div style="font-size:1.3rem;font-weight:700;color:var(--color-success);">{{ formatHM(summary.authorizedHours) }}</div>
         </div>
         <div style="background:rgba(239,68,68,0.08);padding:12px;border-radius:8px;border-bottom:3px solid var(--color-danger);">
           <div class="text-small" style="color:var(--color-danger);">✗ No autoritzades</div>
-          <div style="font-size:1.3rem;font-weight:700;color:var(--color-danger);">{{ summary.unauthorizedHours }}h</div>
+          <div style="font-size:1.3rem;font-weight:700;color:var(--color-danger);">{{ formatHM(summary.unauthorizedHours) }}</div>
         </div>
         <div style="background:var(--color-bg);padding:12px;border-radius:8px;">
           <div class="text-small text-muted">Permisos usats</div>
@@ -81,7 +81,7 @@
                 <td><span class="badge badge-warning" style="font-size:0.7rem;">{{ l.assigned_postal_code || getWorkerPostalCode(l.user_id) }}</span></td>
                 <td class="text-small">{{ formatTime(l.start_time) }}</td>
                 <td class="text-small">{{ l.end_time ? formatTime(l.end_time) : '—' }}</td>
-                <td><strong>{{ Number((l.effective_hours ?? l.total_hours_worked) || 0).toFixed(2) }}h</strong></td>
+                <td><strong>{{ formatHM(l.effective_hours ?? l.total_hours_worked) }}</strong></td>
                 <td><span class="badge" :class="statusBadge(l.status)">{{ t(l.status) || l.status }}</span></td>
               </tr>
             </tbody>
@@ -113,12 +113,12 @@
             <tr v-for="r in fisioMonthlyRows" :key="r.id" :style="r.dies === 0 ? 'opacity:0.5;' : ''">
               <td style="text-align:left;font-weight:600;">{{ r.name }}</td>
               <td>{{ r.dies }}</td>
-              <td>{{ r.basic.toFixed(1) }}h</td>
-              <td>{{ r.compl.toFixed(1) }}h</td>
-              <td style="font-weight:700;">{{ r.authorized.toFixed(1) }}h</td>
-              <td style="font-weight:700;color:var(--color-primary);">{{ r.effective.toFixed(1) }}h</td>
-              <td :style="r.unauth > 0.01 ? 'color:var(--color-danger);font-weight:700;background:rgba(239,68,68,0.06);' : 'color:#cbd5e1;'">{{ r.unauth > 0.01 ? r.unauth.toFixed(1)+'h' : '—' }}</td>
-              <td :style="r.outZone > 0.01 ? 'color:var(--color-warning);font-weight:700;background:rgba(245,158,11,0.08);' : 'color:#cbd5e1;'">{{ r.outZone > 0.01 ? r.outZone.toFixed(1)+'h' : '—' }}</td>
+              <td>{{ formatHM(r.basic) }}</td>
+              <td>{{ formatHM(r.compl) }}</td>
+              <td style="font-weight:700;">{{ formatHM(r.authorized) }}</td>
+              <td style="font-weight:700;color:var(--color-primary);">{{ formatHM(r.effective) }}</td>
+              <td :style="r.unauth > 0.01 ? 'color:var(--color-danger);font-weight:700;background:rgba(239,68,68,0.06);' : 'color:#cbd5e1;'">{{ r.unauth > 0.01 ? formatHM(r.unauth) : '—' }}</td>
+              <td :style="r.outZone > 0.01 ? 'color:var(--color-warning);font-weight:700;background:rgba(245,158,11,0.08);' : 'color:#cbd5e1;'">{{ r.outZone > 0.01 ? formatHM(r.outZone) : '—' }}</td>
               <td :style="devStyle(r.deviation)">{{ devText(r.deviation) }}</td>
             </tr>
             <tr v-if="fisioMonthlyRows.length === 0"><td colspan="9" class="text-center text-muted" style="padding:24px;">Cap fisioterapeuta actiu</td></tr>
@@ -160,16 +160,16 @@
               <td>{{ formatDate(log.date) }}</td>
               <td>{{ formatTime(log.start_time) }}</td>
               <td>{{ log.end_time ? formatTime(log.end_time) : '—' }}</td>
-              <td><strong>{{ Number((log.effective_hours ?? log.total_hours_worked) || 0).toFixed(2) }}h</strong></td>
+              <td><strong>{{ formatHM(log.effective_hours ?? log.total_hours_worked) }}</strong></td>
               <td>
                 <span v-if="Number(log.extra_hours_authorized||0) > 0" style="color:var(--color-success);font-weight:600;">
-                  +{{ Number(log.extra_hours_authorized||0).toFixed(1) }}h
+                  +{{ formatHM(log.extra_hours_authorized) }}
                 </span>
                 <span v-else class="text-muted">—</span>
               </td>
               <td>
                 <span v-if="Number(log.extra_hours_unauthorized||0) > 0" style="color:var(--color-danger);font-weight:600;">
-                  {{ Number(log.extra_hours_unauthorized||0).toFixed(1) }}h
+                  {{ formatHM(log.extra_hours_unauthorized) }}
                 </span>
                 <span v-else class="text-muted">—</span>
               </td>
@@ -195,6 +195,7 @@ import { useAuthStore } from '../stores/auth'
 import { useWorkLogStore } from '../stores/workLog'
 import { db } from '../services/db'
 import { i18n } from '../i18n'
+import { formatHM } from '../utils/formatHours'
 
 const authStore = useAuthStore()
 const workLogStore = useWorkLogStore()

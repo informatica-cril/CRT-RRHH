@@ -48,9 +48,10 @@ async function arr(promise) {
 
 onMounted(async () => {
   const uid = authStore.userId
-  const [alertes, docs, nomines, discip] = await Promise.all([
+  const [alertes, docs, sigs, nomines, discip] = await Promise.all([
     arr(db.getPendingAlerts(uid)),
     arr(db.getDocumentsForUser(uid)),
+    arr(db.getDocSignaturesByUser(uid)),
     arr(db.getWorkerPayrolls(uid)),
     arr(db.getMyDisciplinaryNotifications()),
   ])
@@ -63,7 +64,8 @@ onMounted(async () => {
   // avisos del fitxatge i barrejar-les hi amagava la notícia.
   const nResolucions = alertes.filter(a => a.type === 'resolucio_rrhh').length
   const nAvisos = alertes.filter(a => !['audiencia', 'segment_rejected', 'resolucio_rrhh'].includes(a.type)).length
-  const nDocs = docs.filter(d => (d.requires_signature || d.pending_signature) && !d.signed_at && !d.signed).length
+  // L'estat de firma viu a document_signatures (per usuari), no al propi document.
+  const nDocs = docs.filter(d => d.requires_signature && !sigs.find(s => s.document_id === d.id && s.signed_at)).length
   const nNomines = nomines.filter(n => !n.signed_at && !n.viewed_signed && !n.signed).length
   const nDiscip = discip.filter(d => !d.acknowledged_at && !d.acknowledged).length
 

@@ -71,7 +71,7 @@
             <div v-for="(day, index) in weekDays" :key="index" class="mobile-summary-item" 
               :style="index === todayIndex ? 'border-left: 3px solid var(--color-accent)' : ''">
               <span class="mobile-summary-day">{{ day.fullLabel || day.label }}</span>
-              <span class="mobile-summary-value">{{ day.hours }}h</span>
+              <span class="mobile-summary-value">{{ formatHM(day.hours) }}</span>
             </div>
           </div>
         </div>
@@ -113,14 +113,18 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="log in recentLogs" :key="log.id">
-                    <td>{{ getUserName(log.user_id) }}</td>
+                  <tr v-for="log in recentLogs" :key="log.id" class="act-fila" @click="$router.push(`/work-logs/${log.id}/detail`)" title="Obrir el detall del fitxatge">
+                    <td><strong class="act-nom">{{ nomBonic(getUserName(log.user_id)) }}</strong></td>
                     <td>{{ formatDate(log.date) }}</td>
                     <td>{{ formatTime(log.start_time) }}</td>
-                    <td>{{ log.end_time ? formatTime(log.end_time) : '-' }}</td>
-                    <td>{{ log.total_hours_worked ? Number(log.effective_hours ?? log.total_hours_worked).toFixed(2) + 'h' : '-' }}</td>
+                    <td>{{ log.end_time ? formatTime(log.end_time) : '—' }}</td>
                     <td>
-                      <span class="badge" :class="statusBadge(log.status)">{{ t(log.status) || log.status }}</span>
+                      <span v-if="!log.end_time" class="act-encurs">● En curs</span>
+                      <span v-else>{{ formatHM(log.effective_hours ?? log.total_hours_worked) }}</span>
+                    </td>
+                    <td>
+                      <span v-if="!log.end_time" class="text-muted text-small">—</span>
+                      <span v-else class="badge" :class="statusBadge(log.status)">{{ t(log.status) || log.status }}</span>
                     </td>
                   </tr>
                 </tbody>
@@ -129,20 +133,21 @@
 
             <!-- Mobile Card List View -->
             <div class="mobile-activity-list show-on-mobile">
-              <div v-for="log in recentLogs" :key="log.id" class="mobile-log-card">
+              <div v-for="log in recentLogs" :key="log.id" class="mobile-log-card" @click="$router.push(`/work-logs/${log.id}/detail`)">
                 <div class="mobile-log-header">
-                  <div class="mobile-log-name">{{ getUserName(log.user_id) }}</div>
-                  <span class="badge" :class="statusBadge(log.status)">{{ t(log.status) || log.status }}</span>
+                  <div class="mobile-log-name">{{ nomBonic(getUserName(log.user_id)) }}</div>
+                  <span v-if="!log.end_time" class="act-encurs">● En curs</span>
+                  <span v-else class="badge" :class="statusBadge(log.status)">{{ t(log.status) || log.status }}</span>
                 </div>
                 <div class="mobile-log-date">{{ formatDate(log.date) }}</div>
                 <div class="mobile-log-body mt-sm">
                   <div class="mobile-log-item">
                     <span class="mobile-log-label">Inici/Fi</span>
-                    <span>{{ formatTime(log.start_time) }} / {{ log.end_time ? formatTime(log.end_time) : '-' }}</span>
+                    <span>{{ formatTime(log.start_time) }} – {{ log.end_time ? formatTime(log.end_time) : 'en curs' }}</span>
                   </div>
                   <div class="mobile-log-item">
                     <span class="mobile-log-label">Hores</span>
-                    <span style="font-weight:700;">{{ log.total_hours_worked ? Number(log.effective_hours ?? log.total_hours_worked).toFixed(2) + 'h' : '-' }}</span>
+                    <span style="font-weight:700;">{{ log.end_time ? formatHM(log.effective_hours ?? log.total_hours_worked) : '—' }}</span>
                   </div>
                 </div>
               </div>
@@ -186,7 +191,7 @@
             style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--color-border-light);">
             <div>
               <div style="font-weight: 500; font-size: 0.87rem;">{{ getUserName(log.user_id) }}</div>
-              <div style="font-size: 0.78rem; color: var(--color-text-secondary);">{{ formatDate(log.date) }} · {{ Number((log.effective_hours ?? log.total_hours_worked) || 0).toFixed(2) }}h</div>
+              <div style="font-size: 0.78rem; color: var(--color-text-secondary);">{{ formatDate(log.date) }} · {{ formatHM(log.effective_hours ?? log.total_hours_worked) }}</div>
             </div>
             <div style="display: flex; gap: 4px;">
               <button class="btn btn-success btn-sm" @click="approveLog(log.id)">✓</button>
@@ -235,23 +240,23 @@
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:10px;margin:8px 0 16px;">
           <div class="stat-card" style="padding:10px;">
             <div class="stat-label">Treballat</div>
-            <div style="font-size:1.3rem;font-weight:700;color:var(--color-primary);">{{ monthlyAnalysis.worked.toFixed(1) }}h</div>
+            <div style="font-size:1.3rem;font-weight:700;color:var(--color-primary);">{{ formatHM(monthlyAnalysis.worked) }}</div>
           </div>
           <div class="stat-card" style="padding:10px;">
             <div class="stat-label">Bàsic contractat</div>
-            <div style="font-size:1.3rem;font-weight:700;">{{ monthlyAnalysis.basic.toFixed(1) }}h</div>
+            <div style="font-size:1.3rem;font-weight:700;">{{ formatHM(monthlyAnalysis.basic) }}</div>
           </div>
           <div class="stat-card" style="padding:10px;">
             <div class="stat-label">Complement. autoritzades</div>
-            <div style="font-size:1.3rem;font-weight:700;color:var(--color-warning);">{{ monthlyAnalysis.complementary.toFixed(1) }}h</div>
+            <div style="font-size:1.3rem;font-weight:700;color:var(--color-warning);">{{ formatHM(monthlyAnalysis.complementary) }}</div>
           </div>
           <div class="stat-card" style="padding:10px;">
             <div class="stat-label">Màxim autoritzat</div>
-            <div style="font-size:1.3rem;font-weight:700;">{{ monthlyAnalysis.max.toFixed(1) }}h</div>
+            <div style="font-size:1.3rem;font-weight:700;">{{ formatHM(monthlyAnalysis.max) }}</div>
           </div>
           <div class="stat-card" style="padding:10px;" v-if="monthlyAnalysis.overflow > 0.01">
             <div class="stat-label" style="color:var(--color-danger);">Excés no autoritzat</div>
-            <div style="font-size:1.3rem;font-weight:700;color:var(--color-danger);">+{{ monthlyAnalysis.overflow.toFixed(1) }}h</div>
+            <div style="font-size:1.3rem;font-weight:700;color:var(--color-danger);">+{{ formatHM(monthlyAnalysis.overflow) }}</div>
           </div>
         </div>
 
@@ -308,19 +313,30 @@
         <h3 class="card-title">🗺️ Mapa de treballadors per zona</h3>
         <div class="text-small text-muted">Zones assignades actuals · hores teòriques anuals per CP</div>
       </div>
-      <!-- CP Zone Summary pills -->
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 10px;">
-        <div v-for="zone in cpZoneSummary" :key="zone.cp"
-          style="display:flex;align-items:center;gap:6px;background:var(--color-bg);border:1px solid var(--color-border-light);border-radius:20px;padding:5px 12px;font-size:0.78rem;">
-          <span :style="{ display:'inline-block', width:'10px', height:'10px', borderRadius:'50%', background: zone.color }"></span>
-          <strong>{{ zone.cp }}</strong>
-          <span class="text-muted">—</span>
-          <span>{{ zone.workers.map(w => w.name.split(' ')[0]).join(', ') }}</span>
-          <span class="text-muted" style="margin-left:4px;">· {{ zone.annualHours }}h/any</span>
+      <!-- Mapa a l'esquerra i, a la dreta, una fila per zona que es desplega amb les persones:
+           abans eren píndoles amb tots els noms seguits i, amb moltes zones, no es llegia res. -->
+      <div class="zm-layout">
+        <div id="workers-leaflet-map" class="zm-mapa"></div>
+        <div class="zm-panell">
+          <input v-model="cercaZona" type="search" class="form-input zm-cerca" placeholder="🔍 Cerca una persona o un CP…" />
+          <div class="zm-resum">{{ zonesVisibles.length }} zones · {{ personesAmbZona }} persones</div>
+          <div v-if="!zonesVisibles.length" class="zm-buit">Cap zona coincideix amb «{{ cercaZona }}»</div>
+          <div class="zm-llista">
+            <div v-for="zone in zonesVisibles" :key="zone.cp" class="zm-zona" :class="{ oberta: zonaOberta(zone.cp) }">
+              <button type="button" class="zm-fila" @click="clicaZona(zone.cp)">
+                <span class="zm-punt" :style="{ background: zone.color }"></span>
+                <span class="zm-nom"><strong>{{ zone.cp }}</strong><span v-if="zone.zone && zone.zone !== zone.cp" class="zm-sub">{{ zone.zone }}</span></span>
+                <span class="zm-n" :title="zone.workers.length + ' persones'">👥 {{ zone.workers.length }}</span>
+                <span class="zm-fletxa">{{ zonaOberta(zone.cp) ? '▾' : '▸' }}</span>
+              </button>
+              <div v-if="zonaOberta(zone.cp)" class="zm-persones">
+                <span v-for="w in zone.workers" :key="w.id" class="zm-persona" :class="{ coincideix: coincidePersona(w) }">{{ nomBonic(w.name) }}</span>
+                <div class="zm-hores">🕐 {{ zone.annualHours.toLocaleString('ca-ES') }} h/any teòriques</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-      <!-- Map container -->
-      <div id="workers-leaflet-map" style="height:420px;border-radius:12px;overflow:hidden;border:1px solid var(--color-border-light);"></div>
     </div>
 
     <!-- ═══ Admin Menu Grid ═══ -->
@@ -406,7 +422,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useWorkLogStore } from '../stores/workLog'
@@ -416,6 +432,7 @@ import { db } from '../services/db'
 import { getCurrentPosition, BARCELONA_POSTAL_CODES, VALLES_MUNICIPALITIES } from '../services/geolocation'
 import { getPolygon, getGeoJsonBounds } from '../services/geoPolygonService'
 import { i18n } from '../i18n'
+import { formatHM } from '../utils/formatHours'
 import { Bar } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js'
 
@@ -457,7 +474,7 @@ async function fetchStats() {
 }
 
 function formatH(hoursDecimal) {
-  return Number(hoursDecimal).toFixed(2) + 'h'
+  return formatHM(hoursDecimal)
 }
 
 const hoursToday = computed(() => {
@@ -501,7 +518,10 @@ async function fetchPendingCount() {
 }
 
 const pendingLogs = computed(() => workLogStore.logs.filter(l => l.status === 'pending').sort((a, b) => new Date(b.date) - new Date(a.date)))
-const recentLogs = computed(() => workLogStore.logs.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 8))
+// Còpia abans d'ordenar (sort() sobre el store reordenava la llista de totes les pantalles) i per data i hora.
+const recentLogs = computed(() => [...workLogStore.logs]
+  .sort((a, b) => String(b.date).slice(0, 10).localeCompare(String(a.date).slice(0, 10)) || String(b.start_time).localeCompare(String(a.start_time)))
+  .slice(0, 8))
 
 const totalExtraHours = computed(() => {
   const month = new Date().toISOString().slice(0, 7)
@@ -709,7 +729,7 @@ const monthlyChartOptions = {
   maintainAspectRatio: false,
   plugins: {
     legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, padding: 8, font: { size: 9 } } },
-    tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.raw).toFixed(1)}h` } }
+    tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${formatHM(ctx.raw)}` } }
   },
   scales: {
     x: { stacked: true, beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 9 } } },
@@ -758,7 +778,7 @@ const dailyChartOptions = {
   maintainAspectRatio: false,
   plugins: {
     legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, padding: 8, font: { size: 9 } } },
-    tooltip: { callbacks: { title: (items) => `Dia ${items[0].label}`, label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.raw).toFixed(1)}h` } }
+    tooltip: { callbacks: { title: (items) => `Dia ${items[0].label}`, label: (ctx) => `${ctx.dataset.label}: ${formatHM(ctx.raw)}` } }
   },
   scales: {
     y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 9 } } },
@@ -827,6 +847,46 @@ async function fetchCpZoneSummary() {
   })
   cpZoneSummary.value = Object.values(zoneMap)
 }
+
+// ── Panell de zones del mapa ────────────────────────────────────────────────
+const cercaZona = ref('')
+const zonaSeleccionada = ref(null)
+const normTxt = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+function coincidePersona(w) {
+  const q = normTxt(cercaZona.value.trim())
+  return q.length >= 2 && normTxt(w.name).includes(q)
+}
+const zonesVisibles = computed(() => {
+  const q = normTxt(cercaZona.value.trim())
+  const totes = [...cpZoneSummary.value].sort((a, b) => b.workers.length - a.workers.length || a.cp.localeCompare(b.cp))
+  if (!q) return totes
+  return totes.filter(z => normTxt(z.cp).includes(q) || normTxt(z.zone).includes(q) || z.workers.some(w => normTxt(w.name).includes(q)))
+})
+const personesAmbZona = computed(() => new Set(zonesVisibles.value.flatMap(z => z.workers.map(w => w.id))).size)
+// Amb una cerca, les zones trobades surten obertes (és el que es vol veure: on va cadascú).
+function zonaOberta(cp) { return zonaSeleccionada.value === cp || (cercaZona.value.trim().length >= 2 && zonesVisibles.value.length <= 6) }
+function clicaZona(cp) {
+  zonaSeleccionada.value = zonaSeleccionada.value === cp ? null : cp
+  enfocaZona(zonaSeleccionada.value)
+}
+function nomBonic(nom) {
+  return String(nom || '').toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (m, sep, l) => sep + l.toUpperCase())
+}
+// cp → { capa, color } per poder ressaltar i centrar la zona des del panell
+const capesZona = {}
+function enfocaZona(cp) {
+  const map = window._adminLeafletMapInstance
+  Object.entries(capesZona).forEach(([k, c]) => c.capa?.setStyle?.({ weight: k === cp ? 4 : 2.5, fillOpacity: k === cp ? 0.35 : (cp ? 0.06 : 0.15) }))
+  const c = cp && capesZona[cp]
+  if (map && c?.capa?.getBounds) {
+    map.fitBounds(c.capa.getBounds(), { padding: [30, 30], maxZoom: 15 })
+  }
+}
+watch(cercaZona, () => {
+  // Una sola zona trobada: es ressalta al mapa sense haver de clicar.
+  const v = zonesVisibles.value
+  enfocaZona(cercaZona.value.trim() && v.length === 1 ? v[0].cp : null)
+})
 
 // ── Leaflet Map initialization ─────────────────────────────────────────────
 // Centroidal coordinates used only for placing the label marker
@@ -909,6 +969,8 @@ async function buildLeafletZoneMap(containerId, zones, mapOptions = {}) {
           fillColor: zone.color, fillOpacity: 0.15
         }
       }).addTo(map).bindPopup(popupContent, { maxWidth: 260 })
+      layer.on('click', () => { zonaSeleccionada.value = zone.cp })
+      if (containerId === 'workers-leaflet-map') capesZona[zone.cp] = { capa: layer }
       bounds.push(layer.getBounds())
     } else {
       // Fallback: draw a visible circle if polygon data unavailable
@@ -921,6 +983,8 @@ async function buildLeafletZoneMap(containerId, zones, mapOptions = {}) {
           radius: radius, color: zone.color, weight: 2, opacity: 0.8,
           fillColor: zone.color, fillOpacity: 0.12, dashArray: '6,4'
         }).addTo(map).bindPopup(popupContent, { maxWidth: 260 })
+        circle.on('click', () => { zonaSeleccionada.value = zone.cp })
+        if (containerId === 'workers-leaflet-map') capesZona[zone.cp] = { capa: circle }
         bounds.push(circle.getBounds())
       }
     }
@@ -1022,6 +1086,38 @@ function statusBadge(s) { return { pending: 'badge-pending', approved: 'badge-su
 </script>
 
 <style scoped>
+/* ── Activitat recent ── */
+.act-fila { cursor: pointer; }
+.act-fila:hover td { background: rgba(9, 78, 140, .04); }
+.act-nom { font-weight: 600; }
+.act-encurs { display: inline-flex; align-items: center; gap: 4px; font-size: .78rem; font-weight: 700; color: #0A7C5E; background: #E8F8F2; border-radius: 999px; padding: 2px 10px; white-space: nowrap; }
+.mobile-log-card { cursor: pointer; }
+/* ── Mapa de treballadors per zona: mapa + panell de zones desplegables ── */
+.zm-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px; margin-top: 14px; }
+.zm-mapa { height: 460px; border-radius: 12px; overflow: hidden; border: 1px solid var(--color-border-light); }
+.zm-panell { display: flex; flex-direction: column; height: 460px; min-width: 0; }
+.zm-cerca { margin-bottom: 6px; }
+.zm-resum { font-size: .74rem; color: var(--color-text-muted, #7a8aa0); margin: 0 2px 8px; }
+.zm-buit { font-size: .82rem; color: var(--color-text-muted, #7a8aa0); padding: 12px 4px; }
+.zm-llista { overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 6px; padding-right: 2px; }
+.zm-zona { border: 1px solid var(--color-border-light, #e5eaf0); border-radius: 10px; background: var(--color-bg, #f8fafc); }
+.zm-zona.oberta { background: var(--color-surface, #fff); box-shadow: 0 2px 10px rgba(10, 42, 74, .07); }
+.zm-fila { width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: none; border: none; cursor: pointer; text-align: left; color: var(--color-text); min-height: 40px; }
+.zm-punt { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+.zm-nom { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; font-size: .85rem; }
+.zm-sub { font-size: .72rem; color: var(--color-text-muted, #7a8aa0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.zm-n { font-size: .76rem; font-weight: 700; color: var(--color-text-secondary, #475569); white-space: nowrap; }
+.zm-fletxa { font-size: .8rem; color: var(--color-text-muted, #94a3b8); width: 10px; }
+.zm-persones { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 10px 10px 29px; }
+.zm-persona { font-size: .74rem; background: var(--color-bg, #f1f5f9); border: 1px solid var(--color-border-light, #e5eaf0); border-radius: 999px; padding: 2px 9px; }
+.zm-persona.coincideix { background: #FFF3C4; border-color: #D9A400; font-weight: 700; }
+.zm-hores { width: 100%; font-size: .72rem; color: var(--color-text-muted, #7a8aa0); margin-top: 3px; }
+@media (max-width: 900px) {
+  .zm-layout { grid-template-columns: 1fr; }
+  .zm-mapa { height: 340px; }
+  .zm-panell { height: auto; max-height: 420px; }
+}
+
 .worker-analysis-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

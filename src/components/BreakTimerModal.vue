@@ -23,6 +23,10 @@ const props = defineProps({
   visible: { type: Boolean, default: false },
   durationMinutes: { type: Number, default: 20 },
   startTime: { type: String, default: null },
+  // Diferencia (ms) entre el rellotge del servidor i el del dispositiu, calculada
+  // un cop fora d'aquí. Si el rellotge del dispositiu va desquadrat, el comptador
+  // seguiria sent correcte perque no depen que aquell rellotge sigui fiable.
+  clockOffsetMs: { type: Number, default: 0 },
   message: { type: String, default: 'Has de fer una pausa obligatòria de 20 minuts.' }
 })
 
@@ -52,7 +56,7 @@ function startCountdown() {
   const end = start + total
 
   const update = () => {
-    const now = Date.now()
+    const now = Date.now() + props.clockOffsetMs
     const remaining = Math.max(0, end - now)
     remainingSeconds.value = Math.floor(remaining / 1000)
     if (remaining <= 0) {

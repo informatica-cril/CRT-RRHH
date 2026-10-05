@@ -272,6 +272,10 @@ Route::prefix('v1')->group(function () {
         // ── Work Logs ──
         Route::prefix('work-logs')->group(function () {
             Route::get('/', [WorkLogController::class, 'index'])->middleware('role:admin,coordinator,hr');
+            // Excel del que es veu a la pantalla de registres (mes, persona i vista).
+            Route::get('export', [\App\Http\Controllers\Api\WorkLogExportController::class, 'export'])->middleware('role:admin,coordinator,hr');
+            // Aprovar una selecció de fitxatges d'una sola vegada.
+            Route::post('aprova-seleccionats', [\App\Http\Controllers\Api\WorkLogBulkController::class, 'aprova'])->middleware('role:admin,coordinator,hr');
             Route::get('user/{userId}', [WorkLogController::class, 'byUser'])->middleware('owner');
             // store/update: el controlador comprova propietat (el propi titular o staff).
             Route::post('/', [WorkLogController::class, 'store']);
@@ -395,6 +399,35 @@ Route::prefix('v1')->group(function () {
             Route::middleware('role:admin,hr')->group(function () {
                 Route::get('requests', [\App\Http\Controllers\Api\PrivacyController::class, 'index']);
                 Route::post('requests/{sollicitud}/respond', [\App\Http\Controllers\Api\PrivacyController::class, 'respond']);
+            });
+        });
+
+        // Pràctiques: hores del conveni i les que queden (les fetes surten dels fitxatges aprovats).
+        Route::get('practiques/{user}', [\App\Http\Controllers\Api\PractiquesController::class, 'show']);
+        Route::put('practiques/{user}', [\App\Http\Controllers\Api\PractiquesController::class, 'update'])->middleware('role:admin,hr');
+
+        // Recompte de la Safata per a la campana de la capçalera (només COUNTs).
+        Route::get('safata/resum', [\App\Http\Controllers\Api\SafataController::class, 'resum'])->middleware('role:admin,coordinator,hr');
+
+        // ── Representació legal: crèdit horari (art. 68.e ET) ──
+        // Les hores les registra la persona representant (el controlador comprova el mandat);
+        // validar-les i gestionar els mandats és d'admin/hr.
+        Route::prefix('comite')->group(function () {
+            Route::get('me', [\App\Http\Controllers\Api\ComiteController::class, 'me']);
+            Route::get('me/hores', [\App\Http\Controllers\Api\ComiteController::class, 'mevesHores']);
+            Route::post('hores', [\App\Http\Controllers\Api\ComiteController::class, 'store']);
+            Route::delete('hores/{hora}', [\App\Http\Controllers\Api\ComiteController::class, 'destroy']);
+            Route::post('hores/{hora}/justificant', [\App\Http\Controllers\Api\ComiteController::class, 'pujaJustificant']);
+            Route::get('hores/{hora}/justificant', [\App\Http\Controllers\Api\ComiteController::class, 'baixaJustificant']);
+            Route::middleware('role:admin,hr')->group(function () {
+                Route::get('membres', [\App\Http\Controllers\Api\ComiteController::class, 'membres']);
+                Route::post('membres', [\App\Http\Controllers\Api\ComiteController::class, 'storeMembre']);
+                Route::put('membres/{membre}', [\App\Http\Controllers\Api\ComiteController::class, 'updateMembre']);
+                Route::delete('membres/{membre}', [\App\Http\Controllers\Api\ComiteController::class, 'destroyMembre']);
+                Route::get('hores', [\App\Http\Controllers\Api\ComiteController::class, 'hores']);
+                Route::post('hores/{hora}/valida', [\App\Http\Controllers\Api\ComiteController::class, 'valida']);
+                Route::post('hores/{hora}/rebutja', [\App\Http\Controllers\Api\ComiteController::class, 'rebutja']);
+                Route::get('resum', [\App\Http\Controllers\Api\ComiteController::class, 'resumMensual']);
             });
         });
 

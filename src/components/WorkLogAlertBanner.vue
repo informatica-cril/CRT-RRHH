@@ -73,6 +73,7 @@ function defaultMessage(type) {
 }
 .alert-no_clock_in, .alert-no_clock_out { background: #f44336; }
 .alert-break_required { background: #ff9800; }
+.alert-audiencia { background: #3f51b5; }
 .alert-segment_rejected { background: #9c27b0; }
 .alert-out_of_zone { background: #e91e63; }
 .alert-resolucio_rrhh { background: #00806C; }

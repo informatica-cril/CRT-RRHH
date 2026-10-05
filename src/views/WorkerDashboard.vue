@@ -8,6 +8,7 @@
       :visible="breakModalVisible"
       :duration-minutes="breakDuration"
       :start-time="breakStartTime"
+      :clock-offset-ms="breakClockOffsetMs"
       @complete="onBreakComplete"
     />
 
@@ -73,7 +74,7 @@
                   style="text-align:left;border:1.5px solid var(--color-border);border-radius:9px;padding:9px 12px;background:var(--color-surface);cursor:pointer;min-height:44px;"
                   :style="authCodeInput === c.code ? 'border-color:var(--color-accent);' : ''">
                   <code style="font-weight:700;">{{ c.code }}</code>
-                  · {{ c.authorized_hours }}h {{ c.type === 'extraordinaria' ? 'extraordinàries (1,25×)' : 'complementàries' }}
+                  · {{ formatHM(c.authorized_hours) }} {{ c.type === 'extraordinaria' ? 'extraordinàries (1,25×)' : 'complementàries' }}
                   <div class="text-small text-muted">{{ c.concept }}</div>
                 </button>
               </div>
@@ -84,7 +85,7 @@
                 <label class="form-label">Fitxatge</label>
                 <select class="form-select" v-model="authLogId" style="width:100%;">
                   <option value="">Selecciona fitxatge...</option>
-                  <option v-for="l in logsWithUnauthorized" :key="l.id" :value="l.id">{{ formatDateFull(l.date) }} — {{ Number(l.extra_hours_unauthorized||0).toFixed(1) }}h no aut.</option>
+                  <option v-for="l in logsWithUnauthorized" :key="l.id" :value="l.id">{{ formatDateFull(l.date) }} — {{ formatHM(l.extra_hours_unauthorized) }} no aut.</option>
                 </select>
               </div>
               <div class="form-group" style="margin-bottom:0;">
@@ -119,11 +120,18 @@
             Cap zona assignada
           </div>
           <div v-else id="worker-zone-map" style="height:320px;width:100%;min-width:0;border-radius:12px;overflow:hidden;margin-top:12px;border:1px solid var(--color-border-light);"></div>
-        </div>
 
-        <!-- Quick calendar -->
-        <div>
-          <div class="card">
+          <!-- Horari d'avui i de demà: dins la mateixa targeta, just sota el mapa -->
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--color-border-light);display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;">
+            <div v-for="d in [horariDia(0), horariDia(1)]" :key="d.etiqueta">
+              <div class="text-small text-muted">📅 {{ d.etiqueta }} <span style="opacity:.75;">· {{ d.data }}</span></div>
+              <span v-if="d.horari" style="font-size:1.15rem;font-weight:700;" :style="{ color: d.avui ? 'var(--color-primary)' : 'var(--color-text)' }">{{ d.horari }}</span>
+              <span v-else class="text-small" :style="{ color: d.motiu ? 'var(--color-danger)' : 'var(--color-text-muted)', fontWeight: d.motiu ? 600 : 400 }">{{ d.motiu || 'Lliure' }}</span>
+            </div>
+          </div>
+
+          <!-- Quick calendar: dins la mateixa targeta, sota l'horari d'avui -->
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--color-border-light);">
             <div class="card-header">
               <button class="btn btn-outline btn-sm" @click="prevMonth">◂</button>
               <h3 class="card-title">{{ calendarMonthName }}</h3>
@@ -153,6 +161,35 @@
       <div class="dashboard-grid" style="margin-top:16px">
         <div style="grid-column:1/-1;">
           <PacteComplementaries />
+          <!-- Pràctiques: hores del conveni i les que queden (es resten quan RRHH valida els fitxatges) -->
+          <div v-if="mevesPractiques?.practiques && mevesPractiques.hores_conveni" class="card mt-md">
+            <div class="card-header">
+              <h3 class="card-title">🎓 Les meves pràctiques</h3>
+              <span v-if="mevesPractiques.tipus_nom" class="badge badge-info" style="font-size:.72rem;">{{ mevesPractiques.tipus_nom }}</span>
+            </div>
+            <div class="text-small" style="display:flex;gap:16px;flex-wrap:wrap;margin-top:6px;color:var(--color-text-secondary);">
+              <span v-if="mevesPractiques.detall?.estudis">📚 {{ mevesPractiques.detall.estudis }}</span>
+              <span v-if="mevesPractiques.centre">🏫 {{ mevesPractiques.centre }}</span>
+              <span v-if="mevesPractiques.detall?.tutor_centre_nom">👩‍🏫 Tutor/a del centre: {{ mevesPractiques.detall.tutor_centre_nom }}</span>
+              <span v-if="mevesPractiques.detall?.tutor_empresa">🤝 Tutor/a a CRT: {{ mevesPractiques.detall.tutor_empresa }}</span>
+            </div>
+            <div style="display:flex;gap:24px;flex-wrap:wrap;margin:10px 0;">
+              <div><div class="text-small text-muted">Conveni</div><strong>{{ formatHM(mevesPractiques.hores_conveni) }}</strong></div>
+              <div><div class="text-small text-muted">Fetes i validades</div><strong style="color:var(--color-success);">{{ formatHM(mevesPractiques.fetes) }}</strong></div>
+              <div><div class="text-small text-muted">En queden</div><strong>{{ formatHM(mevesPractiques.restants) }}</strong></div>
+              <div v-if="mevesPractiques.pendents_validar"><div class="text-small text-muted">Pendents de validar</div><strong style="color:#ca8a04;">{{ formatHM(mevesPractiques.pendents_validar) }}</strong></div>
+            </div>
+            <div style="height:10px;border-radius:999px;background:#e2e8f0;overflow:hidden;">
+              <div :style="{ width: mevesPractiques.percentatge + '%', height: '100%', background: 'linear-gradient(90deg,#0DAF83,#0A7C5E)', borderRadius: '999px' }"></div>
+            </div>
+            <div class="text-small text-muted" style="margin-top:6px;">
+              {{ mevesPractiques.percentatge }}% del conveni · des del {{ String(mevesPractiques.inici).split('-').reverse().join('/') }}<template v-if="mevesPractiques.fi"> fins al {{ String(mevesPractiques.fi).split('-').reverse().join('/') }}</template>.
+              Només compten els fitxatges que RRHH ja ha validat.
+            </div>
+            <div v-if="mevesPractiques.excedides > 0" class="text-small" style="margin-top:6px;color:#7a5a00;background:#FFF8E1;border-radius:6px;padding:6px 10px;">
+              ⚠ Has superat les hores del conveni en {{ formatHM(mevesPractiques.excedides) }}. Parla-ho amb RRHH.
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -161,6 +198,31 @@
     <div v-else-if="activeTab === 'calendar'">
       <div class="dashboard-grid">
         <div style="grid-column:1/-1;">
+          <!-- Horari de tota la setmana: fins ara només es veia el d'avui, sota el mapa del fitxatge. -->
+          <div class="card mb-md">
+            <div class="card-header">
+              <h3 class="card-title">🗓️ El meu horari setmanal</h3>
+              <span v-if="workerSchedule" class="text-small text-muted">{{ workerSchedule.name }} · {{ formatHM(horesSetmana) }} a la setmana</span>
+            </div>
+            <div v-if="!workerSchedule" class="text-small text-muted" style="margin-top:8px;">
+              Encara no tens cap horari assignat. Comenta-ho a Recursos Humans.
+            </div>
+            <div v-else style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:12px;">
+              <div v-for="d in horariSetmana" :key="d.jsDay"
+                style="border-radius:10px;padding:10px 12px;border:1px solid var(--color-border-light);"
+                :style="d.avui ? 'border:2px solid var(--color-primary);background:rgba(9,78,140,.06);' : (d.trams.length ? '' : 'opacity:.6;background:var(--color-bg);')">
+                <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;" :style="{ color: d.avui ? 'var(--color-primary)' : 'var(--color-text-secondary)' }">
+                  {{ d.nom }}<span v-if="d.avui"> · avui</span>
+                </div>
+                <template v-if="d.trams.length">
+                  <div v-for="(tr, i) in d.trams" :key="i" style="font-weight:700;font-size:.95rem;font-variant-numeric:tabular-nums;margin-top:4px;">{{ tr }}</div>
+                  <div class="text-small text-muted" style="margin-top:2px;">{{ formatHM(d.hores) }}</div>
+                </template>
+                <div v-else style="font-size:.85rem;margin-top:4px;" class="text-muted">Lliure</div>
+              </div>
+            </div>
+          </div>
+
           <div class="card">
             <div class="card-header">
               <button class="btn btn-outline btn-sm" @click="prevMonth">◂</button>
@@ -338,6 +400,7 @@
                 <th style="color:var(--color-danger);">📍 Fora zona</th>
                 <th style="color:var(--color-success);">✓ Autorit.</th>
                 <th>Estat</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -349,22 +412,27 @@
                 <td class="text-small">{{ l.end_time ? formatTime(l.end_time) : '—' }}</td>
                 <td>
                   <strong :style="l.hour_status === 'ok' ? 'color:var(--color-success)' : 'color:var(--color-text)'">
-                    {{ Number(l.effective_hours ?? l.total_hours_worked ?? l.hours_worked ?? 0).toFixed(2) }}h
+                    {{ formatHM(l.effective_hours ?? l.total_hours_worked ?? l.hours_worked) }}
                   </strong>
+                  <div v-if="sortidaAltreDia(l)" style="margin-top:3px;font-size:.74rem;font-weight:700;color:var(--color-danger);white-space:nowrap;" :title="'La jornada es va iniciar el ' + String(l.date).slice(0, 10).split('-').reverse().join('/') + ' i la sortida no es va fitxar fins al ' + sortidaAltreDia(l).data">
+                    ⚠ Sortida fitxada el {{ sortidaAltreDia(l).data }}<span v-if="sortidaAltreDia(l).dies > 1"> (+{{ sortidaAltreDia(l).dies }} dies)</span>
+                  </div>
                 </td>
                 <td>
-                  <span v-if="(l.extra_hours_unauthorized||0) > 0" style="color:#f97316;font-weight:600;">{{ Number(l.extra_hours_unauthorized).toFixed(1) }}h</span>
+                  <span v-if="(l.extra_hours_unauthorized||0) > 0" style="color:#f97316;font-weight:600;">{{ formatHM(l.extra_hours_unauthorized) }}</span>
                   <span v-else class="text-muted">—</span>
                 </td>
                 <td>
-                  <span v-if="(l.hours_out_of_area||0) > 0" style="color:var(--color-danger);font-weight:600;">{{ Number(l.hours_out_of_area).toFixed(1) }}h</span>
+                  <span v-if="(l.hours_out_of_area||0) > 0" style="color:var(--color-danger);font-weight:600;">{{ formatHM(l.hours_out_of_area) }}</span>
                   <span v-else class="text-muted">—</span>
                 </td>
                 <td>
-                  <span v-if="(l.extra_hours_authorized||0) > 0" style="color:var(--color-success);font-weight:600;">+{{ Number(l.extra_hours_authorized).toFixed(1) }}h</span>
+                  <span v-if="(l.extra_hours_authorized||0) > 0" style="color:var(--color-success);font-weight:600;">+{{ formatHM(l.extra_hours_authorized) }}</span>
                   <span v-else class="text-muted">—</span>
                 </td>
-                <td><span class="badge" :class="l.status === 'approved' ? 'badge-success' : l.status === 'pending' ? 'badge-warning' : 'badge-danger'">{{ l.status === 'approved' ? 'Aprovat' : l.status === 'pending' ? 'Pendent' : l.status }}</span></td>
+                <td><span class="badge" :class="l.status === 'approved' ? 'badge-success' : l.status === 'pending' ? 'badge-warning' : 'badge-danger'">{{ etiqueta('fitxatge', l.status) }}</span></td>
+                <!-- La fila ja obre el detall, però no es veia: el botó diu que hi ha trams i pausa per consultar. -->
+                <td><button class="btn btn-outline btn-sm" style="white-space:nowrap;" @click.stop="router.push(`/work-logs/${l.id}/detail`)">🔍 Veure trams</button></td>
               </tr>
             </tbody>
           </table>
@@ -393,7 +461,7 @@
           </router-link>
 
           <!-- Les meves apps (SSO) -->
-          <router-link to="/portal" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
+          <router-link v-if="teApps" to="/portal" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
             <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(13, 175, 131, 0.12); color: var(--color-success); display: flex; align-items: center; justify-content: center;">
               <svg style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
             </div>
@@ -406,6 +474,14 @@
               <svg style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
             </div>
             <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text);">Informació i polítiques</div>
+          </router-link>
+
+          <!-- Hores de comitè (només representants) -->
+          <router-link v-if="esRepresentant" to="/worker/comite" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
+            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(9, 78, 140, 0.10); color: #094E8C; display: flex; align-items: center; justify-content: center;">
+              <svg style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><path d="M16 3.5l2 2"/></svg>
+            </div>
+            <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text);">Hores de comitè</div>
           </router-link>
 
           <!-- Absences -->
@@ -541,7 +617,13 @@
               <thead><tr><th>Codis postals</th><th>Des de</th><th>Fins a</th><th>Notes</th></tr></thead>
               <tbody>
                 <tr v-for="a in myCpHistory" :key="a.id" :style="a.id === activeCpAssignment?.id ? 'background:rgba(76,175,80,0.04);' : ''">
-                  <td><span v-for="cp in a.postal_codes" :key="cp" class="badge badge-info" style="margin-right:4px;font-size:0.72rem;">{{ cp }}</span></td>
+                  <td>
+                    <span v-if="resumCps(a.postal_codes).totaBcn" class="badge badge-success" style="font-size:0.72rem;" :title="resumCps(a.postal_codes).tots.join(', ')">🏙️ Tota Barcelona · {{ resumCps(a.postal_codes).total }} CP</span>
+                    <template v-else>
+                      <span v-for="cp in resumCps(a.postal_codes, 6).visibles" :key="cp" class="badge badge-info" style="margin-right:4px;font-size:0.72rem;">{{ cp }}</span>
+                      <span v-if="resumCps(a.postal_codes, 6).resta" class="badge badge-primary" style="font-size:0.72rem;cursor:help;" :title="resumCps(a.postal_codes, 6).tots.join(', ')">+{{ resumCps(a.postal_codes, 6).resta }}</span>
+                    </template>
+                  </td>
                   <td class="text-small">{{ formatDate(a.pivot?.valid_from) }}</td>
                   <td class="text-small">{{ a.pivot?.valid_to ? formatDate(a.pivot.valid_to) : '— (indefinit)' }}</td>
                   <td class="text-small">{{ a.notes || '—' }}</td>
@@ -759,6 +841,10 @@ import { Capacitor } from '@capacitor/core'
 import { getPolygon } from '../services/geoPolygonService'
 import { auditLog } from '../services/audit'
 import { i18n } from '../i18n'
+import { formatHM } from '../utils/formatHours'
+import { sortidaAltreDia } from '../utils/sortidaAltreDia'
+import { etiqueta } from '../utils/etiquetes'
+import { resumCps } from '../utils/resumCps'
 import WorkLogAlertBanner from '../components/WorkLogAlertBanner.vue'
 import PacteComplementaries from '../components/PacteComplementaries.vue'
 import BreakTimerModal from '../components/BreakTimerModal.vue'
@@ -768,6 +854,7 @@ import CalendarPdfViewer from '../components/CalendarPdfViewer.vue'
 const breakModalVisible = ref(false)
 const breakDuration = ref(20)
 const breakStartTime = ref(null)
+const breakClockOffsetMs = ref(0)
 const currentWorkLogId = ref(null)
 const breakScheduledTime = ref(null) // Hora prevista de la pausa (per mostrar al dashboard)
 let breakTriggerTimeout = null
@@ -804,6 +891,9 @@ function getScheduledHoursForToday(schedule) {
 async function startBreakCheckTimer() {
   stopBreakCheckTimer()
   if (!workLogStore.isWorking || !workLogStore.currentLog?.id) return
+  // Pausa ja feta (o omesa) en aquesta jornada: en recarregar la pantalla, el càlcul d'hora
+  // donava "ja és hora" i la tornava a demanar.
+  if (['completed', 'skipped'].includes(workLogStore.currentLog.break_status) || workLogStore.currentLog.break_end_time) return
 
   try {
     const settings = await db.getBreakSettings()
@@ -852,11 +942,15 @@ async function startBreakCheckTimer() {
 
     // ── Determinar hora d'activació ──
     // Prioritat: 1) break_override_time del treballador, 2) config global
-    const effectiveMode = userOverrideTime ? 'fixed' : settings.break_start_mode
+    // "00:00:00" és el valor per defecte de la columna quan NO s'ha fixat cap
+    // hora (no mitjanit real): tractar-lo com "sense override" per no descartar
+    // la pausa creient que la mitjanit ja ha passat.
+    const hasOverrideTime = !!userOverrideTime && userOverrideTime !== '00:00:00'
+    const effectiveMode = hasOverrideTime ? 'fixed' : settings.break_start_mode
 
     if (effectiveMode === 'fixed') {
       // Mode fixed: hora concreta del dia
-      const fixedStr = userOverrideTime || settings.break_start_fixed_time || '12:00'
+      const fixedStr = (hasOverrideTime ? userOverrideTime : null) || settings.break_start_fixed_time || '12:00'
       const [fh, fm] = String(fixedStr).substring(0, 5).split(':').map(Number)
       triggerTime = new Date(clockInTime)
       triggerTime.setHours(fh, fm, 0, 0)
@@ -908,25 +1002,55 @@ async function startBreakCheckTimer() {
 /**
  * Activa la pausa obligatoria: crida a l'API per iniciar-la i mostra el modal.
  */
+// El temporitzador i la comprovació cada 10 s podien disparar-se alhora i enviar dues peticions
+// d'inici: mentre n'hi ha una en marxa, la segona no surt.
+let iniciantPausa = false
 async function triggerBreak(settings) {
-  if (breakModalVisible.value) return
+  if (breakModalVisible.value || iniciantPausa) return
   if (!workLogStore.isWorking || !workLogStore.currentLog?.id) return
+  iniciantPausa = true
+  stopBreakCheckTimer()
   try {
     currentWorkLogId.value = workLogStore.currentLog.id
     breakDuration.value = settings.break_duration_minutes
     const res = await db.startBreak(workLogStore.currentLog.id, await verdicteZona())
     breakStartTime.value = res.break_start_time
+    breakClockOffsetMs.value = res.server_time ? (new Date(res.server_time).getTime() - Date.now()) : 0
     breakModalVisible.value = true
     console.log('[Break] Pausa activada')
   } catch (e) {
     console.error('[Break] Error activant pausa:', e)
+    // 409 = el backend ja té una pausa oberta (p.ex. la pestanya es va tancar a mig
+    // pausa). Sense això, el treballador es queda encallat: mai li surt el modal i
+    // mai pot "acabar" una pausa que, pel servidor, ja està en marxa.
+    if (e?.status === 409) {
+      try {
+        const detail = await db.getWorkLogDetail(workLogStore.currentLog.id)
+        if (detail?.break_start_time && !detail?.break_end_time) {
+          breakStartTime.value = detail.break_start_time
+          breakClockOffsetMs.value = detail.server_time ? (new Date(detail.server_time).getTime() - Date.now()) : 0
+          breakModalVisible.value = true
+          console.log('[Break] Pausa ja oberta al servidor: recuperant el modal')
+        }
+      } catch (e2) {
+        console.error('[Break] Error recuperant la pausa oberta:', e2)
+      }
+    }
+  } finally {
+    iniciantPausa = false
   }
 }
 
 async function onBreakComplete() {
   breakModalVisible.value = false
   try {
-    if (currentWorkLogId.value) await db.completeBreak(currentWorkLogId.value, await verdicteZona())
+    if (currentWorkLogId.value) {
+      const log = await db.completeBreak(currentWorkLogId.value, await verdicteZona())
+      // Sense això, en tornar a muntar la pantalla (canvi de pestanya) el store encara creu que no hi ha pausa.
+      if (log && workLogStore.currentLog?.id === log.id) {
+        Object.assign(workLogStore.currentLog, { break_status: log.break_status, break_start_time: log.break_start_time, break_end_time: log.break_end_time })
+      }
+    }
   } catch (e) { console.error(e) }
 }
 
@@ -947,6 +1071,48 @@ async function loadWorkerSchedule() {
   const sid = authStore.user?.work_schedule_id
   if (!sid) { workerSchedule.value = null; return }
   workerSchedule.value = await db.getWorkSchedule(sid).catch(() => null)
+}
+// Horari de tota la setmana (pestanya Calendari), de dilluns a diumenge.
+const NOMS_DIES = { 1: 'Dilluns', 2: 'Dimarts', 3: 'Dimecres', 4: 'Dijous', 5: 'Divendres', 6: 'Dissabte', 0: 'Diumenge' }
+const horariSetmana = computed(() => {
+  const dies = workerSchedule.value?.days
+  if (!Array.isArray(dies)) return []
+  const avui = new Date().getDay()
+  const min = (h) => { const [a, b] = String(h).split(':').map(Number); return a * 60 + (b || 0) }
+  return [1, 2, 3, 4, 5, 6, 0].map(jsDay => {
+    const entrades = dies.filter(d => d.day === jsDay && d.active !== false && d.start && d.end)
+    return {
+      jsDay, nom: NOMS_DIES[jsDay], avui: jsDay === avui,
+      trams: entrades.map(d => `${d.start.substring(0, 5)} – ${d.end.substring(0, 5)}`),
+      hores: entrades.reduce((s, d) => s + Math.max(0, min(d.end) - min(d.start)), 0) / 60,
+    }
+  })
+})
+const horesSetmana = computed(() => horariSetmana.value.reduce((s, d) => s + d.hores, 0))
+
+// Horari (entrada-sortida) del dia d'avui, per omplir el buit sota el mapa de zona.
+const todayScheduleLabel = computed(() => {
+  const sched = workerSchedule.value
+  if (!sched || !Array.isArray(sched.days)) return ''
+  const jsDay = new Date().getDay()
+  const entries = sched.days.filter(d => d.day === jsDay && d.active !== false && d.start && d.end)
+  if (!entries.length) return ''
+  return entries.map(d => `${d.start.substring(0, 5)} – ${d.end.substring(0, 5)}`).join('  ·  ')
+})
+// Avui (offset 0) i demà (offset 1): horari del quadrant, o per què no es treballa (festiu o permís aprovat).
+function horariDia(offset) {
+  const d = new Date()
+  d.setDate(d.getDate() + offset)
+  const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const etiqueta = offset === 0 ? 'Avui' : 'Demà'
+  const data = d.toLocaleDateString('ca-ES', { weekday: 'short', day: 'numeric', month: 'numeric' })
+  const festiu = (holidays.value || []).find(h => h.date === dateStr)
+  if (festiu) return { etiqueta, data, horari: '', motiu: `Festiu · ${festiu.name}`, avui: offset === 0 }
+  const permis = (myAbsences.value || []).find(a => a.approved === true && dateStr >= a.start_date && dateStr <= a.end_date)
+  if (permis) return { etiqueta, data, horari: '', motiu: getAbsenceTypeName(permis.absence_type_id), avui: offset === 0 }
+  const entrades = (workerSchedule.value?.days || []).filter(x => x.day === d.getDay() && x.active !== false && x.start && x.end)
+  const horari = entrades.map(x => `${x.start.substring(0, 5)} – ${x.end.substring(0, 5)}`).join('  ·  ')
+  return { etiqueta, data, horari, motiu: '', avui: offset === 0 }
 }
 const locationStatus = ref('checking'), locationText = ref('')
 const lastKnownPos = ref(null)
@@ -969,6 +1135,9 @@ const activeAmbulatoryCenter = ref(null)
 const ambulatoryCenterHistory = ref([])
 const holidays = ref([])
 const bossa = ref(null)
+const esRepresentant = ref(false)
+const teApps = ref(false)
+const mevesPractiques = ref(null)
 const jornadaPla = ref([])
 function plaDelDia(day) {
   if (!day || !day.currentMonth) return null
@@ -1039,6 +1208,9 @@ async function fetchData() {
       if (activeLog && !workLogStore.isWorking) {
         workLogStore.currentLog = activeLog
         workLogStore.isWorking = true
+        // En restaurar (recàrrega a mig torn) també cal l'offset: aquí no és "ara
+        // mateix" com a l'inici de jornada, però server_time del mateix fetch val igual.
+        workLogStore.clockOffsetMs = data.server_time ? (new Date(data.server_time).getTime() - Date.now()) : 0
         workLogStore.startTimer()
       }
     }
@@ -1049,13 +1221,7 @@ async function fetchData() {
 
 // --- Methods ---
 function formatH(hoursDecimal) {
-  const totalMinutes = Math.round(Number(hoursDecimal) * 60)
-  const h = Math.floor(totalMinutes / 60)
-  const m = totalMinutes % 60
-  if (h === 0 && m === 0) return '0.00h'
-  if (h === 0) return `${m} min`
-  if (m === 0) return `${h}h`
-  return `${h}h ${m}m`
+  return formatHM(hoursDecimal)
 }
 
 async function changePassword() {
@@ -1079,13 +1245,13 @@ const todayAuthorized = computed(() => {
   const now = new Date()
   const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const total = myWorkLogs.value.filter(l => l.date && l.date.substring(0, 7) === month).reduce((s, l) => s + Number(l.extra_hours_authorized || 0), 0)
-  return total.toFixed(2) + 'h'
+  return formatH(total)
 })
 const todayUnauthorized = computed(() => {
   const now = new Date()
   const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const total = myWorkLogs.value.filter(l => l.date && l.date.substring(0, 7) === month).reduce((s, l) => s + Number(l.extra_hours_unauthorized || 0), 0)
-  return total.toFixed(2) + 'h'
+  return formatH(total)
 })
 const weekHours = computed(() => {
   const now = new Date(); const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay() + 1); weekStart.setHours(0,0,0,0)
@@ -1445,6 +1611,12 @@ onMounted(async () => {
   loadMyAuthCodes()
   import('../services/apiClient').then(({ api }) =>
     api.get('/v1/bossa-anual').then(b => { bossa.value = b }).catch(() => {}))
+  import('../services/apiClient').then(({ api }) =>
+    api.get('/v1/comite/me').then(r => { esRepresentant.value = !!r?.membre }).catch(() => {}))
+  import('../services/apiClient').then(({ api }) =>
+    api.get('/v1/portal/apps').then(r => { teApps.value = (r?.apps || []).length > 0 }).catch(() => {}))
+  if (authStore.userId) import('../services/apiClient').then(({ api }) =>
+    api.get(`/v1/practiques/${authStore.userId}`).then(r => { mevesPractiques.value = r }).catch(() => {}))
   await checkLocation()
   // Init worker map if already on clock tab
   if (activeTab.value === 'clock') {

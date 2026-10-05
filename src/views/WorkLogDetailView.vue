@@ -16,14 +16,14 @@
           <div><strong>Data:</strong> {{ formatDate(workLog.date) }}</div>
           <div><strong>Inici:</strong> {{ formatDateTime(workLog.start_time) }}</div>
           <div><strong>Fi:</strong> {{ workLog.end_time ? formatDateTime(workLog.end_time) : 'En curs' }}</div>
-          <div><strong>Hores totals (brutes):</strong> {{ workLog.total_hours_worked }}h</div>
+          <div><strong>Hores totals (brutes):</strong> {{ formatHM(workLog.total_hours_worked) }}</div>
           <div><strong>Minuts complementaris:</strong> {{ workLog.complementary_minutes || 0 }} min</div>
-          <div><strong>Estat:</strong> {{ workLog.status }}</div>
+          <div><strong>Estat:</strong> {{ etiqueta('fitxatge', workLog.status) }}</div>
           <div><strong>Segmentat:</strong> {{ workLog.segmented ? 'Sí' : 'No' }}</div>
         </div>
         <div class="effective-banner">
           <span class="effective-label">Temps de treball EFECTIU (només trams aprovats):</span>
-          <span class="effective-value">{{ effectiveHours }} h</span>
+          <span class="effective-value">{{ effectiveHoursLabel }}</span>
           <span v-if="workLog.segmented && pendingCount > 0" class="effective-note">
             · {{ pendingCount }} tram(s) pendent(s) de revisió no compten encara
           </span>
@@ -32,11 +32,18 @@
 
       <!-- Pausa obligatoria -->
       <div v-if="workLog.break_required" class="card break-card">
-        <h3>Pausa Obligatòria</h3>
-        <div class="info-grid">
-          <div><strong>Estat:</strong> {{ workLog.break_status }}</div>
-          <div v-if="workLog.break_start_time"><strong>Inici:</strong> {{ formatDateTime(workLog.break_start_time) }}</div>
-          <div v-if="workLog.break_end_time"><strong>Fi:</strong> {{ formatDateTime(workLog.break_end_time) }}</div>
+        <div class="break-cap">
+          <h3>☕ Pausa obligatòria</h3>
+          <span class="break-estat" :class="'pausa-' + (workLog.break_status || 'pending')">{{ iconaPausa }} {{ etiqueta('pausa', workLog.break_status || 'pending') }}</span>
+        </div>
+        <div class="break-linia">
+          <div class="break-dada"><span class="break-et">Inici</span><strong>{{ workLog.break_start_time ? horaDe(workLog.break_start_time) : '—' }}</strong></div>
+          <div class="break-fletxa">→</div>
+          <div class="break-dada"><span class="break-et">Fi</span><strong>{{ workLog.break_end_time ? horaDe(workLog.break_end_time) : (workLog.break_status === 'active' ? 'en curs' : '—') }}</strong></div>
+          <div class="break-dada break-durada"><span class="break-et">Durada</span><strong>{{ duradaPausa ?? '—' }}</strong></div>
+        </div>
+        <div v-if="pausaIncoherent" class="break-avis">
+          ⚠ L'hora de fi és anterior a la d'inici: aquest registre de pausa no és coherent i cal corregir-lo.
         </div>
       </div>
 
@@ -48,7 +55,7 @@
           <div v-for="seg in segments" :key="seg.id" class="segment-item" :class="segmentClass(seg)">
             <div class="segment-header">
               <span class="segment-number">Tram {{ seg.segment_number }}</span>
-              <span class="segment-status" :class="'status-' + seg.status">{{ seg.status }}</span>
+              <span class="segment-status" :class="'status-' + seg.status">{{ etiqueta('tram', seg.status) }}</span>
             </div>
             <div class="segment-details">
               <div><strong>Inici:</strong> {{ formatDateTime(seg.start_time) }}</div>
@@ -66,15 +73,23 @@
                    mesurada i el radi aplicat en cada marcatge -->
               <div v-if="seg.home_verification">
                 <strong>Domicili:</strong>
-                <span :class="seg.home_verification === 'verificat' ? 'tag-ok' : (seg.home_verification === 'fora_radi' ? 'tag-ko' : '')">{{ seg.home_verification }}</span>
+                <span :class="seg.home_verification === 'verificat' ? 'tag-ok' : (seg.home_verification === 'fora_radi' ? 'tag-ko' : '')">{{ etiqueta('verificacio', seg.home_verification) }}</span>
                 <span v-if="seg.home_distance_m != null"> · {{ seg.home_distance_m }} m (radi {{ seg.home_radius_m ?? '—' }} m)</span>
               </div>
-              <div v-if="seg.start_lat">
-                <strong>Posició inici:</strong> {{ seg.start_lat }}, {{ seg.start_lng }}
-              </div>
-              <div v-if="seg.end_lat">
-                <strong>Posició fi:</strong> {{ seg.end_lat }}, {{ seg.end_lng }}
-              </div>
+              <!-- Zona i CP en lloc de les coordenades (calculat al navegador, sense cap servei extern);
+                   les coordenades queden al títol per a qui ja les podia veure. -->
+              <template v-if="coordsVisibles">
+                <div>
+                  <strong>Posició inici:</strong>
+                  <span v-if="posicio(seg, 'inici')" :title="posicio(seg, 'inici').join(', ')">📍 {{ zonaDePosicio(...posicio(seg, 'inici'))?.text || '—' }}</span>
+                  <span v-else class="text-muted">Sense marca GPS (canvi de tram)</span>
+                </div>
+                <div>
+                  <strong>Posició fi:</strong>
+                  <span v-if="posicio(seg, 'fi')" :title="posicio(seg, 'fi').join(', ')">📍 {{ zonaDePosicio(...posicio(seg, 'fi'))?.text || '—' }}</span>
+                  <span v-else class="text-muted">Sense marca GPS (canvi de tram)</span>
+                </div>
+              </template>
               <div v-if="seg.rejection_reason" class="rejection">
                 <strong>Motiu rebuig:</strong> {{ seg.rejection_reason }}
               </div>
@@ -108,7 +123,9 @@
                     <option v-for="ft in g.items" :key="ft.clau" :value="ft.clau">{{ ft.base_conveni }} · {{ ft.descripcio }}</option>
                   </optgroup>
                 </select>
-                <textarea v-model="rejectReason[seg.id]" rows="2" class="form-input" placeholder="Motiu del rebuig"></textarea>
+                <textarea v-model="rejectReason[seg.id]" rows="2" class="form-input" placeholder="Motiu del rebuig (mínim 5 caràcters)"></textarea>
+                <div v-if="(rejectReason[seg.id] || '').trim().length > 0 && (rejectReason[seg.id] || '').trim().length < 5"
+                  class="reject-hint">Falten {{ 5 - (rejectReason[seg.id] || '').trim().length }} caràcters més al motiu.</div>
                 <button @click="rejectSegment(seg)" class="btn-reject"
                   :disabled="!rejectFault[seg.id] || (rejectReason[seg.id] || '').trim().length < 5">Rebutjar i qualificar</button>
               </div>
@@ -123,7 +140,7 @@
         <div v-if="modifications.length === 0" class="empty">No hi ha modificacions registrades</div>
         <div v-else class="modifications-list">
           <div v-for="mod in modifications" :key="mod.id" class="modification-item">
-            <span class="mod-action">{{ mod.action }}</span>
+            <span class="mod-action">{{ etiqueta('modificacio', mod.action) }}</span>
             <span class="mod-user">{{ mod.user?.name }}</span>
             <span class="mod-date">{{ formatDateTime(mod.created_at) }}</span>
             <span v-if="mod.comment" class="mod-comment">{{ mod.comment }}</span>
@@ -139,6 +156,9 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import db from '../services/db'
+import { formatHM } from '../utils/formatHours'
+import { etiqueta } from '../utils/etiquetes'
+import { zonaDePosicio } from '../utils/zonaDePosicio'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -175,6 +195,40 @@ const effectiveHours = computed(() => {
   const val = workLog.value.effective_hours ?? workLog.value.hours_worked ?? workLog.value.total_hours_worked ?? 0
   return Number(val).toFixed(2)
 })
+
+const effectiveHoursLabel = computed(() => formatHM(effectiveHours.value))
+
+// ── Pausa ── (break_start/end en hora de Madrid sense zona: l'hora es llegeix del text)
+const horaDe = (ts) => String(ts).slice(11, 19)
+const minutsPausa = computed(() => {
+  const a = workLog.value?.break_start_time, b = workLog.value?.break_end_time
+  if (!a || !b) return null
+  return Math.round((new Date(String(b).replace(' ', 'T')) - new Date(String(a).replace(' ', 'T'))) / 60000)
+})
+const pausaIncoherent = computed(() => minutsPausa.value !== null && minutsPausa.value < 0)
+const duradaPausa = computed(() => {
+  const m = minutsPausa.value
+  if (m === null || m < 0) return null
+  return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`
+})
+const iconaPausa = computed(() => ({ completed: '✅', active: '⏳', skipped: '⛔' }[workLog.value?.break_status] || '🕒'))
+
+// Les coordenades només arriben si qui mira les pot veure (EIPD §6.3); si no hi són, no es diu res.
+const coordsVisibles = computed(() => !!workLog.value && 'start_location_lat' in workLog.value)
+// Posició d'inici o fi d'un tram. Si el tram no en té però comença amb l'entrada (o acaba amb la
+// sortida), és la del fitxatge: abans els trams dins d'horari es creaven sense cap posició.
+const mateixMoment = (a, b) => !!a && !!b && String(a).slice(0, 19) === String(b).slice(0, 19)
+function posicio(seg, quina) {
+  const w = workLog.value || {}
+  if (quina === 'inici') {
+    if (seg.start_lat) return [seg.start_lat, seg.start_lng]
+    if (mateixMoment(seg.start_time, w.start_time) && w.start_location_lat) return [w.start_location_lat, w.start_location_lng]
+  } else {
+    if (seg.end_lat) return [seg.end_lat, seg.end_lng]
+    if (mateixMoment(seg.end_time, w.end_time) && w.end_location_lat) return [w.end_location_lat, w.end_location_lng]
+  }
+  return null
+}
 
 const pendingCount = computed(() =>
   segments.value.filter(s => s.status === 'pending').length
@@ -271,6 +325,19 @@ async function sendAllegation(seg) {
 .segment-approved { border-color: #4caf50; }
 .segment-rejected { border-color: #f44336; }
 .segment-warning { border-color: #ff9800; }
+.break-cap { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.break-cap h3 { margin: 0; }
+.break-estat { font-size: .82rem; font-weight: 700; padding: 4px 12px; border-radius: 999px; background: #eef2f6; color: #475569; }
+.break-estat.pausa-completed { background: #d4edda; color: #1e6b34; }
+.break-estat.pausa-active { background: #fff3cd; color: #8a6d00; }
+.break-estat.pausa-skipped, .break-estat.pausa-pending { background: #fdecea; color: #a12a22; }
+.break-linia { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.break-dada { display: flex; flex-direction: column; gap: 2px; min-width: 70px; }
+.break-dada strong { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.break-et { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: #7a8aa0; }
+.break-fletxa { color: #94a3b8; font-size: 1.1rem; }
+.break-durada { margin-left: auto; padding-left: 14px; border-left: 1px solid #e5eaf0; }
+.break-avis { margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: #fdecea; border-left: 4px solid #B3352F; color: #8f1f19; font-size: .85rem; font-weight: 600; }
 .tag-ok { color: #4caf50; font-weight: bold; }
 .tag-ko { color: #f44336; font-weight: bold; }
 .segment-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
@@ -284,6 +351,7 @@ async function sendAllegation(seg) {
 .segment-actions { display: flex; gap: 8px; margin-top: 8px; }
 .btn-approve { background: #4caf50; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
 .btn-reject { background: #f44336; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+.reject-hint { color: #ff9800; font-size: 0.82em; margin-top: -4px; }
 .modification-item { display: flex; gap: 12px; padding: 6px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.9em; }
 .empty { color: #999; padding: 12px; }
 .loading, .error { text-align: center; padding: 40px; color: #999; }

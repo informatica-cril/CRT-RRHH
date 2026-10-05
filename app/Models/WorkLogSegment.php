@@ -34,6 +34,18 @@ class WorkLogSegment extends Model
     ];
 
     /**
+     * Totes les dates d'aquest model es guarden en hora de Madrid directa, mai
+     * UTC real (start_time/end_time: veure WorkLogController/WorkLogService;
+     * la resta sempre ha fet servir now() directe). El format per defecte de
+     * Laravel hi afegeix una 'Z' sense convertir-les, fent que el navegador es
+     * cregui que son UTC real i els sumi 1-2h de més en mostrar-les.
+     */
+    protected function serializeDate(\DateTimeInterface $date)
+    {
+        return $date->format('Y-m-d\TH:i:s.v');
+    }
+
+    /**
      * Invariants de l'audiència prèvia — capa d'aplicació (missatge clar abans de la BD).
      * La garantia DURA és el CHECK constraint a la taula; això dona l'error llegible.
      */

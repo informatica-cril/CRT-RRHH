@@ -43,7 +43,7 @@
           </thead>
           <tbody>
             <tr v-for="user in filteredWorkers" :key="user.id">
-              <td><div style="display:flex;align-items:center;gap:8px;"><div class="header-avatar" style="width:28px;height:28px;font-size:0.7rem;">{{ initials(user.name) }}</div>{{ user.name }}</div></td>
+              <td><div style="display:flex;align-items:center;gap:8px;"><div class="header-avatar" style="width:28px;height:28px;font-size:0.7rem;">{{ initials(user.name) }}</div>{{ user.name }}<span v-if="user.practiques" class="badge badge-info" style="font-size:.68rem;" title="Alumne/a en pràctiques">🎓 Pràctiques</span></div></td>
               <td style="font-family:monospace;font-size:0.8rem;">{{ user.dni || '—' }}</td>
               <td>{{ user.email }}</td>
               <td>
@@ -56,8 +56,13 @@
                 <!-- DOMICILIARIA: postal codes -->
                 <div v-if="user.work_type === 'DOMICILIARIA'">
                   <div v-if="extraData[user.id]?.cpAssignment" style="display:flex;gap:3px;flex-wrap:wrap;">
-                    <span v-for="cp in extraData[user.id].cpAssignment.postal_codes" :key="cp"
-                      style="background:var(--color-bg);border:1px solid var(--color-border-light);border-radius:4px;padding:2px 5px;font-size:0.72rem;">{{ cp }}</span>
+                    <template v-if="resumCps(extraData[user.id].cpAssignment.postal_codes).totaBcn">
+                      <span class="cp-xip-mini tota" :title="resumCps(extraData[user.id].cpAssignment.postal_codes).tots.join(', ')">🏙️ Tota Barcelona · {{ resumCps(extraData[user.id].cpAssignment.postal_codes).total }} CP</span>
+                    </template>
+                    <template v-else>
+                      <span v-for="cp in resumCps(extraData[user.id].cpAssignment.postal_codes).visibles" :key="cp" class="cp-xip-mini">{{ cp }}</span>
+                      <span v-if="resumCps(extraData[user.id].cpAssignment.postal_codes).resta" class="cp-xip-mini mes" :title="resumCps(extraData[user.id].cpAssignment.postal_codes).tots.join(', ')">+{{ resumCps(extraData[user.id].cpAssignment.postal_codes).resta }}</span>
+                    </template>
                   </div>
                   <span v-else class="text-muted">—</span>
                 </div>
@@ -107,16 +112,22 @@
 
     <!-- Create/Edit Employee Modal -->
     <div v-if="showEditModal" class="modal-overlay" @click.self="showEditModal = false">
-      <div class="modal" style="max-width:600px;">
+      <div class="modal" style="max-width:760px;">
         <div class="modal-header">
           <h3 class="modal-title">{{ editingUser ? t('edit') : t('create') }} {{ t('employee') }}</h3>
           <button class="icon-btn" @click="showEditModal = false" :disabled="isSaving">✕</button>
         </div>
+        <!-- Fitxa en pestanyes: abans era una sola columna llarguíssima i no es trobava res. -->
+        <div class="fitxa-tabs">
+          <button v-for="p in pestanyesFitxa" :key="p.clau" type="button" class="fitxa-tab" :class="{ actiu: pestanyaFitxa === p.clau }" @click="pestanyaFitxa = p.clau">{{ p.nom }}</button>
+        </div>
+
+        <div v-show="pestanyaFitxa === 'dades'">
         <div class="form-group">
           <label class="form-label">{{ t('name') }}</label>
           <input class="form-input" v-model="form.name" :disabled="isSaving" />
         </div>
-        <div class="form-date-row">
+          <div class="fitxa-graella">
           <div class="form-group">
             <label class="form-label">{{ t('email') }}</label>
             <input class="form-input" type="email" v-model="form.email" :disabled="isSaving" />
@@ -129,6 +140,91 @@
             <label class="form-label">Telèfon corporatiu (SIM de tauleta o fix del lloc de treball)</label>
             <input class="form-input" v-model="form.device_phone" placeholder="+34600000000 o 934000000" style="font-family:monospace;" :disabled="isSaving" />
           </div>
+          <div class="form-group">
+            <label class="form-label">Data alta (antiguitat)</label>
+            <input class="form-input" type="date" v-model="form.seniority_date" :disabled="isSaving" />
+          </div>
+          </div>
+        </div>
+
+        <div v-show="pestanyaFitxa === 'lloc'">
+          <div class="fitxa-graella">
+          <div class="form-group">
+            <label class="form-label">Tipus de treball</label>
+            <select class="form-select" v-model="form.work_type" :disabled="isSaving">
+              <option value="DOMICILIARIA">DOMICILIÀRIA</option>
+              <option value="DOMICILIARIA_VALLES">DOMICILIÀRIA VALLÈS</option>
+              <option value="AMBULATORIA">AMBULATÒRIA</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Perfil / Lloc</label>
+            <select class="form-select" v-model="form.job_profile" :disabled="isSaving">
+              <option value="Fisioterapeuta">Fisioterapeuta</option>
+              <option value="Logopeda">Logopeda</option>
+              <option value="Terapeuta Ocupacional">Terapeuta ocupacional</option>
+              <option value="Coordinación">Coordinació</option>
+              <option value="Administracion">Administració</option>
+              <option value="Recepción">Recepció</option>
+              <option value="Informatica">Informàtica</option>
+              <option value="Limpieza">Neteja</option>
+              <option value="Responsable RRHH">Responsable RRHH</option>
+              <option value="Gerencia">Gerència</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Horari</label>
+            <select class="form-select" v-model="form.work_schedule_id" :disabled="isSaving">
+              <option v-for="s in schedules" :key="s.id" :value="s.id">{{ s.name }}</option>
+            </select>
+          </div>
+          </div>
+          <div v-if="['Fisioterapeuta', 'Logopeda', 'Terapeuta Ocupacional'].includes(form.job_profile)">
+        <div class="form-group">
+          <label class="form-label">Especialitats clíniques</label>
+          <div style="display:flex;flex-wrap:wrap;gap:14px;padding:2px 0;">
+            <label v-for="sp in specialtiesCatalog" :key="sp.code" style="display:flex;align-items:center;gap:5px;font-size:0.85rem;cursor:pointer;">
+              <input type="checkbox" :value="sp.code" v-model="form.specialties" :disabled="isSaving" />
+              {{ sp.name }}
+            </label>
+          </div>
+          <div class="text-small text-muted" style="margin-top:2px;">Determina quins pacients se li poden assignar a domi. Un fisio pot tenir-ne diverses.</div>
+        </div>
+
+          </div>
+        <div class="form-group" v-if="lotsCatalog.length">
+          <label class="form-label">Lot territorial</label>
+          <div style="display:flex;flex-wrap:wrap;gap:14px;padding:2px 0;">
+            <label v-for="l in lotsCatalog" :key="l.code" style="display:flex;align-items:center;gap:5px;font-size:0.85rem;cursor:pointer;">
+              <input type="checkbox" :value="l.code" v-model="form.lots" :disabled="isSaving" />
+              {{ l.code }} · {{ l.name }}
+            </label>
+          </div>
+          <div class="text-small text-muted" style="margin-top:2px;">Territori ample del contracte amb CatSalut. Es pot cobrir més d'un lot.</div>
+        </div>
+
+        <div class="form-group" v-if="departmentsCatalog.length">
+          <label class="form-label">Departament</label>
+          <div style="display:flex;flex-wrap:wrap;gap:14px;padding:2px 0;">
+            <label v-for="d in departmentsCatalog" :key="d.code" style="display:flex;align-items:center;gap:5px;font-size:0.85rem;cursor:pointer;">
+              <input type="checkbox" :value="d.code" v-model="form.departments" :disabled="isSaving" />
+              {{ d.name }}
+            </label>
+          </div>
+          <div class="text-small text-muted" style="margin-top:2px;">Servei i modalitat. Qui fa ambulatòria i domiciliària en marca les dues.</div>
+        </div>
+
+        <!-- Info box about work type -->
+        <div v-if="form.work_type === 'AMBULATORIA'" style="background:rgba(59,130,246,0.06);border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.82rem;">
+          ℹ️ <strong>Ambulatori:</strong> Podeu configurar punts geolocalitzats específics per aquest treballador después de crear-lo (botó 📍 Punts).
+        </div>
+        <div v-if="form.work_type === 'DOMICILIARIA_VALLES'" style="background:rgba(147,51,234,0.06);border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.82rem;">
+          ℹ️ <strong>Domiciliari Vallès:</strong> El fichatge geolocalitzat és vàlid en qualsevol punt dels termes municipals assignats. Configureu-los amb el botó 🏘️ Munis.
+        </div>
+
+        </div>
+
+        <div v-show="pestanyaFitxa === 'jornada'">
           <div class="form-group">
             <label class="form-label" style="display:flex;align-items:center;gap:8px;">
               <input type="checkbox" v-model="form.pacte_complementaries" :disabled="isSaving" />
@@ -158,40 +254,105 @@
           <div class="form-group" v-else-if="editingUser && form.pacte_complementaries && esJornadaCompleta">
             <small style="color:#92400e;">Jornada completa (100%): no admet complementàries, només extraordinàries (80 h/any a 1,25×).</small>
           </div>
+        <!-- PRÀCTIQUES: hores del conveni amb el centre formatiu. Les fetes surten dels fitxatges
+             aprovats del període, així que es van restant soles quan RRHH valida. -->
+        <div v-if="editingUser && potGestionar2fa" class="fitxa-bloc">
+          <label class="form-label" style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" v-model="prac.practiques" :disabled="desantPrac" />
+            🎓 Alumne/a en pràctiques
+          </label>
+          <template v-if="prac.practiques">
+            <div class="form-group">
+              <label class="form-label">Tipus de conveni</label>
+              <select class="form-select" v-model="prac.practiques_tipus" :disabled="desantPrac">
+                <option value="" disabled>Tria la modalitat…</option>
+                <option v-for="(t, clau) in pracCataleg" :key="clau" :value="clau">{{ t.nom }}</option>
+              </select>
+            </div>
+            <!-- Recordatoris de la modalitat triada (no són validacions: mana el conveni signat) -->
+            <div v-for="(a, i) in (tipusPrac?.avisos || [])" :key="i" class="prac-avis">ℹ️ {{ a }}</div>
+            <div class="fitxa-graella">
+              <div v-if="tePrac('estudis')" class="form-group">
+                <label class="form-label">{{ tipusPrac?.estudis || 'Estudis' }}</label>
+                <input class="form-input" v-model="prac.detall.estudis" placeholder="p. ex. Tècnic superior en…" :disabled="desantPrac" />
+              </div>
+              <div v-if="tePrac('curs')" class="form-group">
+                <label class="form-label">Curs</label>
+                <input class="form-input" v-model="prac.detall.curs" placeholder="p. ex. 2n / 2026-27" :disabled="desantPrac" />
+              </div>
+              <div v-if="tePrac('ects')" class="form-group">
+                <label class="form-label">Crèdits ECTS</label>
+                <input class="form-input" type="number" min="0" step="0.5" v-model.number="prac.detall.ects" @input="horesDesDeEcts" :disabled="desantPrac" />
+                <small class="text-muted">Les hores es calculen a {{ pracHoresEcts }} h per crèdit (es poden corregir).</small>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Hores del conveni</label>
+                <input class="form-input" type="number" min="1" step="0.5" v-model.number="prac.practiques_hores" placeholder="p. ex. 300" :disabled="desantPrac" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Inici</label>
+                <input class="form-input" type="date" v-model="prac.practiques_inici" :disabled="desantPrac" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Fi prevista <span class="text-muted">(opcional)</span></label>
+                <input class="form-input" type="date" v-model="prac.practiques_fi" :disabled="desantPrac" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Centre formatiu <span class="text-muted">(opcional)</span></label>
+                <input class="form-input" v-model="prac.practiques_centre" placeholder="Institut, universitat…" :disabled="desantPrac" />
+              </div>
+              <div v-if="tePrac('tutor_centre_nom')" class="form-group">
+                <label class="form-label">Tutor/a del centre</label>
+                <input class="form-input" v-model="prac.detall.tutor_centre_nom" placeholder="Nom i cognoms" :disabled="desantPrac" />
+              </div>
+              <div v-if="tePrac('tutor_centre_email')" class="form-group">
+                <label class="form-label">Correu del tutor/a del centre</label>
+                <input class="form-input" type="email" v-model="prac.detall.tutor_centre_email" :disabled="desantPrac" />
+              </div>
+              <div v-if="tePrac('tutor_empresa')" class="form-group">
+                <label class="form-label">Tutor/a a l'empresa</label>
+                <input class="form-input" v-model="prac.detall.tutor_empresa" placeholder="Qui l'acompanya a CRT" :disabled="desantPrac" />
+              </div>
+              <div v-if="tePrac('num_conveni')" class="form-group">
+                <label class="form-label">Núm. de conveni</label>
+                <input class="form-input" v-model="prac.detall.num_conveni" :disabled="desantPrac" />
+              </div>
+              <div v-if="tePrac('alta_ss')" class="form-group">
+                <label class="form-label">Alta a la Seguretat Social</label>
+                <input class="form-input" type="date" v-model="prac.detall.alta_ss" :disabled="desantPrac" />
+              </div>
+              <div v-if="tePrac('remunerada')" class="form-group">
+                <label class="form-label" style="display:flex;align-items:center;gap:8px;">
+                  <input type="checkbox" v-model="prac.detall.remunerada" :disabled="desantPrac || tipusPrac?.beca_obligatoria" />
+                  Remunerada (beca)
+                </label>
+                <input v-if="prac.detall.remunerada || tipusPrac?.beca_obligatoria" class="form-input" type="number" min="0" step="0.01"
+                  v-model.number="prac.detall.beca_mensual" placeholder="Import mensual (€)" :disabled="desantPrac" />
+              </div>
+            </div>
+            <div v-if="tePrac('observacions')" class="form-group">
+              <label class="form-label">Observacions</label>
+              <textarea class="form-textarea" rows="2" v-model="prac.detall.observacions" :disabled="desantPrac"></textarea>
+            </div>
+            <div v-if="tePrac('alta_ss') && !prac.detall.alta_ss" class="prac-avis prac-avis-alerta">⚠ {{ pracAvisSs }}</div>
+            <div v-if="pracEstat?.practiques && pracEstat.hores_conveni" class="prac-progres">
+              <div class="prac-barra"><div :style="{ width: pracEstat.percentatge + '%' }"></div></div>
+              <div class="prac-xifres">
+                <span><strong>{{ formatHM(pracEstat.fetes) }}</strong> fetes i validades</span>
+                <span><strong>{{ formatHM(pracEstat.restants) }}</strong> en queden</span>
+                <span v-if="pracEstat.pendents_validar" class="text-muted">· {{ formatHM(pracEstat.pendents_validar) }} pendents de validar</span>
+              </div>
+              <div v-if="pracEstat.excedides > 0" class="prac-avis prac-avis-alerta">⚠ S'han superat les hores del conveni en {{ formatHM(pracEstat.excedides) }}: el conveni no les cobreix.</div>
+            </div>
+          </template>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" :disabled="desantPrac" @click="desaPractiques">{{ desantPrac ? 'Desant…' : 'Desar pràctiques' }}</button>
+            <span v-if="pracMsg" class="text-small" :style="{ color: pracOk ? '#065f46' : '#be123c' }">{{ pracMsg }}</span>
+          </div>
         </div>
-        
-        <div class="form-date-row">
-          <div class="form-group">
-            <label class="form-label">Tipus de treball</label>
-            <select class="form-select" v-model="form.work_type" :disabled="isSaving">
-              <option value="DOMICILIARIA">DOMICILIÀRIA</option>
-              <option value="DOMICILIARIA_VALLES">DOMICILIÀRIA VALLÈS</option>
-              <option value="AMBULATORIA">AMBULATÒRIA</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Perfil / Lloc</label>
-            <select class="form-select" v-model="form.job_profile" :disabled="isSaving">
-              <option value="Fisioterapeuta">Fisioterapeuta</option>
-              <option value="Logopeda">Logopeda</option>
-              <option value="Administracion">Administració</option>
-              <option value="Informatica">Informàtica</option>
-              <option value="Gerencia">Gerència</option>
-            </select>
-          </div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Especialitats clíniques</label>
-          <div style="display:flex;flex-wrap:wrap;gap:14px;padding:2px 0;">
-            <label v-for="sp in specialtiesCatalog" :key="sp.code" style="display:flex;align-items:center;gap:5px;font-size:0.85rem;cursor:pointer;">
-              <input type="checkbox" :value="sp.code" v-model="form.specialties" :disabled="isSaving" />
-              {{ sp.name }}
-            </label>
-          </div>
-          <div class="text-small text-muted" style="margin-top:2px;">Determina quins pacients se li poden assignar a domi. Un fisio pot tenir-ne diverses.</div>
-        </div>
-
+        <div v-show="pestanyaFitxa === 'acces'">
         <!-- SEGON FACTOR. Direcció (01-08-2026): l'ha de poder activar l'admin O RRHH per a
              cada usuari. Dos mètodes, i la tria no és de gust: depèn del dispositiu amb què
              entra la persona. Vegeu el text d'ajuda de sota. -->
@@ -252,47 +413,6 @@
           </div>
         </div>
 
-        <div class="form-group" v-if="lotsCatalog.length">
-          <label class="form-label">Lot territorial</label>
-          <div style="display:flex;flex-wrap:wrap;gap:14px;padding:2px 0;">
-            <label v-for="l in lotsCatalog" :key="l.code" style="display:flex;align-items:center;gap:5px;font-size:0.85rem;cursor:pointer;">
-              <input type="checkbox" :value="l.code" v-model="form.lots" :disabled="isSaving" />
-              {{ l.code }} · {{ l.name }}
-            </label>
-          </div>
-          <div class="text-small text-muted" style="margin-top:2px;">Territori ample del contracte amb CatSalut. Es pot cobrir més d'un lot.</div>
-        </div>
-
-        <div class="form-group" v-if="departmentsCatalog.length">
-          <label class="form-label">Departament</label>
-          <div style="display:flex;flex-wrap:wrap;gap:14px;padding:2px 0;">
-            <label v-for="d in departmentsCatalog" :key="d.code" style="display:flex;align-items:center;gap:5px;font-size:0.85rem;cursor:pointer;">
-              <input type="checkbox" :value="d.code" v-model="form.departments" :disabled="isSaving" />
-              {{ d.name }}
-            </label>
-          </div>
-          <div class="text-small text-muted" style="margin-top:2px;">Servei i modalitat. Qui fa ambulatòria i domiciliària en marca les dues.</div>
-        </div>
-
-        <!-- Info box about work type -->
-        <div v-if="form.work_type === 'AMBULATORIA'" style="background:rgba(59,130,246,0.06);border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.82rem;">
-          ℹ️ <strong>Ambulatori:</strong> Podeu configurar punts geolocalitzats específics per aquest treballador después de crear-lo (botó 📍 Punts).
-        </div>
-        <div v-if="form.work_type === 'DOMICILIARIA_VALLES'" style="background:rgba(147,51,234,0.06);border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.82rem;">
-          ℹ️ <strong>Domiciliari Vallès:</strong> El fichatge geolocalitzat és vàlid en qualsevol punt dels termes municipals assignats. Configureu-los amb el botó 🏘️ Munis.
-        </div>
-
-        <div class="form-date-row">
-          <div class="form-group">
-            <label class="form-label">Horari</label>
-            <select class="form-select" v-model="form.work_schedule_id" :disabled="isSaving">
-              <option v-for="s in schedules" :key="s.id" :value="s.id">{{ s.name }}</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Data alta (antiguitat)</label>
-            <input class="form-input" type="date" v-model="form.seniority_date" :disabled="isSaving" />
-          </div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline" @click="showEditModal = false" :disabled="isSaving">{{ t('cancel') }}</button>
@@ -317,7 +437,7 @@
             <div style="flex:1;">
               <label class="form-label">Plantilla horària</label>
               <select class="form-select" v-model="scheduleForm.id" @change="loadScheduleTemplate">
-                <option v-for="s in schedules" :key="s.id" :value="s.id">{{ s.name }} ({{ s.total_hours_weekly }}h/set)</option>
+                <option v-for="s in schedules" :key="s.id" :value="s.id">{{ s.name }} ({{ formatHM(s.total_hours_weekly) }}/set)</option>
               </select>
             </div>
             <button class="btn btn-accent btn-sm" style="white-space:nowrap;margin-bottom:1px;" @click="startNewSchedule">+ Nova plantilla</button>
@@ -335,6 +455,23 @@
           </div>
         </div>
 
+        <!-- Aplicar un mateix horari a diversos dies d'un cop, en lloc d'anar un per un -->
+        <div style="margin-top:14px;padding:10px 12px;background:var(--color-bg);border-radius:8px;">
+          <div class="form-label" style="margin-bottom:6px;">Aplicar un horari a diversos dies</div>
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;">
+            <input class="form-input" type="time" v-model="bulkStart" style="width:115px;" />
+            <span>→</span>
+            <input class="form-input" type="time" v-model="bulkEnd" style="width:115px;" />
+            <button type="button" class="btn btn-outline btn-sm" :disabled="!bulkStart || !bulkEnd" @click="applyBulkSchedule([1,2,3,4,5])">Laborables (Dl-Dv)</button>
+            <button type="button" class="btn btn-outline btn-sm" :disabled="!bulkStart || !bulkEnd" @click="applyBulkSchedule([1,2,3,4,5,6,0])">Tota la setmana</button>
+            <button type="button" class="btn btn-outline btn-sm" :disabled="!bulkStart || !bulkEnd" @click="applyBulkSchedule([1,3,5])">Dl · Dc · Dv</button>
+            <button type="button" class="btn btn-outline btn-sm" :disabled="!bulkStart || !bulkEnd" @click="applyBulkSchedule([2,4])">Dt · Dj</button>
+          </div>
+          <div class="text-small text-muted" style="margin-top:6px;">
+            Posa l'hora d'entrada i sortida i tria a quins dies s'aplica. Després pots ajustar dies concrets a sota si cal.
+          </div>
+        </div>
+
         <!-- Editor de dies (comú als dos modes). Suporta jornades partides: diversos trams al mateix dia. -->
         <div v-for="(d, index) in scheduleForm.days" :key="index" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--color-border-light);">
           <label style="width:100px;font-weight:500;">
@@ -345,14 +482,14 @@
           <input v-if="d.active" class="form-input" type="time" v-model="d.start" style="width:115px;" />
           <span v-if="d.active">→</span>
           <input v-if="d.active" class="form-input" type="time" v-model="d.end" style="width:115px;" />
-          <span v-if="d.active" class="text-small text-muted">{{ calcHours(d) }}h</span>
+          <span v-if="d.active" class="text-small text-muted">{{ formatHM(calcHours(d)) }}</span>
           <span v-else class="text-small text-muted">Descans</span>
           <button v-if="d.active && !isExtraTramo(index)" type="button" class="btn btn-outline btn-sm" title="Afegir un segon tram (jornada partida)" @click="addTramo(index)">+ tram</button>
           <button v-if="isExtraTramo(index)" type="button" class="btn btn-outline btn-sm" style="color:var(--color-danger);" title="Treure aquest tram" @click="removeTramo(index)">✕</button>
         </div>
 
         <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
-          <span class="text-small"><strong>Total setmanal:</strong> {{ totalWeeklyHours }}h</span>
+          <span class="text-small"><strong>Total setmanal:</strong> {{ formatHM(totalWeeklyHours) }}</span>
           <span class="text-small text-muted">Anual estimat: {{ (totalWeeklyHours * 46.5).toFixed(0) }}h</span>
         </div>
         <div class="modal-footer">
@@ -443,21 +580,46 @@
           <h3 class="modal-title">📍 Codis Postals assignats — {{ cpUser?.name }}</h3>
           <button class="icon-btn" @click="showCpModal = false">✕</button>
         </div>
-        <div v-if="activeCpAssignment" style="background:rgba(76,175,80,0.07);border-radius:8px;padding:12px;border-left:3px solid var(--color-success);margin-bottom:16px;">
-          <div class="text-small" style="color:var(--color-success);font-weight:600;">Assignació activa</div>
-          <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
-            <span v-for="cp in activeCpAssignment.postal_codes" :key="cp" class="badge badge-primary">{{ cp }} — {{ getCpZoneFn(cp) }}</span>
+        <!-- Assignació actual. Abans es llegia d'una promesa sense esperar-la i aquesta caixa no sortia mai. -->
+        <div v-if="activeCpAssignment" class="cp-actual">
+          <div class="text-small" style="color:var(--color-success);font-weight:700;">✓ Assignació actual</div>
+          <div class="cp-xips">
+            <span v-if="resumCps(activeCpAssignment.postal_codes).totaBcn" class="cp-xip fixa"><strong>🏙️ Tota Barcelona</strong> {{ activeCpAssignment.postal_codes.length }} CP</span>
+            <template v-else>
+              <span v-for="cp in [...activeCpAssignment.postal_codes].sort()" :key="cp" class="cp-xip fixa"><strong>{{ cp }}</strong> {{ getCpZoneFn(cp) }}</span>
+            </template>
           </div>
         </div>
-        <h4 style="font-size:0.9rem;margin-bottom:12px;">Nova assignació</h4>
-        <div style="margin-bottom:12px;">
-          <div class="form-label mb-sm">Codis postals</div>
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;max-height:180px;overflow-y:auto;border:1px solid var(--color-border-light);border-radius:8px;padding:10px;">
-            <label v-for="cp in postalCodes" :key="cp.code" style="display:flex;align-items:center;gap:6px;font-size:0.78rem;cursor:pointer;padding:3px 0;">
-              <input type="checkbox" :value="cp.code" v-model="newCpForm.postal_codes" style="width:13px;height:13px;" />
-              <span><strong>{{ cp.code }}</strong></span>
-            </label>
-          </div>
+        <div v-else class="text-small text-muted" style="margin-bottom:14px;">Aquesta persona encara no té cap codi postal assignat.</div>
+
+        <h4 style="font-size:0.9rem;margin-bottom:8px;">{{ activeCpAssignment ? 'Canviar l’assignació' : 'Nova assignació' }}</h4>
+        <!-- Triats: a dalt i amb ✕, perquè es vegi d'un cop d'ull què es desarà -->
+        <div class="cp-triats">
+          <span class="text-small" style="font-weight:700;">Triats ({{ newCpForm.postal_codes.length }}):</span>
+          <span v-if="!newCpForm.postal_codes.length" class="text-small text-muted">cap — tria'n a la llista de sota</span>
+          <span v-if="resumCps(newCpForm.postal_codes).totaBcn" class="cp-xip triat"><strong>🏙️ Tota Barcelona</strong> {{ newCpForm.postal_codes.length }} CP</span>
+          <template v-else>
+            <span v-for="cp in [...newCpForm.postal_codes].sort()" :key="cp" class="cp-xip triat">
+              <strong>{{ cp }}</strong> {{ getCpZoneFn(cp) }}
+              <button type="button" class="cp-treu" :title="'Treure ' + cp" @click="toggleCp(cp)">✕</button>
+            </span>
+          </template>
+          <button v-if="newCpForm.postal_codes.length" type="button" class="btn btn-outline btn-sm" @click="newCpForm.postal_codes = []">Treure'ls tots</button>
+        </div>
+        <div class="cp-cerca-fila">
+          <input v-model="cercaCp" type="search" class="form-input" placeholder="🔍 Cerca per codi o barri (p. ex. «sants», «gràcia», «08015»)" />
+          <!-- Amb una cerca, selecciona només els que es veuen (p. ex. tot l'Eixample); sense, tots. -->
+          <button type="button" class="btn btn-outline btn-sm cp-tots" :disabled="!cpsPerAfegir" @click="seleccionaTotsCp">
+            {{ cercaCp.trim() ? `Seleccionar els ${cpsFiltrats.length} trobats` : 'Seleccionar tots' }}
+          </button>
+        </div>
+        <div class="cp-graella">
+          <button v-for="cp in cpsFiltrats" :key="cp.code" type="button" class="cp-opcio" :class="{ sel: newCpForm.postal_codes.includes(cp.code) }" @click="toggleCp(cp.code)">
+            <span class="cp-codi">{{ newCpForm.postal_codes.includes(cp.code) ? '✓ ' : '' }}{{ cp.code }}</span>
+            <span class="cp-barri">{{ cp.zone }}</span>
+            <span class="cp-qui" :title="'Persones que ja tenen aquest codi assignat'">👥 {{ cobertura[cp.code] || 0 }}</span>
+          </button>
+          <div v-if="!cpsFiltrats.length" class="text-small text-muted" style="grid-column:1/-1;padding:8px;">Cap codi coincideix amb «{{ cercaCp }}»</div>
         </div>
         <div class="form-date-row" style="margin-bottom:12px;">
           <div class="form-group">
@@ -469,7 +631,9 @@
             <input class="form-input" type="date" v-model="newCpForm.valid_to" />
           </div>
         </div>
-        <button class="btn btn-primary" @click="saveCpAssignment" :disabled="!newCpForm.postal_codes.length || !newCpForm.valid_from">Desar nova assignació</button>
+        <button class="btn btn-primary" @click="saveCpAssignment" :disabled="!newCpForm.postal_codes.length || !newCpForm.valid_from">
+          Desar l'assignació ({{ newCpForm.postal_codes.length }} codi{{ newCpForm.postal_codes.length === 1 ? '' : 's' }})
+        </button>
       </div>
     </div>
 
@@ -619,14 +783,17 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted } from 'vue'
+import { ref, computed, reactive, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { db } from '../services/db'
 import api from '../services/apiClient'
 import { auditLog } from '../services/audit'
 import { useAuthStore } from '../stores/auth'
 import { i18n } from '../i18n'
 import { getPostalCodeList, BARCELONA_POSTAL_CODES, getMunicipalityList, VALLES_MUNICIPALITIES } from '../services/geolocation'
+import { resumCps } from '../utils/resumCps'
 import CalendarPdfViewer from '../components/CalendarPdfViewer.vue'
+import { formatHM } from '../utils/formatHours'
 
 const authStore = useAuthStore()
 const t = (key) => i18n.t(key)
@@ -841,7 +1008,16 @@ async function fetchData() {
   }
 }
 
-onMounted(fetchData)
+// ?obre=<id> (des del cercador de la capçalera): obre directament la fitxa d'aquella persona.
+const route = useRoute()
+async function obreDesDeRuta() {
+  const id = Number(route.query.obre)
+  if (!id) return
+  const u = workers.value.find(w => w.id === id) || await db.getUser(id).catch(() => null)
+  if (u) openEditModal(u)
+}
+onMounted(async () => { await fetchData(); obreDesDeRuta() })
+watch(() => route.query.obre, obreDesDeRuta)
 
 const csvPreview = ref([])
 const importResults = ref([])
@@ -879,8 +1055,72 @@ function getMuniName(code) {
   return VALLES_MUNICIPALITIES[code]?.name || code
 }
 
+// ── Pestanyes de la fitxa ──
+const pestanyaFitxa = ref('dades')
+const pestanyesFitxa = computed(() => [
+  { clau: 'dades', nom: '👤 Dades' },
+  { clau: 'lloc', nom: '💼 Lloc i servei' },
+  { clau: 'jornada', nom: '⏱ Jornada' },
+  ...(editingUser.value ? [{ clau: 'acces', nom: '🔐 Accés' }] : []),
+])
+
+// ── Pràctiques ──
+const detallBuit = () => ({ estudis: '', curs: '', ects: null, tutor_centre_nom: '', tutor_centre_email: '', tutor_empresa: '',
+  num_conveni: '', remunerada: false, beca_mensual: null, alta_ss: '', observacions: '' })
+const prac = reactive({ practiques: false, practiques_tipus: '', practiques_hores: null, practiques_inici: '', practiques_fi: '', practiques_centre: '', detall: detallBuit() })
+const pracEstat = ref(null)
+// El catàleg de modalitats ve del servidor: les regles de cada tipus no s'escriuen dues vegades.
+const pracCataleg = ref({})
+const pracAvisSs = ref('')
+const pracHoresEcts = ref(25)
+const tipusPrac = computed(() => pracCataleg.value[prac.practiques_tipus] || null)
+const tePrac = (camp) => !!tipusPrac.value?.camps?.includes(camp)
+function horesDesDeEcts() {
+  const e = Number(prac.detall.ects)
+  if (e > 0) prac.practiques_hores = Math.round(e * pracHoresEcts.value * 2) / 2
+}
+const desantPrac = ref(false)
+const pracMsg = ref('')
+const pracOk = ref(true)
+async function carregaPractiques(id) {
+  pracMsg.value = ''
+  pracEstat.value = null
+  Object.assign(prac, { practiques: false, practiques_tipus: '', practiques_hores: null, practiques_inici: '', practiques_fi: '', practiques_centre: '', detall: detallBuit() })
+  try {
+    const e = await api.get(`/v1/practiques/${id}`)
+    pracEstat.value = e
+    pracCataleg.value = e.cataleg || {}
+    pracAvisSs.value = e.avis_ss || ''
+    pracHoresEcts.value = e.hores_ects || 25
+    Object.assign(prac, { practiques: !!e.practiques, practiques_tipus: e.tipus || '', practiques_hores: e.hores_conveni,
+      practiques_inici: e.inici || '', practiques_fi: e.fi || '', practiques_centre: e.centre || '',
+      detall: { ...detallBuit(), ...(e.detall || {}) } })
+  } catch { /* sense dades, el bloc surt buit */ }
+}
+async function desaPractiques() {
+  desantPrac.value = true
+  pracMsg.value = ''
+  try {
+    pracEstat.value = await api.put(`/v1/practiques/${editingUser.value.id}`, {
+      ...prac, practiques_fi: prac.practiques_fi || null, practiques_centre: prac.practiques_centre || null,
+      practiques_tipus: prac.practiques_tipus || null,
+      // Els buits no viatgen: el servidor només desa les dades que té la modalitat.
+      detall: Object.fromEntries(Object.entries(prac.detall).filter(([, v]) => v !== '' && v !== null && v !== undefined)),
+    })
+    pracOk.value = true
+    pracMsg.value = prac.practiques ? 'Desat.' : 'Pràctiques desactivades.'
+  } catch (e) {
+    pracOk.value = false
+    pracMsg.value = e?.message || "No s'ha pogut desar."
+  } finally {
+    desantPrac.value = false
+  }
+}
+
 async function openEditModal(user) {
   editingUser.value = user
+  pestanyaFitxa.value = 'dades'
+  if (user) carregaPractiques(user.id)
   if (user) {
     const sDate = user.seniority_date ? user.seniority_date.split('T')[0] : ''
     Object.assign(form, { name: user.name, email: user.email, dni: user.dni || '', device_phone: user.device_phone || '', pacte_complementaries: !!user.pacte_complementaries,  work_type: user.work_type || 'DOMICILIARIA', job_profile: user.job_profile || 'Fisioterapeuta', postal_code_assigned: user.postal_code_assigned, work_schedule_id: user.work_schedule_id, seniority_date: sDate, specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
@@ -973,6 +1213,22 @@ function addTramo(index) {
 }
 function removeTramo(index) { scheduleForm.days.splice(index, 1) }
 
+// Aplicar un horari a diversos dies d'un cop (en lloc d'anar dia per dia).
+// Nomes toca el PRIMER tram de cada dia seleccionat: si algu ja tenia jornada
+// partida amb trams extra, aquests no es toquen.
+const bulkStart = ref('')
+const bulkEnd = ref('')
+function applyBulkSchedule(dayNumbers) {
+  if (!bulkStart.value || !bulkEnd.value) return
+  for (const d of scheduleForm.days) {
+    if (dayNumbers.includes(d.day) && !isExtraTramo(scheduleForm.days.indexOf(d))) {
+      d.active = true
+      d.start = bulkStart.value
+      d.end = bulkEnd.value
+    }
+  }
+}
+
 const totalWeeklyHours = computed(() => scheduleForm.days.filter(d => d.active).reduce((s, d) => s + parseFloat(calcHours(d)), 0).toFixed(1))
 
 async function saveSchedule() {
@@ -1062,11 +1318,38 @@ function formatDate(d) { return new Date(d).toLocaleDateString('ca-ES', { day: '
 // ── CP Assignment management ──
 const showCpModal = ref(false)
 const cpUser = ref(null)
-const activeCpAssignment = computed(() => cpUser.value ? db.getActiveCpAssignment(cpUser.value.id) : null)
+// L'assignació activa ja ve carregada a extraData (bulk-index): abans es cridava l'API sense esperar
+// la resposta i el modal rebia una promesa, de manera que «Assignació activa» no sortia mai.
+const activeCpAssignment = computed(() => (cpUser.value ? extraData.value[cpUser.value.id]?.cpAssignment : null) || null)
+const cercaCp = ref('')
+const normCp = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+const cpsFiltrats = computed(() => {
+  const q = normCp(cercaCp.value.trim())
+  return q ? postalCodes.filter(cp => cp.code.includes(q) || normCp(cp.zone).includes(q)) : postalCodes
+})
+// Quantes persones (sense comptar la que s'està editant) tenen cada CP assignat ara mateix.
+const cobertura = computed(() => {
+  const n = {}
+  Object.entries(extraData.value || {}).forEach(([uid, d]) => {
+    if (Number(uid) === cpUser.value?.id) return
+    ;(d?.cpAssignment?.postal_codes || []).forEach(cp => { n[cp] = (n[cp] || 0) + 1 })
+  })
+  return n
+})
+const cpsPerAfegir = computed(() => cpsFiltrats.value.filter(cp => !newCpForm.postal_codes.includes(cp.code)).length)
+function seleccionaTotsCp() {
+  cpsFiltrats.value.forEach(cp => { if (!newCpForm.postal_codes.includes(cp.code)) newCpForm.postal_codes.push(cp.code) })
+}
+function toggleCp(cp) {
+  const i = newCpForm.postal_codes.indexOf(cp)
+  if (i >= 0) newCpForm.postal_codes.splice(i, 1)
+  else newCpForm.postal_codes.push(cp)
+}
 const newCpForm = reactive({ postal_codes: [], valid_from: new Date().toISOString().split('T')[0], valid_to: '' })
 
 async function openCpModal(user) {
   cpUser.value = user
+  cercaCp.value = ''
   Object.assign(newCpForm, { postal_codes: [], valid_from: new Date().toISOString().split('T')[0], valid_to: '' })
   const active = extraData.value[user.id]?.cpAssignment
   if (active) newCpForm.postal_codes = [...active.postal_codes]
@@ -1233,3 +1516,41 @@ async function saveMuniAssignment() {
   }
 }
 </script>
+
+<style scoped>
+/* ── Fitxa del treballador ── */
+.fitxa-tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--color-border-light, #e5eaf0); margin-bottom: 16px; overflow-x: auto; }
+.fitxa-tab { background: none; border: none; padding: 9px 14px; font: inherit; font-size: .86rem; font-weight: 700; color: var(--color-text-muted, #7a8aa0); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap; }
+.fitxa-tab.actiu { color: var(--color-primary, #094E8C); border-bottom-color: var(--color-primary, #094E8C); }
+.fitxa-graella { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 16px; }
+.fitxa-bloc { border: 1px solid var(--color-border-light, #e5eaf0); border-radius: 10px; padding: 12px 14px; margin: 8px 0 14px; background: var(--color-bg, #f8fafc); }
+.prac-progres { margin-top: 4px; }
+.prac-avis { font-size: .8rem; background: rgba(9, 78, 140, .06); border-left: 3px solid var(--color-primary, #094E8C); border-radius: 6px; padding: 7px 10px; margin: 0 0 10px; color: var(--color-text-secondary, #475569); }
+.prac-avis-alerta { background: #FFF8E1; border-left-color: #D9A400; color: #7a5a00; margin-top: 8px; }
+.prac-barra { height: 10px; border-radius: 999px; background: #e2e8f0; overflow: hidden; }
+.prac-barra > div { height: 100%; background: linear-gradient(90deg, #0DAF83, #0A7C5E); border-radius: 999px; transition: width .3s; }
+.prac-xifres { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; font-size: .82rem; }
+/* ── Codis postals compactes a la taula ── */
+.cp-xip-mini { background: var(--color-bg); border: 1px solid var(--color-border-light); border-radius: 4px; padding: 2px 6px; font-size: .72rem; font-variant-numeric: tabular-nums; }
+.cp-xip-mini.mes { background: rgba(9, 78, 140, .08); border-color: rgba(9, 78, 140, .25); color: var(--color-primary, #094E8C); font-weight: 700; cursor: help; }
+.cp-xip-mini.tota { background: rgba(13, 175, 131, .1); border-color: rgba(13, 175, 131, .35); color: #0A7C5E; font-weight: 700; cursor: help; }
+/* ── Modal d'assignació de codis postals ── */
+.cp-actual { background: rgba(76, 175, 80, .07); border-radius: 10px; padding: 12px; border-left: 3px solid var(--color-success); margin-bottom: 16px; }
+.cp-xips { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+.cp-xip { display: inline-flex; align-items: center; gap: 5px; font-size: .78rem; padding: 3px 10px; border-radius: 999px; background: #fff; border: 1px solid var(--color-border-light, #e5eaf0); }
+.cp-xip.triat { background: rgba(9, 78, 140, .08); border-color: var(--color-primary, #094E8C); color: var(--color-primary, #094E8C); }
+.cp-treu { background: none; border: none; cursor: pointer; color: inherit; font-size: .8rem; padding: 0 0 0 2px; opacity: .7; }
+.cp-treu:hover { opacity: 1; }
+.cp-triats { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; min-height: 30px; }
+.cp-cerca-fila { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.cp-cerca-fila .form-input { flex: 1; min-width: 0; }
+.cp-tots { white-space: nowrap; min-height: 42px; }
+.cp-graella { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; max-height: 260px; overflow-y: auto; border: 1px solid var(--color-border-light, #e5eaf0); border-radius: 10px; padding: 8px; margin-bottom: 14px; }
+.cp-opcio { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--color-border-light, #e5eaf0); background: var(--color-surface, #fff); cursor: pointer; min-height: 44px; }
+.cp-opcio:hover { border-color: var(--color-primary, #094E8C); }
+.cp-opcio.sel { background: rgba(9, 78, 140, .08); border-color: var(--color-primary, #094E8C); }
+.cp-codi { font-weight: 800; font-size: .84rem; color: var(--color-text); }
+.cp-opcio.sel .cp-codi { color: var(--color-primary, #094E8C); }
+.cp-barri { font-size: .72rem; color: var(--color-text-muted, #7a8aa0); line-height: 1.2; }
+.cp-qui { font-size: .68rem; color: var(--color-text-muted, #94a3b8); margin-top: 2px; }
+</style>

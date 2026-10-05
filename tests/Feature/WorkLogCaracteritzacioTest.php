@@ -54,10 +54,10 @@ class WorkLogCaracteritzacioTest extends TestCase
         ]);
     }
 
-    /** Fichatge obert (sense end_time) creat directament amb la convenció BD: string UTC. */
+    /** Fichatge obert (sense end_time) creat directament amb la convenció BD: hora de Madrid directa. */
     private function worklogObert(User $user, int $hoursAgo = 4, array $extra = []): WorkLog
     {
-        $start = Carbon::now('UTC')->subHours($hoursAgo);
+        $start = Carbon::now('Europe/Madrid')->subHours($hoursAgo);
 
         return WorkLog::create(array_merge([
             'user_id' => $user->id,
@@ -90,9 +90,9 @@ class WorkLogCaracteritzacioTest extends TestCase
         $log = WorkLog::findOrFail($r->json('id'));
         $this->assertSame(Carbon::now()->toDateString(), $log->date->toDateString(),
             'la data l\'imposa el servidor, no el client');
-        $startUtc = Carbon::parse($log->getRawOriginal('start_time'), 'UTC');
-        $this->assertTrue($startUtc->diffInMinutes(Carbon::now('UTC')) < 2,
-            'start_time ha de ser l\'hora del servidor (UTC), no la del client (2020)');
+        $startLocal = Carbon::parse($log->getRawOriginal('start_time'), 'Europe/Madrid');
+        $this->assertTrue($startLocal->diffInMinutes(Carbon::now('Europe/Madrid')) < 2,
+            'start_time ha de ser l\'hora del servidor (Madrid), no la del client (2020)');
         $this->assertNull($log->end_time);
     }
 
@@ -176,8 +176,8 @@ class WorkLogCaracteritzacioTest extends TestCase
         $r->assertStatus(200);
 
         $log->refresh();
-        $endUtc = Carbon::parse($log->getRawOriginal('end_time'), 'UTC');
-        $this->assertTrue($endUtc->diffInMinutes(Carbon::now('UTC')) < 2,
+        $endLocal = Carbon::parse($log->getRawOriginal('end_time'), 'Europe/Madrid');
+        $this->assertTrue($endLocal->diffInMinutes(Carbon::now('Europe/Madrid')) < 2,
             'end_time ha de ser l\'hora del servidor');
         $this->assertEqualsWithDelta(4.0, (float) $log->total_hours_worked, 0.05,
             'les hores les calcula el servidor a partir dels seus propis timestamps');

@@ -135,11 +135,11 @@ class AutoritzacioTest extends TestCase
         $victima = $this->make('worker');
         $log = WorkLog::create([
             'user_id' => $victima->id, 'date' => Carbon::now()->toDateString(),
-            'start_time' => Carbon::now('UTC')->subHours(2)->toDateTimeString(), 'status' => 'pending',
+            'start_time' => Carbon::now('Europe/Madrid')->subHours(2)->toDateTimeString(), 'status' => 'pending',
         ]);
         $seg = \App\Models\WorkLogSegment::create([
             'work_log_id' => $log->id, 'segment_number' => 1,
-            'start_time' => $log->start_time, 'end_time' => Carbon::now('UTC')->toDateTimeString(),
+            'start_time' => $log->start_time, 'end_time' => Carbon::now('Europe/Madrid')->toDateTimeString(),
             'in_zone' => false, 'in_schedule' => false, 'duration_minutes' => 120, 'status' => 'pending',
         ]);
         Sanctum::actingAs($victima); // el propi titular tampoc s'autoaprova
