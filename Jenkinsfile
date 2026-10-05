@@ -50,9 +50,9 @@ echo "Còpia de la BD: $BK ($(du -h "$BK" | cut -f1))"
 ls -1t storage/backups/*.sql.gz | tail -n +11 | xargs -r rm -f
 
 # -- Avorta si hi ha canvis locals sense commit: s'han de resoldre a mà --
-if [ -n "$(git status --porcelain)" ]; then
+if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
   echo "El servidor té canvis locals sense commit. S'avorta per no perdre'ls."
-  git status --porcelain
+  git status --porcelain --untracked-files=no
   exit 1
 fi
 
