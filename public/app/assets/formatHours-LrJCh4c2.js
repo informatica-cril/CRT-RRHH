@@ -1,0 +1,1 @@
+function e(e){let t=Math.round(Number(e||0)*60),n=Math.floor(t/60),r=t%60;return n===0&&r===0?`0min`:n===0?`${r}min`:r===0?`${n}h`:`${n}h ${r}min`}export{e as t};
