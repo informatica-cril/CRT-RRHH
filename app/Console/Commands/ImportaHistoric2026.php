@@ -213,15 +213,31 @@ class ImportaHistoric2026 extends Command
 
     private function importaNomines(array $nomines, array $ids, string $ara): void
     {
+        // A CRT les nòmines del portal antic ja es van importar (crt:importa-portal): no es tornen a
+        // afegir. Mateixa clau que aquell import: persona + any + mes + nom del fitxer.
+        $jaHi = [];
+        DB::table('payrolls')->select(['user_id', 'year', 'month', 'file_name'])->orderBy('id')
+            ->each(function ($p) use (&$jaHi) {
+                $jaHi[$p->user_id . '|' . (int) $p->year . '|' . (int) $p->month . '|' . trim((string) $p->file_name)] = true;
+            }, 2000);
+        $this->inf['nomines_ja'] = 0;
+
         $bloc = [];
         foreach ($nomines as $n) {
             if (! $uid = $this->idDe($ids, $n['dni'])) {
                 continue;
             }
+            $fitxer = trim($n['file_name']) . '.pdf';
+            $clau = $uid . '|' . (int) $n['any'] . '|' . (int) $n['mes'] . '|' . $fitxer;
+            if (isset($jaHi[$clau])) {
+                $this->inf['nomines_ja']++;
+                continue;
+            }
+            $jaHi[$clau] = true;
             $bloc[] = [
                 'user_id' => $uid, 'title' => sprintf('Nòmina %04d-%02d', $n['any'], $n['mes']),
                 'month' => (string) $n['mes'], 'year' => $n['any'], 'amount' => null,
-                'payroll_base64' => $n['pdf_base64'], 'file_name' => $n['file_name'] . '.pdf',
+                'payroll_base64' => $n['pdf_base64'], 'file_name' => $fitxer,
                 'created_at' => $ara, 'updated_at' => $ara,
             ];
             if (count($bloc) >= 50) {
@@ -328,6 +344,7 @@ class ImportaHistoric2026 extends Command
             ['Persones desactivades (no són a la llista)', count($i['desactivats'])],
             ['Entitat actualitzada (CRIL / CRT)', $i['entitats']],
             ['Nòmines afegides', $i['nomines']],
+            ['Nòmines que ja hi eren (no es tornen a afegir)', $i['nomines_ja'] ?? 0],
             ['Fitxatges afegits', $i['fitxatges']],
             ['  · sense hora de sortida (pendents)', $i['sense_sortida']],
             ["  · de més de 14 h ({$llargs})", $i['llargs']],
