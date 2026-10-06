@@ -112,6 +112,88 @@ class PayrollController extends Controller
         return response()->json(['message' => "$createdCount nòmines pujades correctament"]);
     }
 
+    /**
+     * POST /api/v1/payroll-files/importa-portal-antic
+     * Body: { nomines: [{ dni, data, pdf, nom_fitxer? }] }  (una tanda; el navegador les envia en diverses)
+     *
+     * Importa les nòmines del portal antic que FALTEN: la persona es troba per DNI (amb o sense
+     * zeros al davant) i una nòmina es dona per ja pujada si aquella persona ja té el MATEIX PDF.
+     * Les noves entren sense signar: la signatura és un acte de la persona titular.
+     * Retorna per a cada element: importada | ja_hi_era | sense_persona | pdf_no_valid.
+     */
+    public function importaPortalAntic(Request $request)
+    {
+        $this->authorize('create', Payroll::class);
+        $data = $request->validate([
+            'nomines' => 'required|array|max:50',
+            'nomines.*.dni' => 'required|string|max:30',
+            'nomines.*.data' => 'required|date',
+            'nomines.*.pdf' => 'required|string',
+            'nomines.*.nom_fitxer' => 'nullable|string|max:200',
+        ]);
+
+        $mesos = [1 => 'Gener', 2 => 'Febrer', 3 => 'Març', 4 => 'Abril', 5 => 'Maig', 6 => 'Juny',
+            7 => 'Juliol', 8 => 'Agost', 9 => 'Setembre', 10 => 'Octubre', 11 => 'Novembre', 12 => 'Desembre'];
+        $normDni = fn ($d) => ltrim(strtoupper(preg_replace('/[\s\-.]/', '', (string) $d)), '0');
+        $nomesBase64 = fn ($b) => preg_replace('/^data:[^,]*,/', '', (string) $b);
+        $empremta = function ($b) use ($nomesBase64) {
+            $bin = base64_decode($nomesBase64($b), true);
+
+            return $bin === false || $bin === '' ? null : hash('sha256', $bin);
+        };
+
+        $persones = \App\Models\User::whereNotNull('dni')->where('dni', '!=', '')->pluck('id', 'dni')
+            ->mapWithKeys(fn ($id, $dni) => [$normDni($dni) => $id]);
+        $jaPujades = []; // user_id => [empremta => true]
+
+        $resultats = [];
+        $compte = ['importada' => 0, 'ja_hi_era' => 0, 'sense_persona' => 0, 'pdf_no_valid' => 0];
+        foreach ($data['nomines'] as $n) {
+            $userId = $persones[$normDni($n['dni'])] ?? null;
+            $hash = $empremta($n['pdf']);
+            $estat = match (true) {
+                ! $userId => 'sense_persona',
+                ! $hash || ! str_starts_with(base64_decode($nomesBase64($n['pdf'])), '%PDF') => 'pdf_no_valid',
+                default => null,
+            };
+
+            if (! $estat) {
+                if (! isset($jaPujades[$userId])) {
+                    $jaPujades[$userId] = [];
+                    foreach (Payroll::where('user_id', $userId)->pluck('payroll_base64') as $b) {
+                        if ($h = $empremta($b)) $jaPujades[$userId][$h] = true;
+                    }
+                }
+                if (isset($jaPujades[$userId][$hash])) {
+                    $estat = 'ja_hi_era';
+                } else {
+                    $quan = \Carbon\Carbon::parse($n['data']);
+                    $mes = str_pad((string) $quan->month, 2, '0', STR_PAD_LEFT);
+                    $title = 'Nòmina ' . $mesos[$quan->month] . ' ' . $quan->year;
+                    // Segon document del mateix mes (p. ex. la paga extra): que no tingui el mateix títol.
+                    if (Payroll::where('user_id', $userId)->where('year', $quan->year)->where('month', $mes)->exists()) {
+                        $title .= ' (2n document)';
+                    }
+                    Payroll::create([
+                        'user_id' => $userId,
+                        'title' => $title,
+                        'month' => $mes,
+                        'year' => $quan->year,
+                        'payroll_base64' => $nomesBase64($n['pdf']),
+                        'file_name' => $n['nom_fitxer'] ?? null,
+                    ]);
+                    $jaPujades[$userId][$hash] = true;
+                    $estat = 'importada';
+                }
+            }
+
+            $compte[$estat]++;
+            $resultats[] = $estat;
+        }
+
+        return response()->json(['compte' => $compte, 'resultats' => $resultats]);
+    }
+
     public function show(Request $request, Payroll $payroll)
     {
         $this->authorize('view', $payroll);
