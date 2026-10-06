@@ -121,6 +121,8 @@
                     <button class="btn btn-success btn-sm" @click="approve(log.id)">{{ t('approve') }}</button>
                     <button class="btn btn-danger btn-sm" @click="openReject(log.id)">{{ t('reject') }}</button>
                   </template>
+                  <!-- RRHH i admin poden tornar a revisar el que ja s'ha resolt (p. ex. coordinació). -->
+                  <button v-if="authStore.canManageStaff && log.status !== 'pending'" class="btn btn-outline btn-sm" @click="reobrir(log)" title="Torna el fitxatge a pendent per validar-lo de nou">↺ Revisar de nou</button>
                   <template v-if="!authStore.isStaff && log.status === 'rejected'">
                     <button class="btn btn-outline btn-sm" @click="openModify(log)">{{ t('modify_record') }}</button>
                   </template>
@@ -374,6 +376,19 @@ function confirmReject() {
   if (rejectLogId.value && rejectReason.value) {
     workLogStore.rejectLog(rejectLogId.value, rejectReason.value)
     showRejectModal.value = false
+  }
+}
+
+// «Revisar de nou»: el fitxatge torna a pendent; la decisió anterior i el motiu queden a la traçabilitat.
+async function reobrir(log) {
+  const motiu = window.prompt('Per què cal revisar de nou aquest fitxatge? (mínim 10 caràcters)\nQuedarà registrat a la traçabilitat.')
+  if (motiu === null) return
+  if (motiu.trim().length < 10) return alert("Cal un motiu d'almenys 10 caràcters.")
+  try {
+    await api.post(`/v1/work-logs/${log.id}/reobrir`, { motiu: motiu.trim() })
+    await fetchData()
+  } catch (e) {
+    alert(e?.message || "No s'ha pogut reobrir el fitxatge.")
   }
 }
 

@@ -113,6 +113,10 @@
               <button class="btn-approve" @click="sendAllegation(seg)"
                 :disabled="(allegationText[seg.id] || '').trim().length < 20">Presentar al·legació (mín. 20 caràcters)</button>
             </div>
+            <!-- «Revisar de nou»: RRHH i admin tornen a pendent un tram ja resolt -->
+            <div v-if="potReobrir && seg.status !== 'pending'" class="segment-actions">
+              <button @click="reobrirTram(seg)" class="btn btn-outline btn-sm" title="Torna el tram a pendent per validar-lo de nou">↺ Revisar de nou</button>
+            </div>
             <!-- Acciones para coordinator/admin -->
             <div v-if="canManage && seg.status === 'pending'" class="segment-actions">
               <button @click="approveSegment(seg)" class="btn-approve">Aprovar</button>
@@ -156,6 +160,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import db from '../services/db'
+import api from '../services/apiClient'
 import { formatHM } from '../utils/formatHours'
 import { etiqueta } from '../utils/etiquetes'
 import { zonaDePosicio } from '../utils/zonaDePosicio'
@@ -296,6 +301,19 @@ async function rejectSegment(seg) {
 
 // ── Audiència prèvia: al·legació del titular ──
 const esTitular = computed(() => authStore.user?.id === workLog.value?.user_id)
+const potReobrir = computed(() => ['admin', 'hr'].includes(authStore.user?.role))
+async function reobrirTram(seg) {
+  const motiu = window.prompt(`Per què cal revisar de nou el tram ${seg.segment_number}? (mínim 10 caràcters)\nQuedarà registrat a la traçabilitat.`)
+  if (motiu === null) return
+  if (motiu.trim().length < 10) return alert("Cal un motiu d'almenys 10 caràcters.")
+  try {
+    await api.post(`/v1/work-logs/${workLog.value.id}/segments/${seg.id}/reobrir`, { motiu: motiu.trim() })
+    await loadData()
+  } catch (e) {
+    alert(e?.message || "No s'ha pogut reobrir el tram.")
+  }
+}
+
 const allegationText = ref({})
 
 async function sendAllegation(seg) {
