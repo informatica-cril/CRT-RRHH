@@ -13,6 +13,8 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         $schedule->command('worklogs:send-reminders')->everyMinute();
+        // Pausa obligatòria des del servidor: no depèn que la pantalla del treballador sigui oberta.
+        $schedule->command('worklogs:pausa-automatica')->everyMinute()->withoutOverlapping();
         // DESACTIVAT (RRHH, 08-10-2026): el correu diari de jornades d'altres dies sense sortida
         // (worklogs:avis-sense-sortida) arribava per fitxatges antics i es repetia cada dia.
         // Només queden els recordatoris del mateix dia; les jornades sense sortida es veuen i es

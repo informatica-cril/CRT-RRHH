@@ -212,7 +212,11 @@ class WorkLogController extends Controller
                 $breakSettings = \App\Models\BreakSetting::getSettings();
                 if ($breakSettings->enabled && $serverHours > $breakSettings->threshold_hours) {
                     $data['break_required'] = true;
-                    $data['break_status'] = 'pending';
+                    // Una pausa feta, omesa o en curs no torna a "pendent" en fitxar la sortida
+                    // (la en curs la tanca la tasca worklogs:pausa-automatica a l'hora de sortida).
+                    if (! in_array($workLog->break_status, ['active', 'completed', 'skipped'], true)) {
+                        $data['break_status'] = 'pending';
+                    }
                 }
             }
 
@@ -384,19 +388,31 @@ class WorkLogController extends Controller
         $now = $this->workLogs->getAccurateTime();
 
         $geo = $request->validate(['location_match' => 'nullable|boolean']);
-        $workLog->update([
-            'break_end_time' => $now->toDateTimeString(),
-            'break_end_location_match' => $geo['location_match'] ?? null,
-            'break_status' => 'completed',
-        ]);
+        $durada = (int) \App\Models\BreakSetting::getSettings()->break_duration_minutes;
+        $pausa = app(\App\Services\PausaObligatoria::class);
 
-        \App\Models\WorkLogModification::create([
-            'work_log_id' => $workLog->id,
-            'user_id' => $request->user()->id,
-            'action' => 'break_completed',
-            'new_values' => ['break_end_time' => $now->toDateTimeString()],
-            'comment' => 'Pausa obligatòria completada',
-        ]);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($workLog, $request, $geo, $now, $durada, $pausa) {
+            $log = WorkLog::whereKey($workLog->id)->lockForUpdate()->first();
+            // Ja la va tancar el servidor (worklogs:pausa-automatica): no es reescriu.
+            if ($log->break_status === 'completed' && $log->break_end_time) {
+                return;
+            }
+            // Si la pantalla es reobre més tard, la pausa no s'allarga: com a molt inici + durada.
+            $fi = $pausa->horaFi($log, $now, $durada)->toDateTimeString();
+            $log->update([
+                'break_end_time' => $fi,
+                'break_end_location_match' => $geo['location_match'] ?? null,
+                'break_status' => 'completed',
+            ]);
+
+            \App\Models\WorkLogModification::create([
+                'work_log_id' => $log->id,
+                'user_id' => $request->user()->id,
+                'action' => 'break_completed',
+                'new_values' => ['break_end_time' => $fi],
+                'comment' => 'Pausa obligatòria completada',
+            ]);
+        });
 
         return response()->json($workLog->fresh());
     }
