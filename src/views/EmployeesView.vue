@@ -1451,13 +1451,21 @@ function openPointsModal(user) {
   showPointsModal.value = true
 }
 
+// En assignar un centre o un punt, el servidor torna a comprovar els fitxatges pendents que
+// havien quedat fora de zona: si ara hi cauen dins, deixen de ser-ho.
+function avisaReavaluats(r) {
+  const n = r?.fitxatges_reavaluats || 0
+  if (n > 0) alert(`${n} fitxatge${n === 1 ? '' : 's'} pendent${n === 1 ? '' : 's'} que sortia${n === 1 ? '' : 'n'} fora de zona ara queda${n === 1 ? '' : 'en'} dins amb el centre o punt nou.`)
+}
+
 async function addCenter() {
   if (!newCenterId.value) return
   try {
-    await db.assignAmbulatoryCenter(newCenterId.value, pointsUser.value.id, new Date().toISOString().split('T')[0], null)
+    const r = await db.assignAmbulatoryCenter(newCenterId.value, pointsUser.value.id, new Date().toISOString().split('T')[0], null)
     auditLog(authStore.userId, 'ASSIGN_CENTER', 'user', pointsUser.value.id, `Centro assignat: ${newCenterId.value}`)
     newCenterId.value = ''
     await fetchData()
+    avisaReavaluats(r)
   } catch (e) { console.error(e) }
 }
 
@@ -1486,11 +1494,12 @@ async function addPoint() {
         active: true
       })
     }
-    await db.assignWorkLocation(loc.id, pointsUser.value.id, new Date().toISOString().split('T')[0], null)
-    
+    const r = await db.assignWorkLocation(loc.id, pointsUser.value.id, new Date().toISOString().split('T')[0], null)
+
     auditLog(authStore.userId, 'ADD_WORK_LOCATION', 'user', pointsUser.value.id, `Punt manual afegit: ${newPoint.name}`)
     Object.assign(newPoint, { name: '', lat: 41.3770, lng: 2.1600, radius: 100 })
     await fetchData()
+    avisaReavaluats(r)
   } catch (e) { console.error(e) }
 }
 
