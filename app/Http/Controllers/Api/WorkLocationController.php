@@ -78,7 +78,11 @@ class WorkLocationController extends Controller
             'valid_to' => $request->valid_to,
         ]);
 
-        return response()->json(['message' => 'Worker assigned successfully']);
+        // Els fitxatges pendents que havien quedat fora de zona es tornen a comprovar amb el punt nou.
+        $reavaluats = app(\App\Services\ReavaluaZona::class)
+            ->perUsuari(\App\Models\User::findOrFail($request->user_id), $request->user()->id);
+
+        return response()->json(['message' => 'Worker assigned successfully', 'fitxatges_reavaluats' => $reavaluats]);
     }
 
     public function removeWorker(Request $request, $id)

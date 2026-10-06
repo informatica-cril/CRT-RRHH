@@ -37,7 +37,11 @@ class AmbulatoryCenterController extends Controller
             ]
         ]);
 
-        return response()->json(['message' => 'Center assigned successfully']);
+        // Els fitxatges pendents que havien quedat fora de zona es tornen a comprovar amb el centre nou.
+        $reavaluats = app(\App\Services\ReavaluaZona::class)
+            ->perUsuari(\App\Models\User::findOrFail($request->user_id), $request->user()->id);
+
+        return response()->json(['message' => 'Center assigned successfully', 'fitxatges_reavaluats' => $reavaluats]);
     }
 
     /**

@@ -280,6 +280,8 @@ Route::prefix('v1')->group(function () {
             Route::post('aprova-seleccionats', [\App\Http\Controllers\Api\WorkLogBulkController::class, 'aprova'])->middleware('role:admin,coordinator,hr');
             // «Revisar de nou»: RRHH i admin tornen a pendent un fitxatge ja resolt (p. ex. per coordinació).
             Route::post('{workLog}/reobrir', [\App\Http\Controllers\Api\WorkLogReobrirController::class, 'fitxatge'])->middleware('role:admin,hr');
+            // «Corregir hora»: RRHH i admin corregeixen l'entrada o la sortida d'un fitxatge (amb motiu).
+            Route::post('{workLog}/corregir-hora', [\App\Http\Controllers\Api\WorkLogCorreccioController::class, 'corregir'])->middleware('role:admin,hr');
             Route::get('user/{userId}', [WorkLogController::class, 'byUser'])->middleware('owner');
             // store/update: el controlador comprova propietat (el propi titular o staff).
             Route::post('/', [WorkLogController::class, 'store']);

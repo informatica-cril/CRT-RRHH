@@ -28,6 +28,27 @@
             · {{ pendingCount }} tram(s) pendent(s) de revisió no compten encara
           </span>
         </div>
+
+        <!-- «Corregir hora»: RRHH i admin (p. ex. una sortida oblidada fitxada l'endemà) -->
+        <div v-if="potReobrir" class="correccio">
+          <button v-if="!correccio.obert" class="btn btn-outline btn-sm" @click="obreCorreccio">🕒 Corregir hora</button>
+          <div v-else class="correccio-form">
+            <div class="correccio-camps">
+              <label>Entrada <input type="datetime-local" v-model="correccio.inici" class="form-input" /></label>
+              <label>Sortida <input type="datetime-local" v-model="correccio.fi" class="form-input" /></label>
+            </div>
+            <textarea v-model="correccio.motiu" rows="2" class="form-input"
+              placeholder="Motiu de la correcció (mínim 10 caràcters). Quedarà registrat a la traçabilitat."></textarea>
+            <div v-if="correccio.error" class="correccio-error">{{ correccio.error }}</div>
+            <div class="text-small text-muted">Les hores i els trams es tornen a calcular, i el fitxatge torna a pendent per validar-lo.</div>
+            <div class="correccio-botons">
+              <button class="btn btn-primary btn-sm" :disabled="correccio.desant || correccio.motiu.trim().length < 10" @click="desaCorreccio">
+                {{ correccio.desant ? 'Desant…' : 'Desar correcció' }}
+              </button>
+              <button class="btn btn-outline btn-sm" :disabled="correccio.desant" @click="correccio.obert = false">Cancel·lar</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Pausa obligatoria -->
@@ -156,7 +177,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import db from '../services/db'
@@ -314,6 +335,35 @@ async function reobrirTram(seg) {
   }
 }
 
+// «Corregir hora». Les hores arriben en hora de Madrid sense zona ('2026-10-05T08:00:00.000'):
+// el camp datetime-local en vol els 16 primers caràcters i el servidor les vol amb espai.
+const correccio = reactive({ obert: false, inici: '', fi: '', motiu: '', desant: false, error: '' })
+function obreCorreccio() {
+  Object.assign(correccio, {
+    obert: true, motiu: '', error: '',
+    inici: String(workLog.value?.start_time || '').slice(0, 16),
+    fi: String(workLog.value?.end_time || '').slice(0, 16),
+  })
+}
+async function desaCorreccio() {
+  correccio.error = ''
+  if (!correccio.fi) { correccio.error = "Cal l'hora de sortida."; return }
+  correccio.desant = true
+  try {
+    await api.post(`/v1/work-logs/${workLog.value.id}/corregir-hora`, {
+      start_time: correccio.inici.replace('T', ' '),
+      end_time: correccio.fi.replace('T', ' '),
+      motiu: correccio.motiu.trim(),
+    })
+    correccio.obert = false
+    await loadData()
+  } catch (e) {
+    correccio.error = e?.message || "No s'ha pogut desar la correcció."
+  } finally {
+    correccio.desant = false
+  }
+}
+
 const allegationText = ref({})
 
 async function sendAllegation(seg) {
@@ -369,6 +419,12 @@ async function sendAllegation(seg) {
 .segment-actions { display: flex; gap: 8px; margin-top: 8px; }
 .btn-approve { background: #4caf50; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
 .btn-reject { background: #f44336; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+.correccio { margin-top: 12px; }
+.correccio-form { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid #e0e0e0; border-radius: 8px; }
+.correccio-camps { display: flex; gap: 12px; flex-wrap: wrap; }
+.correccio-camps label { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; font-weight: 600; }
+.correccio-botons { display: flex; gap: 8px; }
+.correccio-error { color: #c62828; font-size: 0.85rem; }
 .reject-hint { color: #ff9800; font-size: 0.82em; margin-top: -4px; }
 .modification-item { display: flex; gap: 12px; padding: 6px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.9em; }
 .empty { color: #999; padding: 12px; }
