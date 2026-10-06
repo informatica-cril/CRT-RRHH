@@ -278,6 +278,8 @@ Route::prefix('v1')->group(function () {
             Route::get('export', [\App\Http\Controllers\Api\WorkLogExportController::class, 'export'])->middleware('role:admin,coordinator,hr');
             // Aprovar una selecció de fitxatges d'una sola vegada.
             Route::post('aprova-seleccionats', [\App\Http\Controllers\Api\WorkLogBulkController::class, 'aprova'])->middleware('role:admin,coordinator,hr');
+            // «Revisar de nou»: RRHH i admin tornen a pendent un fitxatge ja resolt (p. ex. per coordinació).
+            Route::post('{workLog}/reobrir', [\App\Http\Controllers\Api\WorkLogReobrirController::class, 'fitxatge'])->middleware('role:admin,hr');
             Route::get('user/{userId}', [WorkLogController::class, 'byUser'])->middleware('owner');
             // store/update: el controlador comprova propietat (el propi titular o staff).
             Route::post('/', [WorkLogController::class, 'store']);
@@ -536,6 +538,8 @@ Route::prefix('v1')->group(function () {
                 Route::post('{segment}/reject', [WorkLogSegmentController::class, 'reject']);
                 Route::post('{segment}/approve', [WorkLogSegmentController::class, 'approve']);
             });
+            // «Revisar de nou» d'un tram ja resolt: només RRHH i admin.
+            Route::post('{segment}/reobrir', [\App\Http\Controllers\Api\WorkLogReobrirController::class, 'tram'])->middleware('role:admin,hr');
         });
 
         // ── Work Log Detail (vista con tramos) ── controlador: titular o staff
