@@ -509,6 +509,8 @@ Route::prefix('v1')->group(function () {
         Route::get('payroll-files', [PayrollController::class, 'index'])->middleware('role:admin');
         Route::post('payroll-files', [PayrollController::class, 'store'])->middleware('role:admin');
         Route::post('payroll-files/bulk', [PayrollController::class, 'bulkStore'])->middleware('role:admin');
+        // Nòmines del portal antic (portalemplea): el navegador llegeix el .sql i les envia per tandes.
+        Route::post('payroll-files/importa-portal-antic', [PayrollController::class, 'importaPortalAntic'])->middleware('role:admin');
         Route::delete('payroll-files/{payroll}', [PayrollController::class, 'destroy'])->middleware('role:admin');
         Route::get('payroll-files/worker/{userId}', [PayrollController::class, 'workerPayrolls']); // policy: admin o titular
         Route::get('payroll-files/{payroll}', [PayrollController::class, 'show']); // policy: admin o titular

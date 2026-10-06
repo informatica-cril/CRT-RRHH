@@ -8,6 +8,7 @@
       <div class="page-actions" style="display:flex;gap:8px;">
         <button class="btn btn-primary" @click="showBulkModal = true">📄 Pujar PDF Conjunt</button>
         <button class="btn btn-outline" @click="showUploadModal = true">+ Pujar Individual</button>
+        <button class="btn btn-outline" @click="showImportAntic = true">🗄️ Portal antic</button>
       </div>
     </div>
 
@@ -331,6 +332,8 @@
       </div>
     </div>
 
+    <ImportPortalAnticModal v-if="showImportAntic" @close="showImportAntic = false" @imported="fetchData" />
+
     <!-- ═══ PDF PREVIEW MODAL ═══ -->
     <div v-if="showPreviewModal" class="modal-overlay" @click.self="closePreview">
       <div class="modal" style="max-width:500px;">
@@ -357,6 +360,7 @@ import { ref, computed, reactive, onMounted } from 'vue'
 import { db } from '../services/db'
 import { auditLog } from '../services/audit'
 import { useAuthStore } from '../stores/auth'
+import ImportPortalAnticModal from '../components/ImportPortalAnticModal.vue'
 import { PDFDocument } from 'pdf-lib'
 import * as pdfjsLib from 'pdfjs-dist/build/pdf'
 
@@ -367,6 +371,7 @@ const authStore = useAuthStore()
 
 const showUploadModal = ref(false)
 const showBulkModal = ref(false)
+const showImportAntic = ref(false)
 const showPreviewModal = ref(false)
 const filterUser = ref('all')
 const filterMonth = ref('')

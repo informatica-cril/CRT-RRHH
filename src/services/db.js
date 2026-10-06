@@ -148,6 +148,7 @@ const db = {
   signPayroll: (id, hash) => api.post(`/v1/payroll-files/${id}/sign`, { signature_hash: hash }),
   addPayroll: (p) => api.post('/v1/payroll-files', p),
   addPayrollBulk: (payrolls) => api.post('/v1/payroll-files/bulk', { payrolls }),
+  importaPortalAntic: (nomines) => api.post('/v1/payroll-files/importa-portal-antic', { nomines }),
   deletePayroll: (id) => api.delete(`/v1/payroll-files/${id}`),
 
   // ── Document Signatures ──
