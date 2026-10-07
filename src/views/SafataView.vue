@@ -23,6 +23,8 @@
         </div>
       </router-link>
     </div>
+
+    <JornadesSenseSortida />
   </div>
 </template>
 
@@ -31,6 +33,7 @@ import { ref, computed, onMounted } from 'vue'
 import db from '../services/db'
 import api from '../services/apiClient'
 import { useAuthStore } from '../stores/auth'
+import JornadesSenseSortida from '../components/JornadesSenseSortida.vue'
 
 const authStore = useAuthStore()
 const carregant = ref(true)
@@ -59,6 +62,7 @@ onMounted(async () => {
   const nCua = (clau) => (resum?.cues || []).find(c => c.clau === clau)?.n || 0
   const fitxatges = nCua('fitxatges')
   const foraZona = nCua('forazona')
+  const senseSortida = nCua('sensesortida')
   const [absencies, excedencies, suggeriments, conciliacio] = await Promise.all([
     n(db.getAbsences(), a => a.approved === null || a.approved === undefined),
     n(db.getExcedencias(), e => e.status === 'pending'),
@@ -76,6 +80,7 @@ onMounted(async () => {
   cues.value = [
     { clau: 'fitxatges', titol: 'Fitxatges pendents d\'aprovar', sub: 'registres de jornada a validar', icona: '⏱', n: fitxatges, urgencia: 'mitjana', enllac: '/work-logs' },
     { clau: 'forazona', titol: 'Fitxatges fora de zona', sub: 'marca feta fora del domicili', icona: '📍', n: foraZona, urgencia: 'alta', enllac: '/work-logs' },
+    { clau: 'sensesortida', titol: 'Jornades sense sortida', sub: "fitxatges d'altres dies sense sortida: llista a sota", icona: '🚪', n: senseSortida, urgencia: 'alta', enllac: '/safata#sense-sortida' },
     { clau: 'absencies', titol: 'Permisos per aprovar', sub: 'sol·licituds d\'absència pendents', icona: '📋', n: absencies, urgencia: 'mitjana', enllac: '/absences' },
     { clau: 'excedencies', titol: 'Excedències per resoldre', sub: 'sol·licituds pendents', icona: '📄', n: excedencies, urgencia: 'mitjana', enllac: '/excedencies' },
     { clau: 'disciplinari', titol: 'Suggeriments disciplinaris', sub: 'el motor proposa; decideix una persona', icona: '⚖️', n: suggeriments, urgencia: 'alta', enllac: '/disciplinary' },

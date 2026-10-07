@@ -282,6 +282,11 @@ Route::prefix('v1')->group(function () {
             Route::post('{workLog}/reobrir', [\App\Http\Controllers\Api\WorkLogReobrirController::class, 'fitxatge'])->middleware('role:admin,hr');
             // «Corregir hora»: RRHH i admin corregeixen l'entrada o la sortida d'un fitxatge (amb motiu).
             Route::post('{workLog}/corregir-hora', [\App\Http\Controllers\Api\WorkLogCorreccioController::class, 'corregir'])->middleware('role:admin,hr');
+            // Jornades sense sortida de dies anteriors: la persona declara l'hora (el registre no es toca)
+            // i coordinació/RRHH en veuen la llista.
+            Route::get('sense-sortida', [\App\Http\Controllers\Api\WorkLogSenseSortidaController::class, 'meves']);
+            Route::get('sense-sortida/equip', [\App\Http\Controllers\Api\WorkLogSenseSortidaController::class, 'equip'])->middleware('role:admin,coordinator,hr');
+            Route::post('{workLog}/declara-sortida', [\App\Http\Controllers\Api\WorkLogSenseSortidaController::class, 'declara']);
             Route::get('user/{userId}', [WorkLogController::class, 'byUser'])->middleware('owner');
             // store/update: el controlador comprova propietat (el propi titular o staff).
             Route::post('/', [WorkLogController::class, 'store']);

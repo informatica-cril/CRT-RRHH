@@ -29,6 +29,8 @@ class SafataController extends Controller
                 'n' => WorkLog::where('status', 'pending')->where('hour_status', 'out_of_area')->count()],
             ['clau' => 'fitxatges', 'titol' => "Fitxatges pendents d'aprovar", 'icona' => '⏱', 'urgencia' => 'mitjana', 'enllac' => '/work-logs',
                 'n' => WorkLog::where('status', 'pending')->count()],
+            ['clau' => 'sensesortida', 'titol' => 'Jornades sense sortida', 'icona' => '🚪', 'urgencia' => 'alta', 'enllac' => '/safata',
+                'n' => WorkLogSenseSortidaController::oberts()->count()],
             ['clau' => 'absencies', 'titol' => 'Permisos per aprovar', 'icona' => '📋', 'urgencia' => 'mitjana', 'enllac' => '/absences',
                 'n' => Absence::whereNull('approved')->count()],
             ['clau' => 'excedencies', 'titol' => 'Excedències per resoldre', 'icona' => '📄', 'urgencia' => 'mitjana', 'enllac' => '/excedencies',

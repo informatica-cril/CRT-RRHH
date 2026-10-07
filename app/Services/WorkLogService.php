@@ -136,9 +136,12 @@ class WorkLogService
 
         $scheduleStart = null;
         $scheduleEnd = null;
-        if ($workSchedule && isset($workSchedule->days[$dayOfWeek - 1])) {
-            $dayConfig = $workSchedule->days[$dayOfWeek - 1];
-            if (($dayConfig['active'] ?? false) && !empty($dayConfig['start']) && !empty($dayConfig['end'])) {
+        // El dia es busca per la clau 'day' (0=Dg..6=Ds), no per la posició a l'array: un horari
+        // de 7 dies (de diumenge a dissabte) agafava el dia anterior.
+        if ($workSchedule) {
+            $dayConfig = collect(\App\Models\WorkSchedule::normalizeDays($workSchedule->days))
+                ->first(fn ($d) => $d['day'] === ($dayOfWeek % 7) && $d['active']);
+            if ($dayConfig) {
                 $scheduleStart = $dayConfig['start'];
                 $scheduleEnd = $dayConfig['end'];
             }
@@ -192,8 +195,10 @@ class WorkLogService
         $iniciJornada = $startTime->copy();
         if ($scheduleStart && $scheduleEnd) {
             $localDate = $startTime->copy()->setTimezone('Europe/Madrid')->toDateString();
-            $authStart = Carbon::parse("{$localDate} {$scheduleStart}", 'Europe/Madrid')->utc();
-            $authEnd = Carbon::parse("{$localDate} {$scheduleEnd}", 'Europe/Madrid')->utc();
+            // Sense ->utc(): els trams es desen en hora de Madrid sense zona (com start_time i end_time).
+            // Amb UTC, els talls que venien de l'horari quedaven 1-2 h desplaçats al detall.
+            $authStart = Carbon::parse("{$localDate} {$scheduleStart}", 'Europe/Madrid');
+            $authEnd = Carbon::parse("{$localDate} {$scheduleEnd}", 'Europe/Madrid');
 
             // Tramo 1: antes del horario autorizado
             if ($startTime < $authStart) {
