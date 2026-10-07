@@ -287,6 +287,9 @@ Route::prefix('v1')->group(function () {
             Route::get('sense-sortida', [\App\Http\Controllers\Api\WorkLogSenseSortidaController::class, 'meves']);
             Route::get('sense-sortida/equip', [\App\Http\Controllers\Api\WorkLogSenseSortidaController::class, 'equip'])->middleware('role:admin,coordinator,hr');
             Route::post('{workLog}/declara-sortida', [\App\Http\Controllers\Api\WorkLogSenseSortidaController::class, 'declara']);
+            // Recalcular la zona quan canvien els codis postals o municipis d'una persona (domiciliària).
+            Route::get('fora-zona/{user}', [\App\Http\Controllers\Api\WorkLogZonaController::class, 'foraZona'])->middleware('role:admin,hr');
+            Route::post('reavalua-zona', [\App\Http\Controllers\Api\WorkLogZonaController::class, 'reavalua'])->middleware('role:admin,hr');
             Route::get('user/{userId}', [WorkLogController::class, 'byUser'])->middleware('owner');
             // store/update: el controlador comprova propietat (el propi titular o staff).
             Route::post('/', [WorkLogController::class, 'store']);

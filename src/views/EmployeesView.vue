@@ -809,6 +809,7 @@ import { useAuthStore } from '../stores/auth'
 import { i18n } from '../i18n'
 import { getPostalCodeList, BARCELONA_POSTAL_CODES, getMunicipalityList, VALLES_MUNICIPALITIES } from '../services/geolocation'
 import { resumCps } from '../utils/resumCps'
+import { reavaluaZonaPersona, textReavaluats } from '../utils/reavaluaZona'
 import CalendarPdfViewer from '../components/CalendarPdfViewer.vue'
 import { formatHM } from '../utils/formatHours'
 
@@ -1433,7 +1434,10 @@ async function saveCpAssignment() {
     auditLog(authStore.userId, 'ASSIGN_ZONE', 'user', cpUser.value.id, `Zona CP: ${newCpForm.postal_codes.join(',')}`)
     await fetchData()
     showCpModal.value = false
-    alert('✅ Assignació de zona (CP) desada correctament!')
+    // Els fitxatges pendents fora de zona es tornen a comprovar amb els codis postals nous.
+    const nZona = await reavaluaZonaPersona(cpUser.value.id).catch(e => { console.error(e); return 0 })
+    if (nZona) await fetchData()
+    alert('✅ Assignació de zona (CP) desada correctament!' + textReavaluats(nZona))
   } catch (e) {
     console.error(e)
     alert('Error en desar l\'assignació de zona.')
@@ -1561,7 +1565,10 @@ async function saveMuniAssignment() {
     auditLog(authStore.userId, 'ASSIGN_ZONE_MUNI', 'user', muniUser.value.id, `Municipis: ${newMuniForm.municipalities.join(',')}`)
     await fetchData()
     showMuniModal.value = false
-    alert('✅ Assignació de zona (Municipis) desada correctament!')
+    // Els fitxatges pendents fora de zona es tornen a comprovar amb els municipis nous.
+    const nZona = await reavaluaZonaPersona(muniUser.value.id).catch(e => { console.error(e); return 0 })
+    if (nZona) await fetchData()
+    alert('✅ Assignació de zona (Municipis) desada correctament!' + textReavaluats(nZona))
   } catch (e) {
     console.error(e)
     alert('Error en desar l\'assignació municipal.')

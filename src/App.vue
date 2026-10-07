@@ -1,5 +1,7 @@
 <template>
   <div id="crt-app" :class="{ 'dark-mode': isDark, 'is-mobile': isMobile }">
+    <!-- Avisos dins de l'app (substitueixen la finestra «… diu» del navegador) -->
+    <AvisosApp />
     <!-- Global Navigation Blocker / Loader -->
     <div v-if="isNavigating" class="nav-loader-overlay">
       <div class="nav-loader-content">
@@ -121,6 +123,7 @@
 </template>
 
 <script setup>
+import AvisosApp from './components/AvisosApp.vue'
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useAuthStore } from './stores/auth'
 import { useSettingsStore } from './stores/settings'
