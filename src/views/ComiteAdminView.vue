@@ -97,10 +97,7 @@
         <form class="comite-form" @submit.prevent="desaMembre">
           <div class="form-group comite-doble">
             <label class="form-label">Persona</label>
-            <select v-model="form.user_id" class="form-select" required :disabled="!!editant">
-              <option value="" disabled>Tria una persona…</option>
-              <option v-for="u in usuaris" :key="u.id" :value="u.id">{{ u.name }}{{ u.dni ? ` (${u.dni})` : '' }}</option>
-            </select>
+            <SelectorPersona v-model="form.user_id" :persones="usuaris" detall="dni" :disabled="!!editant" style="width:100%;" />
           </div>
           <div class="form-group">
             <label class="form-label">Representació</label>
@@ -169,6 +166,7 @@
 </template>
 
 <script setup>
+import SelectorPersona from '../components/SelectorPersona.vue'
 import { confirma, demana } from '../utils/dialegs'
 import { ref, onMounted } from 'vue'
 import api, { apiFetchRaw } from '../services/apiClient'
@@ -304,6 +302,8 @@ async function esborra (m) {
 }
 
 async function desaMembre () {
+  // El selector de persona no és un <select required>: cal comprovar-ho aquí.
+  if (!form.value.user_id) { error.value = 'Tria una persona.'; return }
   desant.value = true
   error.value = ''
   try {

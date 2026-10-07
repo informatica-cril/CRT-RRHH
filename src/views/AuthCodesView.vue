@@ -106,10 +106,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">Destinatari</label>
-            <select class="form-select" v-model="form.user_id">
-              <option :value="null">Qualsevol treballador</option>
-              <option v-for="u in workers" :key="u.id" :value="u.id">{{ u.name }}</option>
-            </select>
+            <SelectorPersona v-model="form.user_id" :persones="workers" :buida="{ valor: null, text: 'Qualsevol treballador' }" style="width:100%;" />
           </div>
         </div>
 
@@ -244,6 +241,7 @@
 </template>
 
 <script setup>
+import SelectorPersona from '../components/SelectorPersona.vue'
 import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { db } from '../services/db'

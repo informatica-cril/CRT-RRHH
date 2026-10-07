@@ -225,9 +225,7 @@
           <div class="text-small text-muted">Autoritzat = hores de conveni pels dies treballats (calendari laboral, exclou festius) + complementàries amb codi · desviació diària</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <select class="form-select" v-model.number="selectedWorkerId">
-            <option v-for="w in analysisWorkers" :key="w.id" :value="w.id">{{ w.name }}</option>
-          </select>
+          <SelectorPersona v-model="selectedWorkerId" :persones="analysisWorkers" style="width:240px;" />
           <select class="form-select" v-model="analysisMonth">
             <option v-for="m in analysisMonths" :key="m.value" :value="m.value">{{ m.label }}</option>
           </select>
@@ -422,6 +420,7 @@
 </template>
 
 <script setup>
+import SelectorPersona from '../components/SelectorPersona.vue'
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'

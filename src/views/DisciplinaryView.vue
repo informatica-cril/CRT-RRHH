@@ -80,12 +80,8 @@
         </div>
         <div>
           <label class="text-small text-muted">Treballador (usuari de l'app — per a la notificació in-app)</label>
-          <select class="form-select" v-model="nou.user_id">
-            <option :value="null">— vincular després —</option>
-            <option v-for="w in workers" :key="w.id" :value="w.id">
-              {{ w.name }}<template v-if="w.domi_username"> ({{ w.domi_username }})</template><template v-if="w.relacio === 'autonom'"> — autònom: via laboral vetada</template>
-            </option>
-          </select>
+          <SelectorPersona v-model="nou.user_id" :persones="workers" :buida="{ valor: null, text: '— vincular després —' }"
+            :detall="w => [w.domi_username, w.relacio === 'autonom' ? 'autònom: via laboral vetada' : ''].filter(Boolean).join(' · ')" style="width:100%;" />
           <span v-if="autoVinculat" class="text-small" style="color:var(--color-success);">✓ vinculat automàticament pel mapeig domi</span>
         </div>
         <div>
@@ -409,6 +405,7 @@
 </template>
 
 <script setup>
+import SelectorPersona from '../components/SelectorPersona.vue'
 import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'

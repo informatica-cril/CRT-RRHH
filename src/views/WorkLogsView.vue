@@ -9,10 +9,7 @@
         <select class="form-select" v-model="selectedMonth">
           <option v-for="m in months" :key="m.value" :value="m.value">{{ m.label }}</option>
         </select>
-        <select v-if="authStore.isStaff" class="form-select" v-model="selectedUser">
-          <option value="all">{{ t('total') }} {{ t('employees') }}</option>
-          <option v-for="u in workers" :key="u.id" :value="u.id">{{ u.name }}</option>
-        </select>
+        <SelectorPersona v-if="authStore.isStaff" v-model="selectedUser" :persones="workers" :buida="{ valor: 'all', text: `${t('total')} ${t('employees')}` }" style="width:240px;" />
         <button v-if="authStore.isStaff" type="button" class="btn btn-outline wl-excel" :disabled="exportant" @click="exportaExcel"
           title="Descarrega en Excel el que es veu: el mes, la persona i el filtre triats">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13l3 4M11 13l-3 4"/><line x1="14" y1="15" x2="17" y2="15"/></svg>
@@ -162,6 +159,7 @@
 </template>
 
 <script setup>
+import SelectorPersona from '../components/SelectorPersona.vue'
 import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'

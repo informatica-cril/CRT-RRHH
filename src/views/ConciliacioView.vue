@@ -56,10 +56,7 @@
       <details style="margin-top:10px;">
         <summary class="text-small text-muted" style="cursor:pointer;">Triar-ne un altre manualment</summary>
         <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
-          <select class="form-select" v-model="manual[p.username]" style="max-width:320px;">
-            <option :value="null">— tria un treballador —</option>
-            <option v-for="w in totsWorkers" :key="w.user_id" :value="w.user_id">{{ w.name }}</option>
-          </select>
+          <SelectorPersona v-model="manual[p.username]" :persones="totsWorkers" valor-key="user_id" :buida="{ valor: null, text: '— tria un treballador —' }" style="width:320px;" />
           <button class="btn btn-sm" :disabled="!manual[p.username] || desant"
                   @click="vincular(p, { user_id: manual[p.username], name: nomDe(manual[p.username]) })">Vincular</button>
         </div>
@@ -69,6 +66,7 @@
 </template>
 
 <script setup>
+import SelectorPersona from '../components/SelectorPersona.vue'
 import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/apiClient'

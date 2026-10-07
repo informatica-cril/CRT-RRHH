@@ -138,10 +138,7 @@
     <div v-if="activeTab === 'search'" class="card">
       <div style="padding:16px;display:flex;gap:12px;">
         <input class="form-input" v-model="forensicSearch" placeholder="Cercar en tots els missatges..." style="flex:1;" @keyup.enter="doForensicSearch" />
-        <select class="form-select" v-model="searchFilterUser" style="width:200px;">
-          <option value="">Tots els usuaris</option>
-          <option v-for="u in allUsers" :key="u.id" :value="u.id">{{ u.name }}</option>
-        </select>
+        <SelectorPersona v-model="searchFilterUser" :persones="allUsers" :buida="{ valor: '', text: 'Tots els usuaris' }" style="width:220px;" />
         <button class="btn btn-primary" @click="doForensicSearch">Cercar</button>
       </div>
       <div v-if="searchResults.length" class="table-container">
@@ -223,6 +220,7 @@
 </template>
 
 <script setup>
+import SelectorPersona from '../components/SelectorPersona.vue'
 import { ref, computed, reactive, onMounted } from 'vue'
 import { db } from '../services/db'
 import { useAuthStore } from '../stores/auth'
