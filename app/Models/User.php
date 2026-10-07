@@ -107,6 +107,16 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
+    /**
+     * Coordinació ja no és un rol de gestió (Direcció, 07-10-2026): és un lloc de treball
+     * (job_profile). Qualsevol alta o canvi que arribi amb 'coordinator' (API, importació, domi)
+     * es desa com a treballador, perquè pugui fitxar i no tingui accés a la gestió.
+     */
+    public function setRoleAttribute($value): void
+    {
+        $this->attributes['role'] = $value === 'coordinator' ? 'worker' : $value;
+    }
+
     // El secret TOTP i els hashos dels còdis de recuperació no surten MAI per l'API.
     protected $hidden = ['password', 'remember_token', 'totp_secret', 'totp_recovery_codes'];
 

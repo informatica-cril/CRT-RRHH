@@ -305,7 +305,6 @@ class ComplimentAcusamentsTest extends TestCase
         $doc = $this->document();
         $persones = [
             'worker'      => $this->usuari('worker'),
-            'coordinator' => $this->usuari('coordinator'),
             'hr'          => $this->usuari('hr'),
             'admin'       => $this->usuari('admin'),
         ];

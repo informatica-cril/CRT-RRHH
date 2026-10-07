@@ -13,12 +13,12 @@
 
     <div class="sf-cards">
       <router-link v-for="c in cuesOrdenades" :key="c.clau" :to="c.enllac"
-        class="sf-card" :class="c.n > 0 ? c.urgencia : 'zero'">
+        class="sf-card" :class="c.n > 0 ? c.urgencia : 'zero'" @click="c.clau === 'sensesortida' && baixaALaLlista()">
         <div class="sf-ico">{{ c.icona }}</div>
         <div class="sf-body">
           <div class="sf-titol">{{ c.titol }} <span class="sf-n">{{ c.n }}</span></div>
           <div class="sf-sub">{{ c.sub }}</div>
-          <span v-if="c.n > 0" class="sf-cta">Obrir i treballar ▸</span>
+          <span v-if="c.n > 0" class="sf-cta">{{ c.clau === 'sensesortida' ? 'Veure la llista ▾' : 'Obrir i treballar ▸' }}</span>
           <span v-else class="sf-sub ok">✓ res pendent</span>
         </div>
       </router-link>
@@ -34,6 +34,11 @@ import db from '../services/db'
 import api from '../services/apiClient'
 import { useAuthStore } from '../stores/auth'
 import JornadesSenseSortida from '../components/JornadesSenseSortida.vue'
+
+// La llista de jornades sense sortida ja és a sota de les targetes: la targeta només hi baixa.
+function baixaALaLlista() {
+  setTimeout(() => document.getElementById('sense-sortida')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+}
 
 const authStore = useAuthStore()
 const carregant = ref(true)

@@ -59,6 +59,33 @@ class SegmentacioHorariTest extends TestCase
         $this->assertSame(['pending', 'approved', 'pending'], $t->pluck('status')->all());
     }
 
+    public function test_jornada_partida_compta_tots_els_trams_de_l_horari(): void
+    {
+        // Dimecres de 15:00 a 19:00 i de 09:00 a 13:00 (desats en aquest ordre a posta).
+        $days = [
+            ['day' => 3, 'active' => true, 'start' => '15:00', 'end' => '19:00'],
+            ['day' => 3, 'active' => true, 'start' => '09:00', 'end' => '13:00'],
+        ];
+        $t = $this->trams($days, '09:00', '19:00');
+
+        $this->assertSame(['09:00', '13:00', '15:00'], $t->map(fn ($s) => substr($s->getRawOriginal('start_time'), 11, 5))->all());
+        $this->assertSame(['approved', 'pending', 'approved'], $t->pluck('status')->all());
+        $this->assertSame([true, false, true], $t->map(fn ($s) => (bool) $s->in_schedule)->all());
+    }
+
+    public function test_trams_d_horari_seguits_fan_un_sol_tram(): void
+    {
+        $days = [
+            ['day' => 3, 'active' => true, 'start' => '09:00', 'end' => '12:00'],
+            ['day' => 3, 'active' => true, 'start' => '12:00', 'end' => '15:00'],
+        ];
+        $t = $this->trams($days, '09:12', '13:00');
+
+        $this->assertCount(1, $t);
+        $this->assertSame('approved', $t[0]->status);
+        $this->assertSame('2026-10-07 09:12:00', $t[0]->getRawOriginal('start_time'));
+    }
+
     public function test_amb_horari_de_7_dies_agafa_el_del_dia_correcte(): void
     {
         // Dimarts de 08:00 a 14:00 i dimecres de 14:00 a 20:00: el fitxatge és de dimecres.

@@ -177,7 +177,10 @@
               <option value="Fisioterapeuta">Fisioterapeuta</option>
               <option value="Logopeda">Logopeda</option>
               <option value="Terapeuta Ocupacional">Terapeuta ocupacional</option>
-              <option value="Coordinación">Coordinació</option>
+              <option value="Coordinación Vallés">Coordinació Vallès</option>
+              <option value="Coordinación BCN">Coordinació BCN</option>
+              <!-- Valor antic, sense zona: només es mostra a qui encara el té -->
+              <option v-if="form.job_profile === 'Coordinación'" value="Coordinación">Coordinació (sense zona)</option>
               <option value="Administracion">Administració</option>
               <option value="Recepción">Recepció</option>
               <option value="Informatica">Informàtica</option>

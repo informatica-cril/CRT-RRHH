@@ -50,7 +50,7 @@ class WorkLogCaracteritzacioTest extends TestCase
     {
         return User::create([
             'name' => 'Coordinació', 'email' => 'c' . uniqid() . '@test.local',
-            'password' => bcrypt('x'), 'role' => 'coordinator', 'active' => true,
+            'password' => bcrypt('x'), 'role' => 'hr', 'active' => true,
         ]);
     }
 
@@ -215,7 +215,7 @@ class WorkLogCaracteritzacioTest extends TestCase
             'location_match' => true, 'start_location_match' => true,
         ]);
 
-        // Un tercer NO admin (coordinació) sense conflicte ni motiu: SENSE coordenades
+        // Un tercer NO admin (RRHH) sense conflicte ni motiu: SENSE coordenades
         Sanctum::actingAs($this->coordinator());
         $r = $this->getJson("/api/v1/work-logs/{$log->id}/detail");
         $r->assertStatus(200);
