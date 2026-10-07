@@ -13,6 +13,8 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         $schedule->command('worklogs:send-reminders')->everyMinute();
+        // Cada matí: avís a qui té jornades d'altres dies sense sortida i sense declarar.
+        $schedule->command('worklogs:avis-sense-sortida')->dailyAt('08:00');
         // Purga mensual de coordenades > 48 mesos (minimització RGPD)
         // Purga DIÀRIA (EIPD Annex V): coordenades a 30 dies, registre a 4 anys
         $schedule->command('locations:purge --apply')->dailyAt('03:30');

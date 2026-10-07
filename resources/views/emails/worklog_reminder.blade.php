@@ -83,7 +83,7 @@
         </div>
         <div class="data-row">
           <span class="data-label">Hora d'entrada registrada</span>
-          <span class="data-value">{{ \Carbon\Carbon::parse($log->start_time, 'UTC')->setTimezone('Europe/Madrid')->format('H:i') }}h</span>
+          <span class="data-value">{{ substr((string) $log->getRawOriginal('start_time'), 11, 5) }}h</span>
         </div>
         <div class="data-row">
           <span class="data-label">Hora de sortida</span>

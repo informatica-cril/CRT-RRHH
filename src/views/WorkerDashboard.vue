@@ -23,6 +23,8 @@
     <!-- Tab content based on route -->
     <!-- ═══ TAB: FITXATGE ═══ -->
     <div v-if="activeTab === 'clock'">
+      <!-- Jornades d'altres dies sense sortida: la persona pot declarar l'hora (el registre no es toca) -->
+      <AvisSenseSortida @carregat="pendentsSortida = $event" />
       <div class="dashboard-grid">
         <div>
           <div class="time-tracker" id="worker-clock">
@@ -848,9 +850,12 @@ import { resumCps } from '../utils/resumCps'
 import WorkLogAlertBanner from '../components/WorkLogAlertBanner.vue'
 import PacteComplementaries from '../components/PacteComplementaries.vue'
 import BreakTimerModal from '../components/BreakTimerModal.vue'
+import AvisSenseSortida from '../components/AvisSenseSortida.vue'
 import CalendarPdfViewer from '../components/CalendarPdfViewer.vue'
 
 // --- Break state (pausa obligatoria basada en horario configurado) ---
+// Jornades d'altres dies sense sortida i sense declarar (les omple AvisSenseSortida)
+const pendentsSortida = ref([])
 const breakModalVisible = ref(false)
 const breakDuration = ref(20)
 const breakStartTime = ref(null)
@@ -1283,6 +1288,11 @@ const restartWorkedHours = ref('0h')
 const restartScheduledHours = ref('0h')
 
 async function startWorkday() {
+  // Avís (no bloqueja: el registre no es pot impedir) si hi ha jornades anteriors sense sortida.
+  if (pendentsSortida.value.length) {
+    const dies = pendentsSortida.value.map(j => String(j.date).slice(0, 10).split('-').reverse().join('/')).join(', ')
+    if (!confirm(`No vas fitxar la sortida del ${dies}. Pots declarar a quina hora vas acabar al requadre de dalt del Tauler.\n\nVols iniciar igualment la jornada d'avui?`)) return
+  }
   // Check if scheduled hours already done today
   const scheduledHours = await getScheduledHours()
   if (scheduledHours) {
