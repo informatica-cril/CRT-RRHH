@@ -91,7 +91,7 @@ class ReavaluaZona
         return $r * 2 * atan2(sqrt($a), sqrt(1 - $a));
     }
 
-    private function aplica(WorkLog $workLog, bool $iniciDins, bool $fiDins, int $autorId): void
+    public function aplica(WorkLog $workLog, bool $iniciDins, bool $fiDins, int $autorId): void
     {
         DB::transaction(function () use ($workLog, $iniciDins, $fiDins, $autorId) {
             $log = WorkLog::whereKey($workLog->id)->lockForUpdate()->first();
@@ -142,7 +142,7 @@ class ReavaluaZona
                 'action' => 'modified',
                 'old_values' => $abans,
                 'new_values' => $canvis,
-                'comment' => 'Zona recalculada amb el centre o punt assignat nou: '
+                'comment' => 'Zona recalculada amb l\'assignació nova (centre, punt, codis postals o municipis): '
                     . implode(' i ', array_filter([$iniciDins ? 'l\'entrada' : null, $fiDins ? 'la sortida' : null]))
                     . ' ara queda dins de zona.',
             ]);
