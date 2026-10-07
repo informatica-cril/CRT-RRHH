@@ -4,6 +4,8 @@
       <div><h1 class="page-title">{{ t('employees') }}</h1></div>
       <div class="page-actions">
         <button class="btn btn-outline" @click="showCsvModal = true">📥 Importar CSV</button>
+        <button class="btn btn-outline" @click="showRevisarNoms = true" title="Noms desats amb els cognoms davant">🔤 Revisar noms</button>
+        <RevisarNomsModal v-if="showRevisarNoms" :persones="workers" @close="showRevisarNoms = false" @fet="fetchData" />
         <!-- Crear a domi els comptes que falten, sense entrar al servidor. Només apareix si
              realment en falta algun: un botó sempre visible que gairebé mai cal fer res
              s'acaba prement per curiositat. -->
@@ -812,6 +814,7 @@ import { getPostalCodeList, BARCELONA_POSTAL_CODES, getMunicipalityList, VALLES_
 import { resumCps } from '../utils/resumCps'
 import { reavaluaZonaPersona, textReavaluats } from '../utils/reavaluaZona'
 import CalendarPdfViewer from '../components/CalendarPdfViewer.vue'
+import RevisarNomsModal from '../components/RevisarNomsModal.vue'
 import { formatHM } from '../utils/formatHours'
 
 const authStore = useAuthStore()
@@ -982,6 +985,8 @@ function toggleSort(key) {
   if (sortKey.value === key) sortDir.value *= -1
   else { sortKey.value = key; sortDir.value = 1 }
 }
+
+const showRevisarNoms = ref(false)
 
 async function fetchData() {
   try {
