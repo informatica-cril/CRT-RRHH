@@ -84,6 +84,7 @@
 </template>
 
 <script setup>
+import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, onMounted } from 'vue'
 import db from '../services/db'
 
@@ -112,7 +113,7 @@ async function autoritzar(p) {
 }
 async function denegar(p) {
   // El motiu és OBLIGATORI: qui rep la denegació ha de saber per què.
-  const reason = prompt('Motiu de la denegació (obligatori):')
+  const reason = await demana('Motiu de la denegació (obligatori):')
   if (reason === null) return
   if (!reason.trim()) { alert('Cal escriure el motiu de la denegació.'); return }
   p._busy = true

@@ -162,6 +162,7 @@
 </template>
 
 <script setup>
+import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
@@ -280,7 +281,7 @@ function seleccionaTots(marcat) {
 watch([selectedMonth, selectedUser, vista], () => { seleccionats.value = [] })
 async function aprovaSeleccionats() {
   const n = seleccionats.value.length
-  if (!confirm(`Aprovar ${n} fitxatge${n === 1 ? '' : 's'}?`)) return
+  if (!await confirma(`Aprovar ${n} fitxatge${n === 1 ? '' : 's'}?`)) return
   aprovant.value = true
   try {
     const r = await api.post('/v1/work-logs/aprova-seleccionats', { ids: seleccionats.value })
@@ -381,7 +382,7 @@ function confirmReject() {
 
 // «Revisar de nou»: el fitxatge torna a pendent; la decisió anterior i el motiu queden a la traçabilitat.
 async function reobrir(log) {
-  const motiu = window.prompt('Per què cal revisar de nou aquest fitxatge? (mínim 10 caràcters)\nQuedarà registrat a la traçabilitat.')
+  const motiu = await demana('Per què cal revisar de nou aquest fitxatge? (mínim 10 caràcters)\nQuedarà registrat a la traçabilitat.')
   if (motiu === null) return
   if (motiu.trim().length < 10) return alert("Cal un motiu d'almenys 10 caràcters.")
   try {

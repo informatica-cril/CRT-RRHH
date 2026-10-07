@@ -107,6 +107,7 @@
 </template>
 
 <script setup>
+import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, onMounted } from 'vue'
 import api, { apiFetchRaw } from '../services/apiClient'
 
@@ -177,7 +178,7 @@ async function desa () {
 }
 
 async function retira (h) {
-  if (!confirm(`Retirar el registre del ${dmy(h.data)} (${h.hora_inici.slice(0, 5)}–${h.hora_fi.slice(0, 5)})?`)) return
+  if (!await confirma(`Retirar el registre del ${dmy(h.data)} (${h.hora_inici.slice(0, 5)}–${h.hora_fi.slice(0, 5)})?`)) return
   try {
     await api.delete(`/v1/comite/hores/${h.id}`)
     await load()

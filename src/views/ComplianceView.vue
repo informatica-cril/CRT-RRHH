@@ -127,6 +127,7 @@
 </template>
 
 <script setup>
+import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/apiClient'
 
@@ -193,12 +194,12 @@ async function publicar(d) {
     error.value = motiuNoPublicar(d) || 'Document arxivat: no es pot publicar.'
     return
   }
-  if (!confirm(`Publicar «${d.titol}» v${d.versio}? Un cop publicat no s'edita ni es republica.`)) return
+  if (!await confirma(`Publicar «${d.titol}» v${d.versio}? Un cop publicat no s'edita ni es republica.`)) return
   try { await api.post(`/v1/compliance/${d.id}/publish`); await load() }
   catch (e) { error.value = e?.message || 'No s\'ha pogut publicar.' }
 }
 async function arxivar(d) {
-  if (!confirm(`Arxivar «${d.titol}»?`)) return
+  if (!await confirma(`Arxivar «${d.titol}»?`)) return
   try { await api.post(`/v1/compliance/${d.id}/archive`); await load() }
   catch (e) { error.value = e?.message || 'No s\'ha pogut arxivar.' }
 }

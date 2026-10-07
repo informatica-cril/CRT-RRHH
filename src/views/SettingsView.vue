@@ -71,6 +71,7 @@
 </template>
 
 <script setup>
+import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, onMounted } from 'vue'
 import { useSettingsStore } from '../stores/settings'
 import { useAuthStore } from '../stores/auth'
@@ -108,7 +109,7 @@ async function afegeixFestiu() {
 }
 
 async function esborraFestiu(f) {
-  if (!confirm(`Esborrar el festiu ${f.date} · ${f.name}?`)) return
+  if (!await confirma(`Esborrar el festiu ${f.date} · ${f.name}?`)) return
   try {
     await api.delete(`/v1/holidays/${f.id}`)
     await carregaFestius()

@@ -150,6 +150,7 @@
 </template>
 
 <script setup>
+import { confirma, demana } from '../utils/dialegs'
 import { computed, onMounted, ref } from 'vue'
 import api, { apiFetchRaw } from '../services/apiClient'
 import { useAuthStore } from '../stores/auth'
@@ -236,7 +237,7 @@ async function refresca(m) {
 }
 
 async function cancella(m) {
-  if (!confirm('Cancel·lar aquest enviament programat?')) return
+  if (!await confirma('Cancel·lar aquest enviament programat?')) return
   try {
     await api.post(`/v1/certified-mails/${m.id}/cancel`, {})
     await carrega()

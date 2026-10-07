@@ -69,6 +69,7 @@
 </template>
 
 <script setup>
+import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/apiClient'
 
@@ -97,7 +98,7 @@ async function load() {
 }
 
 async function vincular(p, c) {
-  if (!confirm(`Vincular el compte domi «${p.username}» amb ${c.name}?\n\nTota l'activitat d'aquest compte a domi (sessions, firmes, retards) s'atribuirà a aquesta persona.`)) return
+  if (!await confirma(`Vincular el compte domi «${p.username}» amb ${c.name}?\n\nTota l'activitat d'aquest compte a domi (sessions, firmes, retards) s'atribuirà a aquesta persona.`)) return
   desant.value = true; error.value = ''; ok.value = ''
   try {
     await api.post('/v1/conciliacio', { user_id: c.user_id, username: p.username })

@@ -409,6 +409,7 @@
 </template>
 
 <script setup>
+import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import api from '../services/apiClient'
@@ -574,7 +575,7 @@ async function obrir(c) {
  */
 async function canviaAptitud(el) {
   const rehabilitar = el.apte_plec === false
-  const motiu = window.prompt(rehabilitar
+  const motiu = await demana(rehabilitar
     ? 'Aquesta prova ve de l\'espai del pont però no consta d\'on surt, i la recollida de domi no la conté.\n\nPer imputar-la cal dir QUÈ n\'acredita l\'origen (mínim 20 caràcters). Quedarà a l\'auditoria amb el vostre nom:'
     : 'Motiu per tornar a deixar aquesta prova fora del plec (mínim 20 caràcters):')
   if (!motiu || motiu.trim().length < 20) {
@@ -640,7 +641,7 @@ async function desarDocument(d) {
 }
 
 async function signarDocument(d) {
-  if (!confirm(`Signar «${d.tipus}» com a ${usuari.value}? La signatura és personal i queda a l'historial.`)) return
+  if (!await confirma(`Signar «${d.tipus}» com a ${usuari.value}? La signatura és personal i queda a l'historial.`)) return
   error.value = ''
   try { await api.post(`/v1/disciplinary/documents/${d.id}/sign`, {}); await obrir(cas.value) }
   catch (e) { error.value = e?.message || 'No s\'ha pogut signar.' }
