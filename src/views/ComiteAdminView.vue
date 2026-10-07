@@ -169,6 +169,7 @@
 </template>
 
 <script setup>
+import { confirma, demana } from '../utils/dialegs'
 import { ref, onMounted } from 'vue'
 import api, { apiFetchRaw } from '../services/apiClient'
 
@@ -259,7 +260,7 @@ async function valida (h) {
 }
 
 async function rebutja (h) {
-  const motiu = prompt(`Motiu del rebuig (${h.user?.name}, ${dmy(h.data)}):`)
+  const motiu = await demana(`Motiu del rebuig (${h.user?.name}, ${dmy(h.data)}):`)
   if (!motiu) return
   try {
     await api.post(`/v1/comite/hores/${h.id}/rebutja`, { motiu_rebuig: motiu })
@@ -290,7 +291,7 @@ function edita (m) {
 function nouMembre () { editant.value = null; form.value = buit() }
 
 async function esborra (m) {
-  if (!confirm(`Eliminar ${m.user?.name} dels representants?`)) return
+  if (!await confirma(`Eliminar ${m.user?.name} dels representants?`)) return
   error.value = ''
   try {
     await api.delete(`/v1/comite/membres/${m.id}`)

@@ -112,6 +112,7 @@
 </template>
 
 <script setup>
+import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/apiClient'
 
@@ -177,7 +178,7 @@ async function encua (m) {
 async function decideix (m, estat) {
   let nota = null
   if (estat === 'descartada') {
-    nota = prompt('Per què la descartes? (opcional)')
+    nota = await demana('Per què la descartes? (opcional)')
     if (nota === null) return
   }
   try {

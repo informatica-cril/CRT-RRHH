@@ -119,6 +119,7 @@
 </template>
 
 <script setup>
+import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { db } from '../services/db'
@@ -242,7 +243,7 @@ async function approveAbsence(absence) {
 }
 
 async function rejectAbsence(absence) {
-  const motiu = prompt('Motiu de la denegació (obligatori):')
+  const motiu = await demana('Motiu de la denegació (obligatori):')
   if (motiu === null) return
   if (!motiu.trim()) { alert('Cal escriure el motiu de la denegació.'); return }
   try {

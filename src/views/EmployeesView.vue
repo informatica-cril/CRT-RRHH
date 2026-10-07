@@ -800,6 +800,7 @@
 </template>
 
 <script setup>
+import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { db } from '../services/db'
@@ -1141,7 +1142,7 @@ const canviantEstat = ref(false)
 async function canviaEstat() {
   const nou = !estatActiu.value
   const nom = editingUser.value?.name || ''
-  if (!confirm(nou ? `Reactivar ${nom}? Podrà tornar a entrar a l'aplicació.` : `Desactivar ${nom}? Deixarà d'entrar a l'aplicació, però es conserva tot el seu historial.`)) return
+  if (!await confirma(nou ? `Reactivar ${nom}? Podrà tornar a entrar a l'aplicació.` : `Desactivar ${nom}? Deixarà d'entrar a l'aplicació, però es conserva tot el seu historial.`)) return
   canviantEstat.value = true
   try {
     const r = await api.put(`/v1/users/${editingUser.value.id}/estat`, { active: nou })
@@ -1482,7 +1483,7 @@ async function addCenter() {
 }
 
 async function removeCenter(id) {
-  if (confirm('Retirar aquest centre per al treballador?')) {
+  if (await confirma('Retirar aquest centre per al treballador?')) {
     try {
       await db.removeAmbulatoryCenterWorker(id, pointsUser.value.id)
       auditLog(authStore.userId, 'REMOVE_CENTER', 'user', pointsUser.value?.id, `Centre retirat: ${id}`)
@@ -1516,7 +1517,7 @@ async function addPoint() {
 }
 
 async function removePoint(id) {
-  if (confirm('Desactivar aquest punt manual per al treballador?')) {
+  if (await confirma('Desactivar aquest punt manual per al treballador?')) {
     try {
       await db.removeWorkLocationWorker(id, pointsUser.value.id)
       auditLog(authStore.userId, 'REMOVE_WORK_LOCATION', 'user', pointsUser.value?.id, `Punt manual retirat: ${id}`)

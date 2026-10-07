@@ -103,6 +103,7 @@
 </template>
 
 <script setup>
+import { confirma, demana } from '../utils/dialegs'
 import { ref, onMounted } from 'vue'
 import api from '../services/apiClient'
 import { renderMarkdownSegur } from '../utils/markdownSegur'
@@ -150,7 +151,7 @@ async function presentarAlegacions(c) {
 }
 
 async function renunciar(c) {
-  if (!confirm('Renunciar al termini vol dir que l\'empresa podrà resoldre l\'expedient abans de la data límit, sense esperar les teves al·legacions. Ho confirmes?')) return
+  if (!await confirma('Renunciar al termini vol dir que l\'empresa podrà resoldre l\'expedient abans de la data límit, sense esperar les teves al·legacions. Ho confirmes?')) return
   enviant.value = c.id; error.value = ''
   try { await api.post(`/v1/disciplinary/cases/${c.id}/renuncia-termini`, { confirmo: true }); await load() }
   catch (e) { error.value = e?.message || 'No s\'ha pogut registrar la renúncia.' }

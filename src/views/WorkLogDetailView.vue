@@ -177,6 +177,7 @@
 </template>
 
 <script setup>
+import { confirma, demana } from '../utils/dialegs'
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
@@ -324,7 +325,7 @@ async function rejectSegment(seg) {
 const esTitular = computed(() => authStore.user?.id === workLog.value?.user_id)
 const potReobrir = computed(() => ['admin', 'hr'].includes(authStore.user?.role))
 async function reobrirTram(seg) {
-  const motiu = window.prompt(`Per què cal revisar de nou el tram ${seg.segment_number}? (mínim 10 caràcters)\nQuedarà registrat a la traçabilitat.`)
+  const motiu = await demana(`Per què cal revisar de nou el tram ${seg.segment_number}? (mínim 10 caràcters)\nQuedarà registrat a la traçabilitat.`)
   if (motiu === null) return
   if (motiu.trim().length < 10) return alert("Cal un motiu d'almenys 10 caràcters.")
   try {

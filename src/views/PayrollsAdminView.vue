@@ -356,6 +356,7 @@
 </template>
 
 <script setup>
+import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, reactive, onMounted } from 'vue'
 import { db } from '../services/db'
 import { auditLog } from '../services/audit'
@@ -724,7 +725,7 @@ async function downloadPreview() {
 }
 
 async function remove(id) {
-  if (confirm('Esteu segur de voler eliminar definitivament aquesta nòmina?')) {
+  if (await confirma('Esteu segur de voler eliminar definitivament aquesta nòmina?')) {
     try {
       await db.deletePayroll(id)
       auditLog(authStore.userId, 'DELETE_PAYROLL', 'payroll', id, 'Eliminació manual de nòmina per admin')

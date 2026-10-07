@@ -66,6 +66,7 @@
 </template>
 
 <script setup>
+import { confirma, demana } from '../utils/dialegs'
 /**
  * Pacte d'hores complementàries — l'accepta la persona treballadora, per quinzena.
  *
@@ -115,7 +116,7 @@ async function accepta (periode) {
 
 async function revoca (periode) {
   /* El motiu es demana però no s'exigeix: es pot revocar sense donar explicacions. */
-  const motiu = window.prompt('Motiu de la revocació (opcional):') ?? ''
+  const motiu = await demana('Motiu de la revocació (opcional):') ?? ''
   desant.value = periode.period_start
   error.value = null
   try {

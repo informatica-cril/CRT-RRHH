@@ -832,6 +832,7 @@
 </template>
 
 <script setup>
+import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, reactive, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
@@ -1291,7 +1292,7 @@ async function startWorkday() {
   // Avís (no bloqueja: el registre no es pot impedir) si hi ha jornades anteriors sense sortida.
   if (pendentsSortida.value.length) {
     const dies = pendentsSortida.value.map(j => String(j.date).slice(0, 10).split('-').reverse().join('/')).join(', ')
-    if (!confirm(`No vas fitxar la sortida del ${dies}. Pots declarar a quina hora vas acabar al requadre de dalt del Tauler.\n\nVols iniciar igualment la jornada d'avui?`)) return
+    if (!await confirma(`No vas fitxar la sortida del ${dies}. Pots declarar a quina hora vas acabar al requadre de dalt del Tauler.\n\nVols iniciar igualment la jornada d'avui?`)) return
   }
   // Check if scheduled hours already done today
   const scheduledHours = await getScheduledHours()
@@ -1380,7 +1381,7 @@ async function startManualWorkday(justificacio, gpsError = 'denied') {
 
 async function endWorkday() {
   if (workLogStore.elapsed < 60) {
-    if (!confirm('La jornada ha durat menys d\'un minut. Segur que vols finalitzar? (Es guardarà amb 0h)')) return
+    if (!await confirma('La jornada ha durat menys d\'un minut. Segur que vols finalitzar? (Es guardarà amb 0h)')) return
   }
   
   isFinishing.value = true

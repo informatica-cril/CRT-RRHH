@@ -120,6 +120,7 @@
 </template>
 
 <script setup>
+import { confirma, demana } from '../utils/dialegs'
 /**
  * Política de segon factor — Direcció, 01-08-2026: «vull decidir-ho jo».
  *
@@ -206,7 +207,7 @@ async function desa () {
     const quants = mode.value === 'all'
       ? enRisc
       : rols.value.reduce((s, r) => s + (impacte.value.per_rol?.[r]?.en_risc || 0), 0)
-    if (!confirm(`Amb aquesta política, ${quants} persona(es) no podran entrar a l'aplicació ` +
+    if (!await confirma(`Amb aquesta política, ${quants} persona(es) no podran entrar a l'aplicació ` +
                  'fins que se les canviï a «app d\'autenticació» des de la seva fitxa.\n\n' +
                  'Voleu aplicar-la igualment?')) { return }
   }

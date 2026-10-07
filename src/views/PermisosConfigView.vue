@@ -187,6 +187,7 @@
 </template>
 
 <script setup>
+import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, reactive, onMounted } from 'vue'
 import { db } from '../services/db'
 import { auditLog } from '../services/audit'
@@ -248,7 +249,7 @@ async function saveType() {
 }
 
 async function deleteType(id) { 
-  if (confirm('Eliminar aquest tipus de permís?')) { 
+  if (await confirma('Eliminar aquest tipus de permís?')) { 
     try {
       await db.deleteAbsenceType(id)
       await fetchData()

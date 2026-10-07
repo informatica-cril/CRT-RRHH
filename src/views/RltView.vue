@@ -116,6 +116,7 @@
 </template>
 
 <script setup>
+import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, onMounted } from 'vue'
 import api, { apiFetchRaw } from '../services/apiClient'
 
@@ -192,7 +193,7 @@ async function desa () {
 }
 
 async function signa () {
-  if (!confirm('Signes aquest escrit com a Direcció? A partir d\'aquí el text queda segellat i no es podrà modificar.')) return
+  if (!await confirma('Signes aquest escrit com a Direcció? A partir d\'aquí el text queda segellat i no es podrà modificar.')) return
   try {
     await api.put(`/v1/rlt/informes/${obert.value.id}`, { text: obert.value.text })
     await api.post(`/v1/rlt/informes/${obert.value.id}/signar`, {})
@@ -202,9 +203,9 @@ async function signa () {
 }
 
 async function lliura () {
-  const a = prompt('A qui s\'ha lliurat? (òrgan i persona)')
+  const a = await demana('A qui s\'ha lliurat? (òrgan i persona)')
   if (a === null) return
-  const nota = prompt('Com s\'ha lliurat? (data, via, acusament de rebut)')
+  const nota = await demana('Com s\'ha lliurat? (data, via, acusament de rebut)')
   if (nota === null) return
   try {
     await api.post(`/v1/rlt/informes/${obert.value.id}/lliurar`, { lliurat_a: a, nota })
