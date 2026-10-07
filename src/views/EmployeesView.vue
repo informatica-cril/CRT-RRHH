@@ -1272,6 +1272,7 @@ const totalWeeklyHours = computed(() => scheduleForm.days.filter(d => d.active).
 async function saveSchedule() {
   try {
     let scheduleId = scheduleForm.id
+    let recalculats = 0
     if (isNewSchedule.value) {
       if (!newScheduleName.value.trim()) { alert('Cal indicar un nom per a la nova plantilla'); return }
       const created = await db.addWorkSchedule({
@@ -1284,13 +1285,17 @@ async function saveSchedule() {
     } else {
       const originalSched = await db.getWorkSchedule(scheduleForm.id)
       const sched = { ...originalSched, days: scheduleForm.days, total_hours_weekly: parseFloat(totalWeeklyHours.value) }
-      await db.updateWorkSchedule(sched)
+      const rSched = await db.updateWorkSchedule(sched)
+      recalculats += rSched?.trams_recalculats || 0
       auditLog(authStore.userId, 'UPDATE_SCHEDULE', 'work_schedule', scheduleForm.id, `Horari actualitzat per ${scheduleUser.value.name}`)
     }
-    await db.updateUser({ ...scheduleUser.value, work_schedule_id: scheduleId })
+    const rUser = await db.updateUser({ ...scheduleUser.value, work_schedule_id: scheduleId })
+    recalculats += rUser?.trams_recalculats || 0
     await fetchData()
     showScheduleModal.value = false
     isNewSchedule.value = false
+    // El servidor torna a calcular els trams dels fitxatges pendents amb l'horari nou.
+    if (recalculats > 0) alert(`Horari desat. S'han tornat a calcular els trams de ${recalculats} fitxatge${recalculats === 1 ? '' : 's'} pendent${recalculats === 1 ? '' : 's'} amb l'horari nou (les hores d'entrada i sortida no canvien).`)
   } catch (e) { console.error(e) }
 }
 

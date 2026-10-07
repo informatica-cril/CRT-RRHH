@@ -113,7 +113,13 @@ class UserController extends Controller
             unset($data['password']);
         }
 
+        $horariAbans = $user->work_schedule_id;
         $user->update($data);
+        // Canvi d'horari: es tornen a calcular els trams dels seus fitxatges pendents.
+        $tramsRecalculats = 0;
+        if ((int) $user->work_schedule_id !== (int) $horariAbans) {
+            $tramsRecalculats = app(\App\Services\RecalculaTrams::class)->perUsuaris([$user->id], $request->user());
+        }
 
         // Si l'edició activa el pacte, el codi anual neix SOL aquí mateix.
         if (array_key_exists('pacte_complementaries', $data) && $data['pacte_complementaries']) {
@@ -142,7 +148,10 @@ class UserController extends Controller
             }
         }
 
-        return response()->json($user->fresh()->load(['specialties', 'lots', 'departments'])->makeHidden(['password']));
+        return response()->json(array_merge(
+            $user->fresh()->load(['specialties', 'lots', 'departments'])->makeHidden(['password'])->toArray(),
+            ['trams_recalculats' => $tramsRecalculats]
+        ));
     }
 
     /**

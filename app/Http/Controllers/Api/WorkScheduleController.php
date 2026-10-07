@@ -65,6 +65,15 @@ class WorkScheduleController extends Controller
         }
 
         $workSchedule->update($data);
-        return response()->json($workSchedule->fresh());
+
+        // Horari nou: es tornen a calcular els trams dels fitxatges pendents de qui el fa servir
+        // (les hores de fitxatge no canvien; només si cada tram és dins o fora d'horari).
+        $recalculats = 0;
+        if (array_key_exists('days', $data)) {
+            $recalculats = app(\App\Services\RecalculaTrams::class)
+                ->perUsuaris(\App\Models\User::where('work_schedule_id', $workSchedule->id)->pluck('id'), $request->user());
+        }
+
+        return response()->json(array_merge($workSchedule->fresh()->toArray(), ['trams_recalculats' => $recalculats]));
     }
 }
