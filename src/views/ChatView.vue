@@ -203,12 +203,7 @@
         </div>
         <div v-if="newConv.type === 'dm'" class="form-group">
           <label class="form-label">Destinatari</label>
-          <select class="form-select" v-model="newConv.targetUser">
-            <option value="" disabled>Seleccioneu...</option>
-            <option v-for="u in otherUsers" :key="u.id" :value="u.id">
-              {{ getPresenceEmoji(u.id) }} {{ u.name }}
-            </option>
-          </select>
+          <SelectorPersona v-model="newConv.targetUser" :persones="otherUsers" placeholder="Tria la persona…" :detall="u => getPresenceEmoji(u.id)" style="width:100%;" />
         </div>
         <div v-if="newConv.type === 'group'" class="form-group">
           <label class="form-label">Nom del grup</label>
@@ -234,6 +229,7 @@
 </template>
 
 <script setup>
+import SelectorPersona from '../components/SelectorPersona.vue'
 import { ref, computed, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { db } from '../services/db'
 import { useAuthStore } from '../stores/auth'

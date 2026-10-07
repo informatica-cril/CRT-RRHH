@@ -6,10 +6,7 @@
         <select class="form-select" v-model="selectedMonth" style="width:180px;">
           <option v-for="m in months" :key="m.value" :value="m.value">{{ m.label }}</option>
         </select>
-        <select v-if="authStore.isStaff" class="form-select" v-model="selectedUser" style="width:200px;">
-          <option value="all">Tots els treballadors</option>
-          <option v-for="u in workers" :key="u.id" :value="u.id">{{ u.name }}</option>
-        </select>
+        <SelectorPersona v-if="authStore.isStaff" v-model="selectedUser" :persones="workers" :buida="{ valor: 'all', text: 'Tots els treballadors' }" style="width:240px;" />
       </div>
     </div>
 
@@ -190,6 +187,7 @@
 </template>
 
 <script setup>
+import SelectorPersona from '../components/SelectorPersona.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useWorkLogStore } from '../stores/workLog'

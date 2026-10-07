@@ -29,10 +29,7 @@
 
     <!-- Filtres -->
     <div style="display:flex;gap:16px;margin-bottom:20px;align-items:center;flex-wrap:wrap;">
-      <select class="form-select" v-model="filterUser" style="width:250px;">
-        <option value="all">Tots els treballadors</option>
-        <option v-for="w in workers" :key="w.id" :value="w.id">{{ w.name }} ({{ w.dni || w.email }})</option>
-      </select>
+      <SelectorPersona v-model="filterUser" :persones="workers" :buida="{ valor: 'all', text: 'Tots els treballadors' }" :detall="w => w.dni || w.email" style="width:250px;" />
       <select class="form-select" v-model="filterYear" style="width:120px;">
         <option value="">Tot l'any</option>
         <option v-for="y in availableYears" :key="y" :value="y">{{ y }}</option>
@@ -276,10 +273,7 @@
 
         <div class="form-group">
           <label class="form-label">Treballador Destinatari</label>
-          <select class="form-select" v-model="newPayroll.user_id">
-            <option value="" disabled>Seleccioneu treballador...</option>
-            <option v-for="w in workers" :key="w.id" :value="w.id">{{ w.name }} ({{ w.dni || '—' }})</option>
-          </select>
+          <SelectorPersona v-model="newPayroll.user_id" :persones="workers" placeholder="Tria el treballador…" detall="dni" style="width:100%;" />
         </div>
 
         <div class="form-group">
@@ -356,6 +350,7 @@
 </template>
 
 <script setup>
+import SelectorPersona from '../components/SelectorPersona.vue'
 import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, reactive, onMounted } from 'vue'
 import { db } from '../services/db'
