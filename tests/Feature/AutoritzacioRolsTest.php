@@ -252,7 +252,7 @@ class AutoritzacioRolsTest extends TestCase
 
     public function test_llistat_de_plantilla_nomes_gestio(): void
     {
-        $this->nomes(['admin', 'coordinator', 'hr'], 'GET', '/api/v1/users');
+        $this->nomes(['admin', 'hr'], 'GET', '/api/v1/users');
     }
 
     public function test_alta_i_baixa_dusuaris_nomes_admin_i_hr(): void
@@ -270,7 +270,8 @@ class AutoritzacioRolsTest extends TestCase
         $altre = $this->make('worker');
         $this->nega('worker', 'GET', "/api/v1/users/{$altre->id}");
         $this->nega('service', 'GET', "/api/v1/users/{$altre->id}");
-        foreach (['admin', 'coordinator', 'hr'] as $rol) {
+        $this->nega('coordinator', 'GET', "/api/v1/users/{$altre->id}"); // coordinació ja no és gestió
+        foreach (['admin', 'hr'] as $rol) {
             $this->permet($rol, 'GET', "/api/v1/users/{$altre->id}");
         }
     }
@@ -297,10 +298,10 @@ class AutoritzacioRolsTest extends TestCase
 
     public function test_vigilancia_del_xat_exclou_hr(): void
     {
-        $this->nomes(['admin', 'coordinator'], 'GET', '/api/v1/chat/conversations/all');
-        $this->nomes(['admin', 'coordinator'], 'GET', '/api/v1/chat/search?q=a');
-        $this->nomes(['admin', 'coordinator'], 'GET', '/api/v1/chat/alerts');
-        $this->nomes(['admin', 'coordinator'], 'GET', '/api/v1/chat/alerts/unreviewed');
+        $this->nomes(['admin'], 'GET', '/api/v1/chat/conversations/all');
+        $this->nomes(['admin'], 'GET', '/api/v1/chat/search?q=a');
+        $this->nomes(['admin'], 'GET', '/api/v1/chat/alerts');
+        $this->nomes(['admin'], 'GET', '/api/v1/chat/alerts/unreviewed');
     }
 
     public function test_politica_forense_del_xat_nomes_admin(): void
@@ -348,7 +349,7 @@ class AutoritzacioRolsTest extends TestCase
     {
         // La configuració global SÍ la llegeix tothom (filtrada, veure més avall),
         // però la llista de la plantilla amb els seus overrides no s'obre.
-        $this->nomes(['admin', 'coordinator'], 'GET', '/api/v1/break-settings/workers');
+        $this->nomes(['admin'], 'GET', '/api/v1/break-settings/workers');
     }
 
     // ── LECTURES FILTRADES: ni tancades de més ni obertes de més ──
@@ -493,7 +494,7 @@ class AutoritzacioRolsTest extends TestCase
         $this->assertSame(0, $centre->users()->count(),
             'un no-gestor no ha pogut assignar ningú al centre');
 
-        foreach (['admin', 'coordinator', 'hr'] as $rol) {
+        foreach (['admin', 'hr'] as $rol) {
             $this->permet($rol, 'POST', "/api/v1/ambulatory-centers/{$centre->id}/assign",
                 ['user_id' => $victima->id, 'valid_from' => '2026-01-01']);
         }
@@ -582,7 +583,8 @@ class AutoritzacioRolsTest extends TestCase
         }
     }
 
-    public function test_coordinator_conserva_la_gestio_operativa(): void
+    /** Direcció, 07-10-2026: coordinació és un lloc de treball, no un rol de gestió. */
+    public function test_coordinacio_ja_no_te_gestio(): void
     {
         foreach ([
             ['GET', '/api/v1/work-logs'],
@@ -591,7 +593,7 @@ class AutoritzacioRolsTest extends TestCase
             ['GET', '/api/v1/users'],
             ['POST', '/api/v1/zones'],
         ] as [$m, $u]) {
-            $this->permet('coordinator', $m, $u);
+            $this->nega('coordinator', $m, $u);
         }
     }
 

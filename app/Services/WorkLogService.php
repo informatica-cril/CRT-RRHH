@@ -134,16 +134,27 @@ class WorkLogService
         $workSchedule = $workLog->user->workSchedule;
         $dayOfWeek = $startTime->copy()->setTimezone('Europe/Madrid')->dayOfWeekIso;
 
-        $scheduleStart = null;
-        $scheduleEnd = null;
-        // El dia es busca per la clau 'day' (0=Dg..6=Ds), no per la posició a l'array: un horari
-        // de 7 dies (de diumenge a dissabte) agafava el dia anterior.
+        // Finestres de l'horari d'aquell dia, en hora de Madrid sense zona (com start_time i end_time).
+        // - El dia es busca per la clau 'day' (0=Dg..6=Ds), no per la posició a l'array: un horari
+        //   de 7 dies (de diumenge a dissabte) agafava el dia anterior.
+        // - Un dia pot tenir diversos trams (jornada partida): abans només es mirava el primer i
+        //   la resta de la jornada sortia «fora d'horari». Els trams que es toquen s'ajunten.
+        $finestres = [];
         if ($workSchedule) {
-            $dayConfig = collect(\App\Models\WorkSchedule::normalizeDays($workSchedule->days))
-                ->first(fn ($d) => $d['day'] === ($dayOfWeek % 7) && $d['active']);
-            if ($dayConfig) {
-                $scheduleStart = $dayConfig['start'];
-                $scheduleEnd = $dayConfig['end'];
+            $localDate = $startTime->toDateString();
+            $trams = collect(\App\Models\WorkSchedule::normalizeDays($workSchedule->days))
+                ->filter(fn ($d) => $d['day'] === ($dayOfWeek % 7) && $d['active'])
+                ->map(fn ($d) => [Carbon::parse("{$localDate} {$d['start']}", 'Europe/Madrid'),
+                                  Carbon::parse("{$localDate} {$d['end']}", 'Europe/Madrid')])
+                ->filter(fn ($f) => $f[1]->gt($f[0]))
+                ->sortBy(fn ($f) => $f[0]->getTimestamp())->values();
+            foreach ($trams as [$a, $b]) {
+                $ultim = count($finestres) - 1;
+                if ($ultim >= 0 && $a->lte($finestres[$ultim][1])) {
+                    if ($b->gt($finestres[$ultim][1])) $finestres[$ultim][1] = $b;
+                } else {
+                    $finestres[] = [$a, $b];
+                }
             }
         }
 
@@ -193,51 +204,42 @@ class WorkLogService
         $segments = [];
 
         $iniciJornada = $startTime->copy();
-        if ($scheduleStart && $scheduleEnd) {
-            $localDate = $startTime->copy()->setTimezone('Europe/Madrid')->toDateString();
-            // Sense ->utc(): els trams es desen en hora de Madrid sense zona (com start_time i end_time).
-            // Amb UTC, els talls que venien de l'horari quedaven 1-2 h desplaçats al detall.
-            $authStart = Carbon::parse("{$localDate} {$scheduleStart}", 'Europe/Madrid');
-            $authEnd = Carbon::parse("{$localDate} {$scheduleEnd}", 'Europe/Madrid');
-
-            // Tramo 1: antes del horario autorizado
-            if ($startTime < $authStart) {
-                $segEnd = min($authStart, $endTime);
-                $segments[] = [
-                    'start_time' => $startTime->copy(), 'end_time' => $segEnd,
-                    'start_lat' => $workLog->start_location_lat, 'start_lng' => $workLog->start_location_lng,
-                    'end_lat' => null, 'end_lng' => null,
-                    'in_zone' => $startInZone, 'in_schedule' => false,
-                    'duration_minutes' => intval($startTime->diffInMinutes($segEnd)), 'status' => 'pending',
-                ];
-                $startTime = $segEnd;
+        if ($finestres) {
+            // Talls als inicis i finals dels trams de l'horari que cauen dins la jornada.
+            $punts = [$startTime->copy()];
+            foreach ($finestres as [$a, $b]) {
+                foreach ([$a, $b] as $t) {
+                    if ($t->gt($startTime) && $t->lt($endTime)) $punts[] = $t->copy();
+                }
             }
+            $punts[] = $endTime->copy();
+            usort($punts, fn ($x, $y) => $x <=> $y);
 
-            // Tramo 2: dentro del horario autorizado, trossejat per les àncores de zona
-            if ($startTime < $authEnd && $startTime < $endTime) {
-                $segEnd = min($authEnd, $endTime);
-                foreach ($talls($startTime, $segEnd) as [$tIni, $tFi]) {
-                    $dins = $zonaA($tIni);
+            for ($i = 0; $i < count($punts) - 1; $i++) {
+                [$p, $q] = [$punts[$i], $punts[$i + 1]];
+                if (! $p->lt($q)) continue;
+                $dinsHorari = collect($finestres)->contains(fn ($f) => $p->gte($f[0]) && $q->lte($f[1]));
+                if ($dinsHorari) {
+                    // Dins d'horari: trossejat per les àncores de zona; dins de zona → aprovat.
+                    foreach ($talls($p, $q) as [$tIni, $tFi]) {
+                        $dins = $zonaA($tIni);
+                        $segments[] = [
+                            'start_time' => $tIni, 'end_time' => $tFi,
+                            'start_lat' => null, 'start_lng' => null, 'end_lat' => null, 'end_lng' => null,
+                            'in_zone' => $dins, 'in_schedule' => true,
+                            'duration_minutes' => intval($tIni->diffInMinutes($tFi)),
+                            'status' => $dins ? 'approved' : 'pending',
+                        ];
+                    }
+                } else {
+                    // Fora d'horari (abans, entre trams o després): un sol tram pendent de revisió.
                     $segments[] = [
-                        'start_time' => $tIni, 'end_time' => $tFi,
+                        'start_time' => $p->copy(), 'end_time' => $q->copy(),
                         'start_lat' => null, 'start_lng' => null, 'end_lat' => null, 'end_lng' => null,
-                        'in_zone' => $dins, 'in_schedule' => true,
-                        'duration_minutes' => intval($tIni->diffInMinutes($tFi)),
-                        'status' => $dins ? 'approved' : 'pending',
+                        'in_zone' => $zonaA($p), 'in_schedule' => false,
+                        'duration_minutes' => intval($p->diffInMinutes($q)), 'status' => 'pending',
                     ];
                 }
-                $startTime = $segEnd;
-            }
-
-            // Tramo 3: después del horario autorizado
-            if ($startTime < $endTime) {
-                $segments[] = [
-                    'start_time' => $startTime->copy(), 'end_time' => $endTime->copy(),
-                    'start_lat' => null, 'start_lng' => null,
-                    'end_lat' => $workLog->end_location_lat, 'end_lng' => $workLog->end_location_lng,
-                    'in_zone' => $zonaA($startTime), 'in_schedule' => false,
-                    'duration_minutes' => intval($startTime->diffInMinutes($endTime)), 'status' => 'pending',
-                ];
             }
         } else {
             foreach ($talls($startTime, $endTime) as [$tIni, $tFi]) {

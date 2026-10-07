@@ -105,7 +105,7 @@ class JornadesSenseSortidaTest extends TestCase
         $this->oberta($u, '2026-10-02');
         $this->oberta($u, '2026-10-06');
 
-        Sanctum::actingAs($this->user('coordinator'));
+        Sanctum::actingAs($this->user('hr'));
         $this->getJson('/api/v1/work-logs/sense-sortida/equip')->assertOk()->assertJsonCount(2)->assertJsonPath('0.nom', $u->name);
         $cua = collect($this->getJson('/api/v1/safata/resum')->json('cues'))->firstWhere('clau', 'sensesortida');
         $this->assertSame(2, $cua['n']);

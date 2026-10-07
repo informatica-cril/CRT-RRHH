@@ -102,9 +102,13 @@ class UserEndpointsCaracteritzacioTest extends TestCase
         Sanctum::actingAs($this->admin());
         $w = $this->worker();
 
-        $this->putJson("/api/v1/users/{$w->id}", ['role' => 'coordinator'])
+        $this->putJson("/api/v1/users/{$w->id}", ['role' => 'hr'])
             ->assertStatus(200);
-        $this->assertSame('coordinator', $w->fresh()->role);
+        $this->assertSame('hr', $w->fresh()->role);
+
+        // 'coordinator' ja no és un rol de gestió: es desa com a treballador.
+        $this->putJson("/api/v1/users/{$w->id}", ['role' => 'coordinator'])->assertStatus(200);
+        $this->assertSame('worker', $w->fresh()->role);
     }
 
     public function test_show_no_exposa_password(): void

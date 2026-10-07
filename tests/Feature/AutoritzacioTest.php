@@ -244,9 +244,10 @@ class AutoritzacioTest extends TestCase
 
     // ── Coordinador: sí és staff ──────────────────────────────────────────
 
-    public function test_coordinator_es_staff_i_veu_fichatges(): void
+    public function test_coordinacio_ja_no_es_staff(): void
     {
+        // Direcció, 07-10-2026: el rol 'coordinator' es desa com a treballador.
         Sanctum::actingAs($this->make('coordinator'));
-        $this->getJson('/api/v1/work-logs')->assertStatus(200);
+        $this->getJson('/api/v1/work-logs')->assertStatus(403);
     }
 }
