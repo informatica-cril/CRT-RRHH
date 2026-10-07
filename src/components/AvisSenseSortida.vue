@@ -1,52 +1,51 @@
 <template>
-  <div v-if="jornades.length" class="card avis-ss">
-    <h3 class="card-title">🚪 Jornades sense sortida fitxada</h3>
-    <p class="text-small text-muted" style="margin:4px 0 10px;">
-      Aquests dies no vas fitxar la sortida i la jornada compta 0 hores. El registre no es pot canviar,
-      però pots declarar a quina hora vas acabar: RRHH ho revisarà.
-    </p>
+  <div v-if="jornades.length" class="avis-ss">
+    <div class="avis-ss-resum">
+      <span>🚪 <strong>{{ pendents.length ? `${pendents.length} jornada${pendents.length === 1 ? '' : 'es'} sense sortida` : 'Sortides declarades' }}</strong>
+        <span class="text-muted"> · {{ jornades.map(j => dataCurta(j.date)).join(', ') }}</span></span>
+      <button class="btn btn-outline btn-sm" @click="obert = !obert">{{ obert ? 'Amagar' : (pendents.length ? 'Declarar' : 'Veure') }}</button>
+    </div>
 
-    <div v-for="j in jornades" :key="j.id" class="avis-ss-fila">
-      <div class="avis-ss-cap">
-        <strong>{{ dataLlarga(j.date) }}</strong>
-        <span class="text-small text-muted">· entrada a les {{ hora(j.start_time) }}</span>
-      </div>
+    <div v-if="obert" class="avis-ss-cos">
+      <p class="avis-ss-nota">No vas fitxar la sortida i compta 0 h. El registre no es canvia: declara a quina hora vas acabar i RRHH ho revisarà.</p>
+      <div v-for="j in jornades" :key="j.id" class="avis-ss-fila">
+        <span class="avis-ss-dia">{{ dataCurta(j.date) }} <span class="text-muted">· entrada {{ hora(j.start_time) }}</span></span>
 
-      <div v-if="j.declaracio" class="avis-ss-feta">
-        ✓ Has declarat la sortida a les <strong>{{ hora(j.declaracio.sortida) }}</strong>
-        <span v-if="dia(j.declaracio.sortida) !== j.date"> del {{ dataCurta(j.declaracio.sortida) }}</span>.
-        Pendent de revisió de RRHH.
-      </div>
+        <span v-if="j.declaracio" class="avis-ss-feta">✓ Sortida declarada a les {{ hora(j.declaracio.sortida) }} · pendent de RRHH</span>
 
-      <div v-else class="avis-ss-form">
-        <label class="text-small">Hora de sortida
-          <input type="datetime-local" class="form-input" v-model="form[j.id].sortida" />
-        </label>
-        <textarea class="form-input" rows="2" v-model="form[j.id].explicacio"
-          placeholder="Explica breument què va passar (mínim 10 caràcters)"></textarea>
-        <div v-if="form[j.id].error" class="avis-ss-error">{{ form[j.id].error }}</div>
-        <button class="btn btn-primary btn-sm" :disabled="form[j.id].enviant || form[j.id].explicacio.trim().length < 10 || !form[j.id].sortida"
-          @click="declara(j)">{{ form[j.id].enviant ? 'Enviant…' : 'Declarar la sortida' }}</button>
+        <template v-else>
+          <input type="time" class="form-input avis-ss-hora" v-model="form[j.id].hora" title="Hora de sortida" />
+          <input type="text" class="form-input avis-ss-text" v-model="form[j.id].explicacio" placeholder="Què va passar? (mín. 10 caràcters)" />
+          <button class="btn btn-primary btn-sm" :disabled="form[j.id].enviant || !form[j.id].hora || form[j.id].explicacio.trim().length < 10"
+            @click="declara(j)">{{ form[j.id].enviant ? '…' : 'Enviar' }}</button>
+          <span v-if="form[j.id].error" class="avis-ss-error">{{ form[j.id].error }}</span>
+        </template>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import api from '../services/apiClient'
 
 const emit = defineEmits(['carregat'])
 const jornades = ref([])
 const form = reactive({})
+const obert = ref(false)
+const pendents = computed(() => jornades.value.filter(j => !j.declaracio))
 
 // Les hores arriben en hora de Madrid sense zona ('2026-10-02 08:27:00'): es llegeixen del text.
 const hora = (t) => String(t || '').slice(11, 16)
 const dia = (t) => String(t || '').slice(0, 10)
 const dataCurta = (t) => dia(t).split('-').reverse().join('/')
-function dataLlarga(d) {
-  const [y, m, dd] = String(d).slice(0, 10).split('-').map(Number)
-  return new Date(y, m - 1, dd).toLocaleDateString('ca-ES', { weekday: 'long', day: 'numeric', month: 'long' })
+
+// La sortida es declara el mateix dia; si l'hora és anterior a l'entrada, és de l'endemà (torn de nit).
+function sortidaDe(j, h) {
+  const d = new Date(`${dia(j.start_time)}T00:00:00`)
+  if (h <= hora(j.start_time)) d.setDate(d.getDate() + 1)
+  const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return `${ymd} ${h}`
 }
 
 async function carrega() {
@@ -54,12 +53,12 @@ async function carrega() {
     const r = await api.get('/v1/work-logs/sense-sortida')
     jornades.value = Array.isArray(r) ? r : []
     for (const j of jornades.value) {
-      form[j.id] ??= { sortida: `${dia(j.start_time)}T${hora(j.start_time)}`, explicacio: '', enviant: false, error: '' }
+      form[j.id] ??= { hora: '', explicacio: '', enviant: false, error: '' }
     }
   } catch (e) {
     jornades.value = []
   }
-  emit('carregat', jornades.value.filter(j => !j.declaracio))
+  emit('carregat', pendents.value)
 }
 
 async function declara(j) {
@@ -67,10 +66,10 @@ async function declara(j) {
   f.error = ''
   f.enviant = true
   try {
-    await api.post(`/v1/work-logs/${j.id}/declara-sortida`, { sortida: f.sortida.replace('T', ' '), explicacio: f.explicacio.trim() })
+    await api.post(`/v1/work-logs/${j.id}/declara-sortida`, { sortida: sortidaDe(j, f.hora), explicacio: f.explicacio.trim() })
     await carrega()
   } catch (e) {
-    f.error = e?.message || "No s'ha pogut enviar la declaració."
+    f.error = e?.message || "No s'ha pogut enviar."
   } finally {
     f.enviant = false
   }
@@ -81,11 +80,14 @@ defineExpose({ carrega })
 </script>
 
 <style scoped>
-.avis-ss { border-left: 4px solid var(--color-danger, #c62828); margin-bottom: 16px; }
-.avis-ss-fila { padding: 10px 0; border-top: 1px solid var(--color-border-light, #eee); }
-.avis-ss-cap { margin-bottom: 6px; text-transform: capitalize; }
-.avis-ss-form { display: flex; flex-direction: column; gap: 8px; max-width: 460px; }
-.avis-ss-form label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
-.avis-ss-feta { color: var(--color-success, #2e7d32); font-size: 0.9rem; }
-.avis-ss-error { color: var(--color-danger, #c62828); font-size: 0.85rem; }
+.avis-ss { border: 1px solid var(--color-border-light, #e5e7eb); border-left: 4px solid var(--color-danger, #c62828); border-radius: 10px; background: var(--color-surface, #fff); padding: 8px 12px; margin-bottom: 12px; font-size: 0.88rem; }
+.avis-ss-resum { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.avis-ss-cos { margin-top: 8px; }
+.avis-ss-nota { margin: 0 0 6px; font-size: 0.78rem; color: var(--color-text-muted, #6b7280); }
+.avis-ss-fila { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 0; border-top: 1px solid var(--color-border-light, #eee); }
+.avis-ss-dia { min-width: 150px; font-weight: 600; }
+.avis-ss-hora { width: 110px; padding: 4px 8px; }
+.avis-ss-text { flex: 1; min-width: 180px; padding: 4px 8px; }
+.avis-ss-feta { color: var(--color-success, #2e7d32); }
+.avis-ss-error { width: 100%; color: var(--color-danger, #c62828); font-size: 0.8rem; }
 </style>
