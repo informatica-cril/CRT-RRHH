@@ -29,8 +29,8 @@ function tria(f) {
 .fr-xip { font-size: .78rem; line-height: 1.25; text-align: left; padding: 5px 10px; border-radius: 99px; cursor: pointer;
   border: 1px solid var(--color-border, #DCE4EE); background: var(--color-bg, #f3f6fa); color: var(--color-text, #233);
   transition: background .12s, border-color .12s; }
-.fr-xip:hover:not(:disabled) { border-color: var(--color-primary, #094E8C); color: var(--color-primary, #094E8C); }
-.fr-xip.fr-triada, .fr-xip.fr-triada:hover:not(:disabled) { background: var(--color-primary, #094E8C); border-color: var(--color-primary, #094E8C); color: #fff; }
+.fr-xip:hover:not(:disabled) { border-color: var(--color-primary, #00806C); color: var(--color-primary, #00806C); }
+.fr-xip.fr-triada, .fr-xip.fr-triada:hover:not(:disabled) { background: var(--color-primary, #00806C); border-color: var(--color-primary, #00806C); color: #fff; }
 .fr-xip:disabled { opacity: .5; cursor: default; }
 .fr-o { font-size: .74rem; color: var(--color-text-muted, #7a8aa0); margin-left: 2px; }
 </style>
