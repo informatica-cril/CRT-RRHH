@@ -92,6 +92,12 @@ Route::prefix('v1')->group(function () {
                vegeu UserController::MAX_TANDA. Ha d'anar ABANS de {user} o «provisiona-domi-
                pendents» s'entendria com un identificador d'usuari. */
             Route::post('provisiona-domi-pendents', [UserController::class, 'provisionaDomiPendents'])->middleware('role:admin,hr');
+            // Persones que fitxen sense horari assignat (Safata). Abans de {user}, com l'anterior.
+            Route::get('sense-horari', [UserController::class, 'llistaSenseHorari'])->middleware('role:admin,hr');
+            // Treure o tornar l'accés a l'app a una selecció (segueixen a la plantilla).
+            Route::post('acces-app', [UserController::class, 'accesApp'])->middleware('role:admin,hr');
+            // Activar o desactivar una selecció (mateixes regles que la fitxa).
+            Route::post('estat-seleccio', [\App\Http\Controllers\Api\UserEstatController::class, 'seleccio'])->middleware('role:admin,hr');
             // Fitxa d'un usuari: el propi titular o personal de gestió.
             Route::get('{user}', [UserController::class, 'show'])->middleware('owner:user');
             // update: qualsevol autenticat, però el controlador limita què pot tocar
@@ -290,6 +296,8 @@ Route::prefix('v1')->group(function () {
             // Recalcular la zona quan canvien els codis postals o municipis d'una persona (domiciliària).
             Route::get('fora-zona/{user}', [\App\Http\Controllers\Api\WorkLogZonaController::class, 'foraZona'])->middleware('role:admin,hr');
             Route::post('reavalua-zona', [\App\Http\Controllers\Api\WorkLogZonaController::class, 'reavalua'])->middleware('role:admin,hr');
+            // «Corregir zona»: RRHH i admin indiquen que una marca es va fer dins de zona (amb motiu).
+            Route::post('{workLog}/corregir-zona', [\App\Http\Controllers\Api\WorkLogZonaController::class, 'corregir'])->middleware('role:admin,hr');
             Route::get('user/{userId}', [WorkLogController::class, 'byUser'])->middleware('owner');
             // store/update: el controlador comprova propietat (el propi titular o staff).
             Route::post('/', [WorkLogController::class, 'store']);

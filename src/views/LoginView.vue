@@ -44,12 +44,12 @@
       <form v-if="!showResetForm" class="login-form" @submit.prevent="handleLogin" id="login-form">
         <div class="form-group">
           <label class="form-label" for="login-email">{{ t('login_email') }}</label>
-          <input class="form-input" id="login-email" type="email" v-model="email" required autocomplete="email" 
+          <input class="form-input" id="login-email" type="email" v-model="email" required autocomplete="username"
             :placeholder="loginMode === 'admin' ? 'admin@crtbcn.cat' : 'nom@crtbcn.cat'" />
         </div>
         <div class="form-group">
           <label class="form-label" for="login-password">{{ t('login_password') }}</label>
-          <input class="form-input" id="login-password" type="password" v-model="password" required autocomplete="current-password" placeholder="••••••" />
+          <CampContrasenya class="form-input" id="login-password" v-model="password" required autocomplete="current-password" placeholder="••••••" />
         </div>
         <div class="form-group" style="display:flex;align-items:center;gap:8px;">
           <input id="login-remember" type="checkbox" v-model="rememberPassword" style="width:auto;" />
@@ -115,12 +115,14 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import CampContrasenya from '../components/CampContrasenya.vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { i18n } from '../i18n'
 
 const authStore = useAuthStore()
 const router = useRouter()
+const route = useRoute()
 const t = (key) => i18n.t(key)
 
 const loginMode = ref('admin')
@@ -128,14 +130,22 @@ const email = ref('')
 const password = ref('')
 const loading = ref(false)
 
-// Remember password
+// Recordar NOMÉS el correu. La contrasenya no es desa mai a l'app (abans es guardava en clar
+// a localStorage): si la persona vol, la desa el gestor de contrasenyes del navegador, xifrada.
 const REMEMBER_KEY = 'remembered_credentials'
 const rememberPassword = ref(false)
-const remembered = JSON.parse(window.localStorage.getItem(REMEMBER_KEY) || 'null')
-if (remembered) {
+let remembered = null
+try { remembered = JSON.parse(window.localStorage.getItem(REMEMBER_KEY) || 'null') } catch (e) { remembered = null }
+if (remembered && typeof remembered === 'object') {
   email.value = remembered.email || ''
-  password.value = remembered.password || ''
-  rememberPassword.value = true
+  rememberPassword.value = !!remembered.email
+  // Les desades amb la versió antiga perden la contrasenya ara mateix.
+  if ('password' in remembered) {
+    try {
+      if (remembered.email) window.localStorage.setItem(REMEMBER_KEY, JSON.stringify({ email: remembered.email }))
+      else window.localStorage.removeItem(REMEMBER_KEY)
+    } catch (e) { /* emmagatzematge bloquejat */ }
+  }
 }
 const locales = i18n.availableLocales
 const currentLocale = computed(() => i18n.locale)
@@ -171,11 +181,15 @@ async function handleLogin() {
   loading.value = false
   if (success) {
     if (rememberPassword.value) {
-      window.localStorage.setItem(REMEMBER_KEY, JSON.stringify({ email: email.value, password: password.value }))
+      window.localStorage.setItem(REMEMBER_KEY, JSON.stringify({ email: email.value }))
     } else {
       window.localStorage.removeItem(REMEMBER_KEY)
     }
-    if (authStore.isWorker) {
+    // Torna a la pàgina on anava (sessió caducada o enllaç directe); només rutes internes.
+    const desti = String(route.query.redirect || '')
+    if (desti.startsWith('/') && !desti.startsWith('//') && !desti.startsWith('/login')) {
+      router.push(desti)
+    } else if (authStore.isWorker) {
       router.push('/worker')
     } else {
       router.push('/')

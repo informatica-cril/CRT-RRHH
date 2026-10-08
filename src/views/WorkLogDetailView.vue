@@ -49,19 +49,51 @@
             </div>
           </div>
         </div>
+
+        <!-- «Corregir zona»: era en un centre que no tenia assignat, o el GPS va fallar -->
+        <div v-if="potReobrir && marquesFora.length" class="correccio">
+          <button v-if="!zona.obert" class="btn btn-outline btn-sm" @click="obreZona">📍 Corregir zona</button>
+          <div v-else class="correccio-form">
+            <div class="text-small"><strong>Quines marques es van fer dins de zona?</strong></div>
+            <div class="correccio-camps">
+              <label v-for="m in marquesFora" :key="m.clau" class="zona-marca">
+                <input type="checkbox" :value="m.clau" v-model="zona.marques" /> {{ m.nom }}
+              </label>
+            </div>
+            <label class="text-small">On era
+              <select v-model="zona.centre" class="form-select">
+                <option value="">— Sense indicar centre —</option>
+                <option v-for="c in zona.centres" :key="c.id" :value="c.id">{{ c.name }}</option>
+              </select>
+            </label>
+            <textarea v-model="zona.motiu" rows="2" class="form-input"
+              placeholder="Motiu (mínim 10 caràcters). P. ex.: era a Viladomat, centre que encara no tenia assignat."></textarea>
+            <div v-if="zona.error" class="correccio-error">{{ zona.error }}</div>
+            <div class="text-small text-muted">Les marques triades passen a dins de zona i es recalculen els trams, les hores fora de zona i el temps efectiu.</div>
+            <div class="correccio-botons">
+              <button class="btn btn-primary btn-sm" :disabled="zona.desant || !zona.marques.length || zona.motiu.trim().length < 10" @click="desaZona">
+                {{ zona.desant ? 'Desant…' : 'Desar correcció' }}
+              </button>
+              <button class="btn btn-outline btn-sm" :disabled="zona.desant" @click="zona.obert = false">Cancel·lar</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Pausa obligatoria -->
       <div v-if="workLog.break_required" class="card break-card">
         <div class="break-cap">
           <h3>☕ Pausa obligatòria</h3>
-          <span class="break-estat" :class="'pausa-' + (workLog.break_status || 'pending')">{{ iconaPausa }} {{ etiqueta('pausa', workLog.break_status || 'pending') }}</span>
+          <span class="break-estat" :class="'pausa-' + (pausaNoFeta ? 'skipped' : (workLog.break_status || 'pending'))">{{ pausaNoFeta ? '⛔ No feta' : iconaPausa + ' ' + etiqueta('pausa', workLog.break_status || 'pending') }}</span>
         </div>
         <div class="break-linia">
           <div class="break-dada"><span class="break-et">Inici</span><strong>{{ workLog.break_start_time ? horaDe(workLog.break_start_time) : '—' }}</strong></div>
           <div class="break-fletxa">→</div>
           <div class="break-dada"><span class="break-et">Fi</span><strong>{{ workLog.break_end_time ? horaDe(workLog.break_end_time) : (workLog.break_status === 'active' ? 'en curs' : '—') }}</strong></div>
           <div class="break-dada break-durada"><span class="break-et">Durada</span><strong>{{ duradaPausa ?? '—' }}</strong></div>
+        </div>
+        <div v-if="pausaNoFeta" class="break-avis">
+          La jornada es va tancar sense fer la pausa obligatòria: ni la persona la va iniciar ni la va obrir el servidor.
         </div>
         <div v-if="pausaIncoherent" class="break-avis">
           ⚠ L'hora de fi és anterior a la d'inici: aquest registre de pausa no és coherent i cal corregir-lo.
@@ -238,6 +270,9 @@ const duradaPausa = computed(() => {
   if (m === null || m < 0) return null
   return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`
 })
+// Jornada tancada amb la pausa encara «pendent»: ja no es pot fer, no és «pendent de fer».
+const pausaNoFeta = computed(() => !!workLog.value?.end_time && !workLog.value?.break_start_time
+  && (!workLog.value?.break_status || workLog.value.break_status === 'pending'))
 const iconaPausa = computed(() => ({ completed: '✅', active: '⏳', skipped: '⛔' }[workLog.value?.break_status] || '🕒'))
 
 // Les coordenades només arriben si qui mira les pot veure (EIPD §6.3); si no hi són, no es diu res.
@@ -365,6 +400,40 @@ async function desaCorreccio() {
   }
 }
 
+// «Corregir zona». Les marques de pausa arriben com 0/1 o null (sense cast).
+const esFora = (v) => v === false || v === 0 || v === '0'
+const marquesFora = computed(() => {
+  const w = workLog.value
+  if (!w || !w.end_time) return []
+  return [
+    { clau: 'entrada', nom: 'Entrada', fora: esFora(w.start_location_match) },
+    { clau: 'pausa', nom: 'Pausa', fora: esFora(w.break_start_location_match) || esFora(w.break_end_location_match) },
+    { clau: 'sortida', nom: 'Sortida', fora: esFora(w.end_location_match) },
+  ].filter(m => m.fora)
+})
+const zona = reactive({ obert: false, marques: [], centre: '', centres: [], motiu: '', desant: false, error: '' })
+async function obreZona() {
+  Object.assign(zona, { obert: true, marques: marquesFora.value.map(m => m.clau), centre: '', motiu: '', error: '' })
+  if (!zona.centres.length) {
+    try { zona.centres = (await db.getAmbulatoryCenters()) || [] } catch (e) { zona.centres = [] }
+  }
+}
+async function desaZona() {
+  zona.error = ''
+  zona.desant = true
+  try {
+    await api.post(`/v1/work-logs/${workLog.value.id}/corregir-zona`, {
+      marques: zona.marques, centre_id: zona.centre || null, motiu: zona.motiu.trim(),
+    })
+    zona.obert = false
+    await loadData()
+  } catch (e) {
+    zona.error = e?.message || "No s'ha pogut desar la correcció."
+  } finally {
+    zona.desant = false
+  }
+}
+
 const allegationText = ref({})
 
 async function sendAllegation(seg) {
@@ -421,6 +490,8 @@ async function sendAllegation(seg) {
 .btn-approve { background: #4caf50; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
 .btn-reject { background: #f44336; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
 .correccio { margin-top: 12px; }
+.correccio-camps .zona-marca { display: flex; flex-direction: row; align-items: center; gap: 6px; font-size: 0.9rem; }
+.correccio-camps .zona-marca input { width: auto; margin: 0; }
 .correccio-form { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid #e0e0e0; border-radius: 8px; }
 .correccio-camps { display: flex; gap: 12px; flex-wrap: wrap; }
 .correccio-camps label { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; font-weight: 600; }

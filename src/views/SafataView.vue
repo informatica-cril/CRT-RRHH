@@ -11,20 +11,28 @@
     <div v-if="carregant" class="sf-buida">Calculant els pendents…</div>
     <div v-else-if="total === 0" class="sf-buida ok">✓ Res pendent. Bona feina.</div>
 
-    <div class="sf-cards">
-      <router-link v-for="c in cuesOrdenades" :key="c.clau" :to="c.enllac"
-        class="sf-card" :class="c.n > 0 ? c.urgencia : 'zero'" @click="c.clau === 'sensesortida' && baixaALaLlista()">
+    <!-- Només el que té feina; el que és al dia queda en una línia discreta a sota. -->
+    <div v-if="!carregant && actives.length" class="sf-cards">
+      <router-link v-for="c in actives" :key="c.clau" :to="c.enllac"
+        class="sf-card" :class="c.urgencia" @click="baixaALaLlista(c.clau)">
         <div class="sf-ico">{{ c.icona }}</div>
         <div class="sf-body">
-          <div class="sf-titol">{{ c.titol }} <span class="sf-n">{{ c.n }}</span></div>
+          <div class="sf-sub sf-urg">{{ URGENCIA[c.urgencia] }}</div>
+          <div class="sf-titol">{{ c.titol }}</div>
           <div class="sf-sub">{{ c.sub }}</div>
-          <span v-if="c.n > 0" class="sf-cta">{{ c.clau === 'sensesortida' ? 'Veure la llista ▾' : 'Obrir i treballar ▸' }}</span>
-          <span v-else class="sf-sub ok">✓ res pendent</span>
+          <span class="sf-cta">{{ LLISTES[c.clau] ? 'Veure la llista' : 'Obrir i resoldre' }} →</span>
         </div>
+        <span class="sf-n">{{ c.n }}</span>
       </router-link>
     </div>
 
+    <div v-if="!carregant && alDia.length && actives.length" class="sf-aldia">
+      <span class="sf-aldia-t">✓ Al dia:</span>
+      <router-link v-for="c in alDia" :key="c.clau" :to="c.enllac" class="sf-xip">{{ c.icona }} {{ c.titol }}</router-link>
+    </div>
+
     <JornadesSenseSortida />
+    <PersonesSenseHorari v-if="esGestio" />
   </div>
 </template>
 
@@ -34,21 +42,26 @@ import db from '../services/db'
 import api from '../services/apiClient'
 import { useAuthStore } from '../stores/auth'
 import JornadesSenseSortida from '../components/JornadesSenseSortida.vue'
+import PersonesSenseHorari from '../components/PersonesSenseHorari.vue'
 
-// La llista de jornades sense sortida ja és a sota de les targetes: la targeta només hi baixa.
-function baixaALaLlista() {
-  setTimeout(() => document.getElementById('sense-sortida')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+// Llistes que ja són a sota de les targetes: la targeta només hi baixa.
+const LLISTES = { sensesortida: 'sense-sortida', sensehorari: 'sense-horari' }
+function baixaALaLlista(clau) {
+  const id = LLISTES[clau]
+  if (!id) return
+  setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
 }
+const esGestio = ['admin', 'hr'].includes(useAuthStore().user?.role)
 
 const authStore = useAuthStore()
 const carregant = ref(true)
 const cues = ref([])
 const total = computed(() => cues.value.reduce((s, c) => s + c.n, 0))
 const PES = { alta: 0, mitjana: 1, baixa: 2 }
-const cuesOrdenades = computed(() => [...cues.value].sort((a, b) => {
-  if ((a.n > 0) !== (b.n > 0)) return a.n > 0 ? -1 : 1
-  return (PES[a.urgencia] ?? 9) - (PES[b.urgencia] ?? 9)
-}))
+const URGENCIA = { alta: 'Urgent', mitjana: 'Aquesta setmana', baixa: 'Quan es pugui' }
+const actives = computed(() => cues.value.filter(c => c.n > 0)
+  .sort((a, b) => (PES[a.urgencia] ?? 9) - (PES[b.urgencia] ?? 9) || b.n - a.n))
+const alDia = computed(() => cues.value.filter(c => c.n === 0))
 
 // Compta amb tancament segur: si una cua peta, val 0 i la resta segueix.
 async function n(promise, filtre) {
@@ -68,6 +81,7 @@ onMounted(async () => {
   const fitxatges = nCua('fitxatges')
   const foraZona = nCua('forazona')
   const senseSortida = nCua('sensesortida')
+  const senseHorari = nCua('sensehorari')
   const [absencies, excedencies, suggeriments, conciliacio] = await Promise.all([
     n(db.getAbsences(), a => a.approved === null || a.approved === undefined),
     n(db.getExcedencias(), e => e.status === 'pending'),
@@ -83,14 +97,15 @@ onMounted(async () => {
     ? await n(api.get('/v1/comite/hores?estat=pendent'))
     : 0
   cues.value = [
-    { clau: 'fitxatges', titol: 'Fitxatges pendents d\'aprovar', sub: 'registres de jornada a validar', icona: '⏱', n: fitxatges, urgencia: 'mitjana', enllac: '/work-logs' },
-    { clau: 'forazona', titol: 'Fitxatges fora de zona', sub: 'marca feta fora del domicili', icona: '📍', n: foraZona, urgencia: 'alta', enllac: '/work-logs' },
+    { clau: 'fitxatges', titol: 'Fitxatges pendents d\'aprovar', sub: 'registres de jornada a validar', icona: '⏱', n: fitxatges, urgencia: 'mitjana', enllac: '/work-logs?vista=pendents' },
+    { clau: 'forazona', titol: 'Fitxatges fora de zona', sub: 'marca feta fora de la zona o el centre assignat', icona: '📍', n: foraZona, urgencia: 'alta', enllac: '/work-logs?vista=forazona' },
     { clau: 'sensesortida', titol: 'Jornades sense sortida', sub: "fitxatges d'altres dies sense sortida: llista a sota", icona: '🚪', n: senseSortida, urgencia: 'alta', enllac: '/safata#sense-sortida' },
     { clau: 'absencies', titol: 'Permisos per aprovar', sub: 'sol·licituds d\'absència pendents', icona: '📋', n: absencies, urgencia: 'mitjana', enllac: '/absences' },
     { clau: 'excedencies', titol: 'Excedències per resoldre', sub: 'sol·licituds pendents', icona: '📄', n: excedencies, urgencia: 'mitjana', enllac: '/excedencies' },
     { clau: 'disciplinari', titol: 'Suggeriments disciplinaris', sub: 'el motor proposa; decideix una persona', icona: '⚖️', n: suggeriments, urgencia: 'alta', enllac: '/disciplinary' },
     { clau: 'conciliacio', titol: 'Comptes domi per conciliar', sub: 'identitats domi ↔ RRHH sense vincular', icona: '🔗', n: conciliacio, urgencia: 'baixa', enllac: '/conciliacio' },
     { clau: 'drets', titol: 'Drets RGPD per respondre', sub: 'sol·licituds amb termini d\'un mes (art. 12.3)', icona: '🔐', n: drets, urgencia: 'alta', enllac: '/privacy' },
+    { clau: 'sensehorari', titol: 'Persones sense horari', sub: "no se'ls poden calcular hores ni pauses: llista a sota", icona: '🗓️', n: senseHorari, urgencia: 'alta', enllac: '/safata#sense-horari', nomesGestio: true },
     { clau: 'comite', titol: 'Hores de comitè per validar', sub: 'crèdit horari de la representació (art. 68 ET)', icona: '🤝', n: comite, urgencia: 'mitjana', enllac: '/comite' },
   ]
   carregant.value = false
@@ -103,23 +118,28 @@ onMounted(async () => {
 .sf-head > div { flex: 1; }
 .sf-tot { background: var(--color-navy, #0A2A4A); color: #fff; border-radius: 12px; padding: 10px 18px; font-weight: 800; white-space: nowrap; }
 .sf-tot b { font-size: 1.5rem; margin-right: 6px; font-variant-numeric: tabular-nums; }
-.sf-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; margin-top: 14px; }
-.sf-card { background: var(--color-surface, #fff); border: 1px solid var(--color-border, #DCE4EE); border-left: 5px solid #cfd8e3; border-radius: 14px; padding: 16px; display: flex; gap: 14px; align-items: flex-start; text-decoration: none; color: inherit; transition: box-shadow .15s; min-height: 56px; }
-.sf-card:hover { box-shadow: 0 6px 18px rgba(10,42,74,.10); }
-.sf-card.alta { border-left-color: #B3352F; }
-.sf-card.mitjana { border-left-color: #D9A400; }
-.sf-card.baixa { border-left-color: #0DAF83; }
-.sf-card.zero { opacity: .5; }
-.sf-ico { font-size: 1.6rem; line-height: 1; flex-shrink: 0; width: 36px; text-align: center; }
-.sf-body { flex: 1; min-width: 0; }
-.sf-titol { font-weight: 700; font-size: .98rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.sf-sub { font-size: .78rem; color: var(--color-text-muted, #7a8aa0); margin-top: 3px; }
-.sf-sub.ok { color: #0A7C5E; }
-.sf-n { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 24px; padding: 0 7px; border-radius: 99px; font-size: .86rem; font-weight: 800; color: #fff; background: #B3352F; font-variant-numeric: tabular-nums; }
-.sf-card.mitjana .sf-n { background: #D9A400; }
-.sf-card.baixa .sf-n { background: #0DAF83; }
-.sf-card.zero .sf-n { background: #b6c2d1; }
-.sf-cta { font-size: .76rem; color: var(--color-primary, #00806C); font-weight: 700; margin-top: 8px; display: inline-block; }
+.sf-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-top: 16px; }
+.sf-card { background: var(--color-surface, #fff); border: 1px solid var(--color-border, #DCE4EE); border-top: 4px solid #cfd8e3; border-radius: 14px; padding: 16px 18px; display: flex; gap: 14px; align-items: flex-start; text-decoration: none; color: inherit; transition: box-shadow .15s, transform .15s; height: 100%; box-sizing: border-box; }
+.sf-card:hover { box-shadow: 0 8px 22px rgba(10,42,74,.12); transform: translateY(-1px); }
+.sf-card.alta { border-top-color: #B3352F; }
+.sf-card.mitjana { border-top-color: #D9A400; }
+.sf-card.baixa { border-top-color: #0DAF83; }
+.sf-ico { font-size: 1.5rem; line-height: 1; flex-shrink: 0; width: 32px; text-align: center; margin-top: 2px; }
+.sf-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sf-urg { text-transform: uppercase; letter-spacing: .04em; font-weight: 700; font-size: .68rem; margin: 0 0 2px; }
+.sf-card.alta .sf-urg { color: #B3352F; }
+.sf-card.mitjana .sf-urg { color: #9A7400; }
+.sf-card.baixa .sf-urg { color: #0A7C5E; }
+.sf-titol { font-weight: 700; font-size: 1rem; line-height: 1.3; }
+.sf-sub { font-size: .8rem; color: var(--color-text-muted, #7a8aa0); margin-top: 3px; }
+.sf-n { flex-shrink: 0; font-size: 1.9rem; font-weight: 800; line-height: 1; color: #B3352F; font-variant-numeric: tabular-nums; }
+.sf-card.mitjana .sf-n { color: #9A7400; }
+.sf-card.baixa .sf-n { color: #0A7C5E; }
+.sf-cta { font-size: .8rem; color: var(--color-primary, #00806C); font-weight: 700; margin-top: auto; padding-top: 10px; }
+.sf-aldia { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 16px; padding: 10px 14px; background: var(--color-surface, #fff); border: 1px dashed var(--color-border, #DCE4EE); border-radius: 12px; }
+.sf-aldia-t { font-size: .82rem; font-weight: 700; color: #0A7C5E; margin-right: 4px; }
+.sf-xip { font-size: .78rem; color: var(--color-text-muted, #5f6f86); text-decoration: none; padding: 3px 10px; border-radius: 99px; background: var(--color-bg, #f3f6fa); }
+.sf-xip:hover { color: var(--color-primary, #00806C); }
 .sf-buida { background: #e4f5ee; border: 1px solid #b6e0cf; border-radius: 12px; padding: 26px; text-align: center; color: #0A6B50; font-size: 1.05rem; margin-top: 12px; }
 @media (max-width: 600px) { .sf-cards { grid-template-columns: 1fr; } }
 </style>

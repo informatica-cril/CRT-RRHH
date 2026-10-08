@@ -67,6 +67,8 @@ class WorkLogCorreccioController extends Controller
                 'complementary_minutes' => intval(round(max(0, $total - 8) * 60)),
                 'status' => 'pending',
                 'segmented' => false,
+                // Una jornada oberta que es tanca aquí deixa d'estar «en curs».
+                'hour_status' => $log->hour_status === 'in_progress' ? 'ok' : $log->hour_status,
             ]);
 
             // Els trams es tornen a fer amb les hores noves (mateixes regles que en fitxar la sortida).

@@ -31,11 +31,8 @@ class WorkLogBulkController extends Controller
             $logs = WorkLog::whereIn('id', $data['ids'])->where('status', 'pending')->lockForUpdate()->get();
             foreach ($logs as $l) {
                 $canvis = ['status' => 'approved'];
-                $foraZona = (float) $l->hours_out_of_area;
-                if ($l->hour_status === 'out_of_area' || $foraZona > 0) {
-                    $restaurades = round((float) $l->total_hours_worked + $foraZona, 2);
-                    $canvis += ['total_hours_worked' => $restaurades, 'hours_worked' => $restaurades,
-                        'hours_out_of_area' => 0, 'hour_status' => 'ok'];
+                if ($l->hour_status === 'out_of_area' || (float) $l->hours_out_of_area > 0) {
+                    $canvis += $l->canvisRestauraForaZona();
                 }
                 $l->forceFill($canvis)->save();
                 DB::table('work_log_modifications')->insert([

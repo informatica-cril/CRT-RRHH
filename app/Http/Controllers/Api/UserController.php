@@ -27,6 +27,9 @@ class UserController extends Controller
     /** Dades de CONTACTE que RRHH pot corregir a la fitxa d'una altra persona. */
     public const CAMPS_CONTACTE = ['name', 'email', 'device_phone'];
 
+    /** Només administració pot crear (o fer) administradors; RRHH no. */
+    public const NOMES_ADMIN = 'Només un administrador pot donar d\'alta un altre administrador (p. ex. el lloc «Gerencia»).';
+
     public function index()
     {
         // Excluir la columna password de la consulta (ya está en $hidden,
@@ -50,8 +53,12 @@ class UserController extends Controller
     public function store(StoreUserRequest $request)
     {
         $data = $request->validated();
+        abort_if(($data['role'] ?? null) === 'admin' && ! $request->user()->isAdmin(), 403, self::NOMES_ADMIN);
 
         $data['password'] = Hash::make($data['password']);
+        // ENS: la contrasenya de l'alta la tria (i la veu) qui dona d'alta; la persona l'ha de
+        // canviar en entrar per primer cop. Abans no es marcava i entrava sense canviar-la.
+        $data['must_change_password'] = true;
         $user = User::create($data);
 
         // Alta domiciliària → el compte domi es crea SOL (aprovisionament servei-a-servei; res manual).
@@ -65,6 +72,71 @@ class UserController extends Controller
         try { $user->materialitzaPacte($request->user()->id); } catch (\Throwable $e) {}
 
         return response()->json($user->makeHidden(['password'])->toArray() + ($domi !== null ? ['domi' => $domi] : []), 201);
+    }
+
+    /**
+     * Persones que fitxen i no tenen horari assignat (els autònoms no fan registre de jornada).
+     * Sense horari no es poden calcular les hores fora d'horari, les extres ni la pausa.
+     */
+    public static function senseHorari()
+    {
+        // Un horari sense cap dia actiu és com no tenir-ne (n'hi havia amb 0 dies i 30 h setmanals).
+        // Es filtra aquí i no a SQL: els dies són JSON i la BD de producció i la dels tests difereixen.
+        return User::with('workSchedule')->where('active', true)->where('role', 'worker')
+            ->where(fn ($q) => $q->whereNull('relacio')->orWhere('relacio', '<>', 'autonom'))
+            ->orderBy('name')->get()
+            ->filter(fn (User $u) => ! $u->workSchedule
+                || ! collect(\App\Models\WorkSchedule::normalizeDays($u->workSchedule->days))->contains('active', true))
+            ->values();
+    }
+
+    /**
+     * POST /api/v1/users/acces-app   Body: { ids: [..], acces: bool }
+     * Treu o torna l'«Accés a l'app» a una selecció de persones. Segueixen actives a la plantilla
+     * (horaris, informes, fitxatges de domi); només deixen de poder iniciar sessió. En treure'l
+     * es tanquen també les sessions obertes. Ningú no es treu l'accés a si mateix, i només
+     * administració el pot treure a un administrador.
+     */
+    public function accesApp(Request $request)
+    {
+        $data = $request->validate([
+            'ids' => 'required|array|min:1|max:500',
+            'ids.*' => 'integer',
+            'acces' => 'required|boolean',
+        ]);
+        $autor = $request->user();
+        $acces = (bool) $data['acces'];
+
+        $canviats = 0; $omesos = [];
+        foreach (User::whereIn('id', $data['ids'])->get() as $u) {
+            if ((int) $u->id === (int) $autor->id) { $omesos[] = ['id' => $u->id, 'motiu' => 'No et pots treure l\'accés a tu mateix.']; continue; }
+            if (in_array($u->role, ['admin', 'service'], true) && ! $autor->isAdmin()) { $omesos[] = ['id' => $u->id, 'motiu' => 'Només un administrador pot canviar l\'accés d\'un administrador.']; continue; }
+            if ((bool) ($u->acces_app ?? true) === $acces) continue;
+
+            $u->forceFill(['acces_app' => $acces])->save();
+            if (! $acces) $u->tokens()->delete();   // fora també les sessions obertes
+            $canviats++;
+
+            try {
+                \App\Models\AuditLog::create([
+                    'user_id' => $autor->id, 'action' => $acces ? 'ACCES_APP_TORNAT' : 'ACCES_APP_TRET',
+                    'entity_type' => 'user', 'entity_id' => $u->id,
+                    'description' => ($acces ? 'Accés a l\'app tornat a ' : 'Accés a l\'app tret a ') . $u->name,
+                    'ip_address' => $request->ip(), 'user_agent' => substr((string) $request->userAgent(), 0, 500),
+                ]);
+            } catch (\Throwable $e) { report($e); }
+        }
+
+        return response()->json(['canviats' => $canviats, 'omesos' => $omesos]);
+    }
+
+    /** GET /api/v1/users/sense-horari — llista per a la Safata (admin i RRHH). */
+    public function llistaSenseHorari()
+    {
+        return response()->json(self::senseHorari()->map(fn (User $u) => [
+            'id' => $u->id, 'name' => $u->name, 'email' => $u->email, 'job_profile' => $u->job_profile,
+            'created_at' => $u->created_at, 'motiu' => $u->workSchedule ? 'Horari sense cap dia' : 'Sense horari',
+        ]));
     }
 
     public function show(User $user)
@@ -296,6 +368,8 @@ class UserController extends Controller
     public function bulkStore(Request $request)
     {
         $request->validate(['users' => 'required|array']);
+        abort_if(! $request->user()->isAdmin()
+            && collect($request->users)->contains(fn ($u) => ($u['role'] ?? null) === 'admin'), 403, self::NOMES_ADMIN);
 
         $created = [];
         foreach ($request->users as $userData) {
@@ -304,6 +378,9 @@ class UserController extends Controller
                 $password = Hash::make($password);
             }
             $userData['password'] = $password;
+            // Igual que l'alta individual: qui dona d'alta coneix la contrasenya, així que s'ha
+            // de canviar en el primer accés (encara que la pantalla enviï el contrari).
+            $userData['must_change_password'] = true;
             $created[] = User::create($userData)->makeHidden(['password']);
         }
 

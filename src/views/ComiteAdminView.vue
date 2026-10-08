@@ -169,6 +169,7 @@
 import SelectorPersona from '../components/SelectorPersona.vue'
 import { confirma, demana } from '../utils/dialegs'
 import { ref, onMounted } from 'vue'
+import { useEstatUrl } from '../composables/useEstatUrl'
 import api, { apiFetchRaw } from '../services/apiClient'
 
 const TIPUS_HORES = {
@@ -183,6 +184,8 @@ const pestanyes = [
 
 const pestanya = ref('hores')
 const mes = ref(new Date().toISOString().slice(0, 7))
+useEstatUrl('pestanya', pestanya)
+useEstatUrl('mes', mes)
 const filtreEstat = ref('pendent')
 const error = ref('')
 const desant = ref(false)

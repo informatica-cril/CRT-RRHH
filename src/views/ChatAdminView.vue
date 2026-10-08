@@ -222,12 +222,14 @@
 <script setup>
 import SelectorPersona from '../components/SelectorPersona.vue'
 import { ref, computed, reactive, onMounted } from 'vue'
+import { useEstatUrl } from '../composables/useEstatUrl'
 import { db } from '../services/db'
 import { useAuthStore } from '../stores/auth'
 import { auditLog } from '../services/audit'
 
 const authStore = useAuthStore()
 const activeTab = ref('alerts')
+useEstatUrl('pestanya', activeTab)
 const showSettingsModal = ref(false)
 const showConvViewer = ref(false)
 const viewingConv = ref(null)

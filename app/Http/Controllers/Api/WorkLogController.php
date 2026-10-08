@@ -36,6 +36,10 @@ class WorkLogController extends Controller
         // detall, i sota les condicions de coordsVisibles().
         return response()->json(
             WorkLog::with('user:id,name')
+                // Temps fet fora de l'horari que encara no s'ha resolt (no compta a l'efectiu):
+                // la llista el mostra perquè no quedi amagat.
+                ->withSum(['segments as minuts_fora_horari_pendents' => fn ($q) => $q
+                    ->where('in_schedule', false)->where('status', 'pending')], 'duration_minutes')
                 ->when($perMes, function ($q) use ($mes) {
                     $ini = \Carbon\Carbon::createFromFormat('Y-m-d', $mes . '-01');
                     $q->whereBetween('date', [$ini->toDateString(), $ini->copy()->endOfMonth()->toDateString()]);
@@ -158,10 +162,38 @@ class WorkLogController extends Controller
         $justificacio = trim((string) ($data['justificacio'] ?? ''));
         unset($data['justificacio'], $data['disp'], $data['gps_error']);
 
+        // El titular només pot fitxar la sortida de la jornada oberta i bescanviar un codi
+        // d'hores extra; aprovar, rebutjar o tocar hores d'una jornada tancada és cosa de
+        // gestió. Tornar a enviar la sortida (p. ex. un reintent de l'app) no la mou.
+        if (! $request->user()?->isStaff()) {
+            $tancant = array_key_exists('end_time', $data) && ! $workLog->getRawOriginal('end_time');
+            if (! $tancant) {
+                $data = array_intersect_key($data, array_flip(['authorized_extra_code', 'extra_hours_authorized', 'extra_hours_unauthorized']));
+            }
+            unset($data['rejection_reason']);
+            if (($data['status'] ?? 'pending') !== 'pending') {
+                unset($data['status']);
+            }
+        }
+
+        // Aprovar donant per bones les hores fora de zona: les versions publicades de l'app
+        // envien total_hours_worked + hours_out_of_area, i com que total_hours_worked ja són
+        // les brutes, les duplicaven. Les hores les calcula el servidor.
+        if (($data['status'] ?? null) === 'approved' && ! array_key_exists('end_time', $data)
+            && array_key_exists('hours_out_of_area', $data) && (float) $data['hours_out_of_area'] === 0.0
+            && $workLog->getRawOriginal('end_time')) {
+            $data = array_merge($data, $workLog->canvisRestauraForaZona());
+        }
+
         // If clocking out, override end_time and recalculate hours server-side
         // (client clock may lag behind NTP, causing totalHours to be 0 or negative)
         if (array_key_exists('end_time', $data) && $data['end_time'] !== null) {
             $endNow = $this->workLogs->getAccurateTime();
+            // En tancar, la jornada deixa d'estar «en curs» encara que qui tanca no enviï
+            // hour_status (el pont de domi no l'envia).
+            if (($data['hour_status'] ?? $workLog->hour_status) === 'in_progress') {
+                $data['hour_status'] = 'ok';
+            }
             // Hora de Madrid directa (mateix conveni que start_time, veure store()).
             $data['end_time'] = $endNow->toDateTimeString();
 
@@ -180,7 +212,11 @@ class WorkLogController extends Controller
                 $breakSettings = \App\Models\BreakSetting::getSettings();
                 if ($breakSettings->enabled && $serverHours > $breakSettings->threshold_hours) {
                     $data['break_required'] = true;
-                    $data['break_status'] = 'pending';
+                    // Una pausa feta, omesa o en curs no torna a "pendent" en fitxar la sortida
+                    // (la en curs la tanca la tasca worklogs:pausa-automatica a l'hora de sortida).
+                    if (! in_array($workLog->break_status, ['active', 'completed', 'skipped'], true)) {
+                        $data['break_status'] = 'pending';
+                    }
                 }
             }
 
@@ -352,19 +388,31 @@ class WorkLogController extends Controller
         $now = $this->workLogs->getAccurateTime();
 
         $geo = $request->validate(['location_match' => 'nullable|boolean']);
-        $workLog->update([
-            'break_end_time' => $now->toDateTimeString(),
-            'break_end_location_match' => $geo['location_match'] ?? null,
-            'break_status' => 'completed',
-        ]);
+        $durada = (int) \App\Models\BreakSetting::getSettings()->break_duration_minutes;
+        $pausa = app(\App\Services\PausaObligatoria::class);
 
-        \App\Models\WorkLogModification::create([
-            'work_log_id' => $workLog->id,
-            'user_id' => $request->user()->id,
-            'action' => 'break_completed',
-            'new_values' => ['break_end_time' => $now->toDateTimeString()],
-            'comment' => 'Pausa obligatòria completada',
-        ]);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($workLog, $request, $geo, $now, $durada, $pausa) {
+            $log = WorkLog::whereKey($workLog->id)->lockForUpdate()->first();
+            // Ja la va tancar el servidor (worklogs:pausa-automatica): no es reescriu.
+            if ($log->break_status === 'completed' && $log->break_end_time) {
+                return;
+            }
+            // Si la pantalla es reobre més tard, la pausa no s'allarga: com a molt inici + durada.
+            $fi = $pausa->horaFi($log, $now, $durada)->toDateTimeString();
+            $log->update([
+                'break_end_time' => $fi,
+                'break_end_location_match' => $geo['location_match'] ?? null,
+                'break_status' => 'completed',
+            ]);
+
+            \App\Models\WorkLogModification::create([
+                'work_log_id' => $log->id,
+                'user_id' => $request->user()->id,
+                'action' => 'break_completed',
+                'new_values' => ['break_end_time' => $fi],
+                'comment' => 'Pausa obligatòria completada',
+            ]);
+        });
 
         return response()->json($workLog->fresh());
     }

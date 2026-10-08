@@ -81,6 +81,61 @@ class ReavaluaZonaTest extends TestCase
         $this->assertDatabaseHas('work_log_modifications', ['work_log_id' => $log->id, 'action' => 'modified']);
     }
 
+    public function test_si_nomes_la_sortida_queda_fora_ja_no_descompta_hores(): void
+    {
+        $u = $this->persona();
+        $log = $this->fitxatgeForaZona($u, self::A_PROP);
+        $log->update(['end_location_lat' => self::LLUNY[0], 'end_location_lng' => self::LLUNY[1]]);
+
+        $this->assignaPuntNou($u)->assertOk()->assertJsonPath('fitxatges_reavaluats', 1);
+
+        $log->refresh();
+        $this->assertTrue($log->start_location_match);
+        $this->assertFalse($log->end_location_match);
+        $this->assertEquals(7.0, (float) $log->effective_hours);
+        $this->assertEquals(0.0, (float) $log->hours_out_of_area); // abans quedava «-7h (Fora Zona)»
+        $this->assertEquals(7.0, (float) $log->hours_worked);
+        $this->assertSame('out_of_area', $log->hour_status); // la sortida es continua revisant
+    }
+
+    public function test_rrhh_corregeix_la_zona_a_ma_amb_centre_i_motiu(): void
+    {
+        $u = $this->persona();
+        $log = $this->fitxatgeForaZona($u, self::LLUNY); // cap centre assignat la cobreix
+        $hr = User::create(['name' => 'RRHH', 'email' => uniqid() . '@test.local', 'password' => bcrypt('x'), 'role' => 'hr', 'active' => true]);
+        $centre = \App\Models\AmbulatoryCenter::create(['name' => 'Viladomat', 'active' => true]);
+        Sanctum::actingAs($hr);
+
+        $this->postJson("/api/v1/work-logs/{$log->id}/corregir-zona", ['marques' => ['entrada', 'sortida'], 'centre_id' => $centre->id, 'motiu' => 'curt'])
+            ->assertStatus(422);
+        $this->postJson("/api/v1/work-logs/{$log->id}/corregir-zona", [
+            'marques' => ['entrada', 'sortida'], 'centre_id' => $centre->id, 'motiu' => 'Era a Viladomat, encara sense assignar',
+        ])->assertOk();
+
+        $log->refresh();
+        $this->assertTrue($log->start_location_match);
+        $this->assertTrue($log->end_location_match);
+        $this->assertSame('ok', $log->hour_status);
+        $this->assertEquals(0.0, (float) $log->hours_out_of_area);
+        $this->assertEquals(7.0, (float) $log->effective_hours);
+        $this->assertSame('approved', WorkLogSegment::where('work_log_id', $log->id)->first()->status);
+        $this->assertStringContainsString('Viladomat', $log->modifications()->latest('id')->first()->comment);
+
+        // Ja no hi ha res fora de zona per corregir.
+        $this->postJson("/api/v1/work-logs/{$log->id}/corregir-zona", ['marques' => ['entrada'], 'motiu' => 'Una altra vegada, prou llarg'])
+            ->assertStatus(422);
+    }
+
+    public function test_coordinacio_i_treballadors_no_corregeixen_la_zona(): void
+    {
+        $u = $this->persona();
+        $log = $this->fitxatgeForaZona($u, self::LLUNY);
+        Sanctum::actingAs($u);
+        $this->postJson("/api/v1/work-logs/{$log->id}/corregir-zona", ['marques' => ['entrada'], 'motiu' => 'M\'ho corregeixo jo mateixa'])
+            ->assertForbidden();
+        $this->assertFalse($log->fresh()->start_location_match);
+    }
+
     public function test_no_toca_els_que_queden_lluny_ni_els_ja_resolts(): void
     {
         $u = $this->persona();

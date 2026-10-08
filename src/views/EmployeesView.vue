@@ -23,8 +23,33 @@
           <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:0.5;">🔍</span>
           <input class="form-input" v-model="searchQuery" :placeholder="'Cerca per nom, email o DNI...'" style="padding-left:36px;" />
         </div>
-        <div class="text-small text-muted">Mostrant {{ filteredWorkers.length }} de {{ workers.length }}</div>
+        <select class="form-select tr-filtre" v-model="filtreAmbit" title="Àmbit">
+          <option value="">Tots els àmbits</option>
+          <option value="AMBULATORIA">Ambulatòria</option>
+          <option value="DOMICILIARIA">Domiciliària (BCN)</option>
+          <option value="DOMICILIARIA_VALLES">Domiciliària Vallès</option>
+          <option value="DOMI_TOTA">Domiciliària (totes)</option>
+          <option value="SENSE">Sense àmbit</option>
+        </select>
+        <select class="form-select tr-filtre" v-model="filtreEstat" title="Estat">
+          <option value="">Actius i inactius</option>
+          <option value="actiu">Només actius</option>
+          <option value="inactiu">Només inactius</option>
+          <option value="senseacces">Sense accés a l'app</option>
+        </select>
+        <div class="text-small text-muted" style="white-space:nowrap;">Mostrant {{ filteredWorkers.length }} de {{ workers.length }}</div>
       </div>
+    </div>
+
+    <!-- Accions per a la selecció -->
+    <div v-if="seleccionats.length" class="tr-seleccio">
+      <strong>{{ seleccionats.length }} seleccionada/es</strong>
+      <button class="btn btn-sm btn-success" :disabled="aplicant" @click="aplicaSeleccio('estat', true)">✓ Activar</button>
+      <button class="btn btn-sm btn-danger" :disabled="aplicant" @click="aplicaSeleccio('estat', false)">Desactivar</button>
+      <span class="tr-sep"></span>
+      <button class="btn btn-sm btn-outline" :disabled="aplicant" @click="aplicaSeleccio('acces', false)" title="Segueixen actives a la plantilla, però no poden entrar a l'app">🚫 Treure accés a l'app</button>
+      <button class="btn btn-sm btn-outline" :disabled="aplicant" @click="aplicaSeleccio('acces', true)">🔓 Tornar accés</button>
+      <button class="btn btn-sm btn-outline tr-buida" :disabled="aplicant" @click="seleccionats = []">Treure selecció</button>
     </div>
 
     <div class="card">
@@ -32,6 +57,7 @@
         <table>
           <thead>
             <tr>
+              <th class="tr-check"><input type="checkbox" :checked="totsSeleccionats" :indeterminate.prop="algunSeleccionat && !totsSeleccionats" @change="seleccionaTots($event.target.checked)" title="Seleccionar tots els que es mostren" /></th>
               <th @click="toggleSort('name')" style="cursor:pointer;white-space:nowrap;">{{ t('name') }} {{ sortKey === 'name' ? (sortDir === 1 ? '↑' : '↓') : '' }}</th>
               <th @click="toggleSort('dni')" style="cursor:pointer;white-space:nowrap;">DNI {{ sortKey === 'dni' ? (sortDir === 1 ? '↑' : '↓') : '' }}</th>
               <th @click="toggleSort('email')" style="cursor:pointer;white-space:nowrap;">{{ t('email') }} {{ sortKey === 'email' ? (sortDir === 1 ? '↑' : '↓') : '' }}</th>
@@ -44,7 +70,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="user in filteredWorkers" :key="user.id">
+            <tr v-for="user in filteredWorkers" :key="user.id" :class="{ 'tr-fila-sel': seleccionats.includes(user.id) }">
+              <td class="tr-check"><input type="checkbox" :value="user.id" v-model="seleccionats" /></td>
               <td><div style="display:flex;align-items:center;gap:8px;"><div class="header-avatar" style="width:28px;height:28px;font-size:0.7rem;">{{ initials(user.name) }}</div>{{ user.name }}<span v-if="user.practiques" class="badge badge-info" style="font-size:.68rem;" title="Alumne/a en pràctiques">🎓 Pràctiques</span></div></td>
               <td style="font-family:monospace;font-size:0.8rem;">{{ user.dni || '—' }}</td>
               <td>{{ user.email }}</td>
@@ -95,7 +122,12 @@
               </td>
               <td>{{ getScheduleName(user.work_schedule_id) }}</td>
               <td class="text-small text-muted">{{ user.seniority_date ? formatDate(user.seniority_date) : '—' }}</td>
-              <td><span class="badge" :class="user.active ? 'badge-success' : 'badge-danger'">{{ user.active ? 'Actiu' : 'Inactiu' }}</span></td>
+              <td>
+                <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;">
+                  <span class="badge" :class="user.active ? 'badge-success' : 'badge-danger'">{{ user.active ? 'Actiu' : 'Inactiu' }}</span>
+                  <span v-if="user.acces_app === false || user.acces_app === 0" class="badge tr-sense-acces" title="Segueix a la plantilla, però no pot entrar a l'app">🚫 Sense accés</span>
+                </div>
+              </td>
               <td>
                 <div style="display:flex;gap:4px;flex-wrap:wrap;">
                   <button class="btn btn-outline btn-sm" @click="openEditModal(user)">✎</button>
@@ -805,6 +837,7 @@
 import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useEstatUrl } from '../composables/useEstatUrl'
 import { db } from '../services/db'
 import api from '../services/apiClient'
 import { auditLog } from '../services/audit'
@@ -854,6 +887,7 @@ const showCalendarModal = ref(false), calendarUser = ref(null)
 const calendarSchedule = computed(() => schedules.value.find(s => s.id === calendarUser.value?.work_schedule_id) || null)
 function openCalendarModal(user) { calendarUser.value = user; showCalendarModal.value = true }
 const searchQuery = ref('')
+useEstatUrl('cerca', searchQuery)
 const sortKey = ref('name')
 const sortDir = ref(1)
 
@@ -959,8 +993,29 @@ const departmentsCatalog = ref([])
 const ambulatoryCentersList = ref([])
 const extraData = ref({}) // Stores assignments and points per worker
 
+// Filtres d'àmbit i d'estat (es desen a la URL, com la cerca).
+const filtreAmbit = ref('')
+const filtreEstat = ref('')
+useEstatUrl('ambit', filtreAmbit)
+useEstatUrl('estat', filtreEstat)
+const senseAcces = (u) => u.acces_app === false || u.acces_app === 0
+const passaAmbit = (u) => {
+  const a = filtreAmbit.value
+  if (!a) return true
+  if (a === 'SENSE') return !u.work_type
+  if (a === 'DOMI_TOTA') return String(u.work_type || '').startsWith('DOMICILIARIA')
+  return u.work_type === a
+}
+const passaEstat = (u) => {
+  const e = filtreEstat.value
+  if (e === 'actiu') return !!u.active
+  if (e === 'inactiu') return !u.active
+  if (e === 'senseacces') return senseAcces(u)
+  return true
+}
+
 const filteredWorkers = computed(() => {
-  let list = [...workers.value]
+  let list = workers.value.filter(u => passaAmbit(u) && passaEstat(u))
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()
     list = list.filter(u => 
@@ -984,6 +1039,45 @@ const filteredWorkers = computed(() => {
 function toggleSort(key) {
   if (sortKey.value === key) sortDir.value *= -1
   else { sortKey.value = key; sortDir.value = 1 }
+}
+
+// ── Selecció i accions en bloc (estat i accés a l'app) ──
+const seleccionats = ref([])
+const aplicant = ref(false)
+const idsVisibles = computed(() => filteredWorkers.value.map(u => u.id))
+const totsSeleccionats = computed(() => idsVisibles.value.length > 0 && idsVisibles.value.every(id => seleccionats.value.includes(id)))
+const algunSeleccionat = computed(() => idsVisibles.value.some(id => seleccionats.value.includes(id)))
+function seleccionaTots(marcar) {
+  const visibles = new Set(idsVisibles.value)
+  seleccionats.value = marcar
+    ? [...new Set([...seleccionats.value, ...visibles])]
+    : seleccionats.value.filter(id => !visibles.has(id))
+}
+async function aplicaSeleccio(tipus, valor) {
+  const n = seleccionats.value.length
+  const textos = {
+    'estat:true': `Activar ${n} persona/es?`,
+    'estat:false': `Desactivar ${n} persona/es? Deixaran d'entrar a l'aplicació i sortiran de la plantilla activa (es conserva tot l'historial).`,
+    'acces:false': `Treure l'accés a l'app a ${n} persona/es? Seguiran actives a la plantilla (horaris, informes, fitxatges de domi), però no podran iniciar sessió. Es tancaran les sessions obertes.`,
+    'acces:true': `Tornar l'accés a l'app a ${n} persona/es?`,
+  }
+  if (!await confirma(textos[`${tipus}:${valor}`])) return
+  aplicant.value = true
+  try {
+    const r = tipus === 'estat'
+      ? await api.post('/v1/users/estat-seleccio', { ids: seleccionats.value, active: valor })
+      : await api.post('/v1/users/acces-app', { ids: seleccionats.value, acces: valor })
+    auditLog(authStore.userId, tipus === 'estat' ? 'BULK_USER_STATUS' : 'BULK_APP_ACCESS', 'user', null,
+      `${tipus === 'estat' ? (valor ? 'Activades' : 'Desactivades') : (valor ? 'Accés tornat a' : 'Accés tret a')} ${r.canviats} persones`)
+    const omesos = (r.omesos || []).length
+    alert(`Fet: ${r.canviats} persona/es canviades.` + (omesos ? `\n${omesos} sense canviar: ${[...new Set(r.omesos.map(o => o.motiu))].join(' ')}` : ''))
+    seleccionats.value = []
+    await fetchData()
+  } catch (e) {
+    alert(e?.message || "No s'ha pogut aplicar el canvi.")
+  } finally {
+    aplicant.value = false
+  }
 }
 
 const showRevisarNoms = ref(false)
@@ -1583,6 +1677,17 @@ async function saveMuniAssignment() {
 </script>
 
 <style scoped>
+.tr-filtre { width: auto; min-width: 170px; }
+.tr-check { width: 34px; text-align: center; }
+.tr-check input { width: 16px; height: 16px; cursor: pointer; }
+.tr-fila-sel { background: rgba(0, 128, 108, 0.06); }
+.tr-seleccio { position: sticky; top: 8px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-bottom: 12px; padding: 10px 14px; border-radius: 12px; background: var(--color-primary, #00806C); color: #fff; box-shadow: 0 6px 18px rgba(0,128,108,.22); }
+.tr-seleccio strong { margin-right: 6px; }
+.tr-seleccio .btn-outline { background: #fff; }
+.tr-sep { width: 1px; height: 22px; background: rgba(255,255,255,.3); margin: 0 4px; }
+.tr-buida { margin-left: auto; }
+.tr-sense-acces { background: #fdecea; color: #a12a22; font-size: .7rem; }
 /* ── Estat a la fitxa ── */
 .estat-bloc { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .estat-xip { display: inline-block; font-size: .82rem; font-weight: 700; padding: 3px 12px; border-radius: 999px; }

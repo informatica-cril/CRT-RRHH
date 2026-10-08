@@ -87,7 +87,10 @@
                   <span v-if="Number(log.hours_out_of_area || 0) > 0" class="badge badge-danger" title="Hores Fora de Zona Descomptades">
                     -{{ formatHM(log.hours_out_of_area) }} (Fora Zona)
                   </span>
-                  <span v-if="!Number(log.extra_hours_authorized) && !Number(log.extra_hours_unauthorized) && !Number(log.hours_out_of_area)">—</span>
+                  <span v-if="horesForaHorari(log) > 0" class="badge badge-warning" title="Temps fet fora de l'horari: no compta fins que s'aprova el tram al detall">
+                    +{{ formatHM(horesForaHorari(log)) }} fora d'horari (per revisar)
+                  </span>
+                  <span v-if="!Number(log.extra_hours_authorized) && !Number(log.extra_hours_unauthorized) && !Number(log.hours_out_of_area) && !horesForaHorari(log)">—</span>
                 </div>
               </td>
               <td>
@@ -170,6 +173,7 @@ import api, { apiFetchRaw } from '../services/apiClient'
 import { i18n } from '../i18n'
 import { formatHM } from '../utils/formatHours'
 import { sortidaAltreDia } from '../utils/sortidaAltreDia'
+import { useEstatUrl, idOText } from '../composables/useEstatUrl'
 
 const authStore = useAuthStore()
 const workLogStore = useWorkLogStore()
@@ -183,6 +187,8 @@ function viewDetail(logId) {
 const now = new Date()
 const selectedMonth = ref(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
 const selectedUser = ref('all')
+useEstatUrl('mes', selectedMonth)
+useEstatUrl('persona', selectedUser, idOText)
 const showRejectModal = ref(false)
 const rejectReason = ref('')
 const rejectLogId = ref(null)
@@ -238,17 +244,24 @@ function distanciaTxt(l) {
   return d >= 1000 ? (d / 1000).toFixed(1).replace('.', ',') + ' km de la zona' : Math.round(d) + ' m de la zona'
 }
 
+// Hores fetes fora de l'horari amb el tram encara pendent (no sumen a l'efectiu).
+function horesForaHorari(l) {
+  return Number(l.minuts_fora_horari_pendents || 0) / 60
+}
+
 // Més de 14 h: gairebé sempre una sortida que no es va fitxar a temps (molts venen de l'app antiga).
 function esLlarg(l) {
   return l.start_time && l.end_time && (new Date(l.end_time) - new Date(l.start_time)) > 14 * 3600 * 1000
 }
 
 const vista = ref('tots')
+useEstatUrl('vista', vista)
 const filtres = [
   { clau: 'tots', nom: 'Tots', icona: '📋', to: 'neutre', fn: () => true },
   { clau: 'pendents', nom: "Pendents d'aprovar", icona: '⏳', to: 'groc', fn: l => l.status === 'pending' },
   { clau: 'forazona', nom: 'Fora de zona', icona: '📍', to: 'vermell', fn: esForaZona },
   { clau: 'extra', nom: 'Hores extra no autoritzades', icona: '⏱', to: 'taronja', fn: l => Number(l.extra_hours_unauthorized || 0) > 0 },
+  { clau: 'forahorari', nom: "Fora d'horari per revisar", icona: '🕘', to: 'taronja', fn: l => horesForaHorari(l) > 0 },
   { clau: 'sensesortida', nom: 'Sense sortida', icona: '🕒', to: 'taronja', fn: l => !l.end_time },
   { clau: 'llargs', nom: 'Més de 14 h', icona: '⚠️', to: 'vermell', fn: esLlarg },
   { clau: 'aprovats', nom: 'Aprovats', icona: '✅', to: 'verd', fn: l => l.status === 'approved' },
@@ -341,7 +354,7 @@ const valorOrdre = {
   inici: l => horaDe(l.start_time),
   fi: l => horaDe(l.end_time),
   hores: l => (l.end_time ? Number(l.effective_hours ?? l.total_hours_worked ?? 0) : null),
-  extres: l => Number(l.extra_hours_authorized || 0) + Number(l.extra_hours_unauthorized || 0),
+  extres: l => Number(l.extra_hours_authorized || 0) + Number(l.extra_hours_unauthorized || 0) + horesForaHorari(l),
   estat: l => ORDRE_ESTAT[l.status] ?? 9,
 }
 

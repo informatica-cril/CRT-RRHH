@@ -114,7 +114,10 @@ export const useWorkLogStore = defineStore('workLog', {
 
       try {
         // Get schedule for this worker
-        const schedule = await db.getWorkSchedule(authStore.user?.work_schedule_id || 1)
+        // Sense horari assignat no es demana res (abans es feia servir l'horari 1, d'una altra
+        // persona): compten les 8 h per defecte de més avall.
+        const sid = authStore.user?.work_schedule_id
+        const schedule = sid ? await db.getWorkSchedule(sid).catch(() => null) : null
         const dayOfWeek = now.getDay()
         const todaySchedule = schedule?.days?.find(d => (d.day === dayOfWeek || d.day_num === dayOfWeek) && d.active)
         const scheduledHours = todaySchedule
@@ -271,21 +274,12 @@ export const useWorkLogStore = defineStore('workLog', {
     },
 
     async approveLog(logId) {
-      const authStore = useAuthStore()
       const log = this.logs.find(l => l.id === logId)
       if (log) {
         try {
-          const updates = { id: log.id, status: 'approved' }
-          // Restoring out-of-area hours as valid when admin explicitly approves
-          if ((log.hour_status === 'out_of_area' || log.hours_out_of_area > 0)) {
-            const restored = Math.round((Number(log.total_hours_worked || 0) + Number(log.hours_out_of_area || 0)) * 100) / 100
-            updates.total_hours_worked = restored
-            updates.hours_worked = restored
-            updates.hours_out_of_area = 0
-            updates.hour_status = 'ok'
-          }
-          await db.updateWorkLog(updates)
-          auditLog(authStore.userId, 'APPROVE_WORKLOG', 'work_log', logId, `Aprovat${updates.total_hours_worked != null ? ` (restaurades ${updates.total_hours_worked}h)` : ''}`)
+          // El servidor aprova i, si hi havia hores fora de zona, les torna a les brutes
+          // (mateix camí que l'aprovació conjunta, que ja deixa la traça i l'auditoria).
+          await db.aprovaWorkLogs([log.id])
           await this.loadLogs()
         } catch (e) { console.error(e) }
       }

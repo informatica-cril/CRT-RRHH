@@ -124,6 +124,8 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'active' => 'boolean',
+        // Fora de $fillable a propòsit: només es canvia amb UserController::accesApp (amb control).
+        'acces_app' => 'boolean',
         'privacy_consent' => 'boolean',
         'onboarding_completed' => 'boolean',
         'must_change_password' => 'boolean',

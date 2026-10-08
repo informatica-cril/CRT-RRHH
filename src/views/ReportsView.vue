@@ -194,6 +194,7 @@ import { useWorkLogStore } from '../stores/workLog'
 import { db } from '../services/db'
 import { i18n } from '../i18n'
 import { formatHM } from '../utils/formatHours'
+import { useEstatUrl, idOText } from '../composables/useEstatUrl'
 
 const authStore = useAuthStore()
 const workLogStore = useWorkLogStore()
@@ -202,6 +203,8 @@ const t = (key) => i18n.t(key)
 const now = new Date()
 const selectedMonth = ref(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
 const selectedUser = ref(authStore.isStaff ? 'all' : authStore.userId)
+useEstatUrl('mes', selectedMonth)
+if (authStore.isStaff) useEstatUrl('persona', selectedUser, idOText)
 const workers = ref([])
 const users = ref([])
 const absences = ref([])

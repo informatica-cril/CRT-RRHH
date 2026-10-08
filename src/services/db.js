@@ -36,6 +36,7 @@ const db = {
   getWorkLogsByUser: (userId) => api.get(`/v1/work-logs/user/${userId}`),
   addWorkLog: (log) => api.post('/v1/work-logs', log),
   updateWorkLog: (log) => api.put(`/v1/work-logs/${log.id}`, log),
+  aprovaWorkLogs: (ids) => api.post('/v1/work-logs/aprova-seleccionats', { ids }),
 
   // ── Location Tracking ──
 

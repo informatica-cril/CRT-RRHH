@@ -14,18 +14,18 @@
       <form class="login-form" @submit.prevent="submit">
         <div class="form-group">
           <label class="form-label" for="fpc-current">Contrasenya actual</label>
-          <input class="form-input" id="fpc-current" type="password" v-model="currentPw" required autocomplete="current-password" />
+          <CampContrasenya class="form-input" id="fpc-current" v-model="currentPw" required autocomplete="current-password" />
         </div>
         <div class="form-group">
           <label class="form-label" for="fpc-new">Contrasenya nova</label>
-          <input class="form-input" id="fpc-new" type="password" v-model="newPw" required autocomplete="new-password" />
+          <CampContrasenya class="form-input" id="fpc-new" v-model="newPw" required autocomplete="new-password" />
           <p class="text-small text-muted" style="margin-top:4px;">
             Mínim 12 caràcters, amb majúscula, minúscula, xifra i símbol.
           </p>
         </div>
         <div class="form-group">
           <label class="form-label" for="fpc-confirm">Repeteix la contrasenya nova</label>
-          <input class="form-input" id="fpc-confirm" type="password" v-model="confirmPw" required autocomplete="new-password" />
+          <CampContrasenya class="form-input" id="fpc-confirm" v-model="confirmPw" required autocomplete="new-password" />
         </div>
         <button class="btn btn-primary btn-lg" type="submit" :disabled="loading">
           <span v-show="loading" class="spinner"></span>
@@ -45,6 +45,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import CampContrasenya from '../components/CampContrasenya.vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 

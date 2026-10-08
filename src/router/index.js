@@ -342,10 +342,19 @@ router.beforeEach(async (to, from, next) => {
   if (!authStore.isInitialized) {
     await authStore.init()
   }
-  
+
+  // Sessió caducada: l'apiClient ja ha esborrat el token, però l'estat seguia «connectat» i
+  // el login rebotava cap a l'inici (perdent la pàgina i el motiu). Es dona per tancada.
+  if (authStore.isAuthenticated && !localStorage.getItem('crt_api_token')) {
+    authStore.user = null
+    authStore.token = null
+    authStore.isAuthenticated = false
+  }
+
   // If requires auth and not authenticated, redirect to login
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    next({ name: 'login' })
+    // Es recorda on anava per tornar-hi després d'entrar.
+    next({ name: 'login', query: to.fullPath !== '/' ? { redirect: to.fullPath } : {} })
     return
   }
   

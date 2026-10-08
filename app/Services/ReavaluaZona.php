@@ -93,13 +93,43 @@ class ReavaluaZona
 
     public function aplica(WorkLog $workLog, bool $iniciDins, bool $fiDins, int $autorId): void
     {
-        DB::transaction(function () use ($workLog, $iniciDins, $fiDins, $autorId) {
+        $marques = array_keys(array_filter(['entrada' => $iniciDins, 'sortida' => $fiDins]));
+        $this->marcaDins($workLog, $marques, $autorId, 'Zona recalculada amb l\'assignació nova (centre, punt, codis postals o municipis): '
+            . implode(' i ', array_filter([$iniciDins ? 'l\'entrada' : null, $fiDins ? 'la sortida' : null]))
+            . ' ara queda dins de zona.');
+    }
+
+    /**
+     * «Corregir zona»: RRHH o administració indiquen que una o més marques es van fer dins de
+     * zona (p. ex. era a un centre que encara no tenia assignat, o el GPS va fallar). Mateixos
+     * càlculs que la reavaluació automàtica; el motiu i el centre queden a la traçabilitat.
+     *
+     * @param  string[]  $marques  'entrada', 'sortida' i/o 'pausa'
+     */
+    public function corregeixManual(WorkLog $workLog, array $marques, ?string $centre, string $motiu, int $autorId): void
+    {
+        $noms = ['entrada' => 'l\'entrada', 'sortida' => 'la sortida', 'pausa' => 'la pausa'];
+        $quines = implode(' i ', array_map(fn ($m) => $noms[$m], $marques));
+        $this->marcaDins($workLog, $marques, $autorId, 'Zona corregida a mà: ' . $quines
+            . ($centre ? " es va fer a {$centre}" : ' es va fer dins de zona') . ". Motiu: {$motiu}");
+    }
+
+    /** Posa dins de zona les marques indicades i recalcula trams, hores fora de zona i efectiu. */
+    private function marcaDins(WorkLog $workLog, array $marques, int $autorId, string $comentari): void
+    {
+        DB::transaction(function () use ($workLog, $marques, $autorId, $comentari) {
             $log = WorkLog::whereKey($workLog->id)->lockForUpdate()->first();
-            $abans = ['start_location_match' => $log->start_location_match, 'end_location_match' => $log->end_location_match];
+            $abans = ['start_location_match' => $log->start_location_match, 'end_location_match' => $log->end_location_match,
+                'break_start_location_match' => $log->break_start_location_match, 'break_end_location_match' => $log->break_end_location_match,
+                'hours_out_of_area' => $log->hours_out_of_area];
 
             $canvis = [];
-            if ($iniciDins) $canvis['start_location_match'] = true;
-            if ($fiDins) $canvis['end_location_match'] = true;
+            if (in_array('entrada', $marques, true)) $canvis['start_location_match'] = true;
+            if (in_array('sortida', $marques, true)) $canvis['end_location_match'] = true;
+            if (in_array('pausa', $marques, true)) {
+                if ($log->break_start_location_match !== null) $canvis['break_start_location_match'] = true;
+                if ($log->break_end_location_match !== null) $canvis['break_end_location_match'] = true;
+            }
             $log->update($canvis);
             $log->refresh();
 
@@ -109,10 +139,10 @@ class ReavaluaZona
             $pausaFora = $foraMarca($log->break_start_location_match) || $foraMarca($log->break_end_location_match);
 
             // Els trams hereten la zona de la marca que els obre (WorkLogService::segmentWorkLog).
-            // Si l'entrada ara és dins i cap marca de pausa no era fora, tots els trams són dins.
+            // Si l'entrada és dins i cap marca de pausa no és fora, tots els trams són dins.
             // Dins de zona i d'horari → aprovat (mateixa regla que en segmentar), tret que s'hi
             // hagi obert audiència: aquell el resol una persona.
-            if ($iniciDins && ! $pausaFora) {
+            if ($log->start_location_match !== false && ! $pausaFora) {
                 WorkLogSegment::where('work_log_id', $log->id)->where('status', 'pending')->where('in_zone', false)
                     ->get()->each(function (WorkLogSegment $s) {
                         $s->update(array_filter([
@@ -124,6 +154,7 @@ class ReavaluaZona
 
             if ($totDins && ! $pausaFora) {
                 $log->update([
+                    'location_match' => true,
                     'hours_out_of_area' => 0,
                     'hours_worked' => $log->total_hours_worked,
                     'hour_status' => $log->hour_status === 'out_of_area'
@@ -132,6 +163,12 @@ class ReavaluaZona
                 ]);
                 WorkLogAlert::where('work_log_id', $log->id)->where('type', 'out_of_zone')
                     ->whereNull('dismissed_at')->update(['dismissed_at' => now()]);
+            } elseif ($log->start_location_match !== false && ! $pausaFora
+                && $log->segmented && ! $log->teTramsForaZonaPendents()) {
+                // Només la sortida queda fora: per la regla de segmentació no descompta el temps
+                // anterior. Ja no hi ha hores fora de zona; la marca de sortida (hour_status i
+                // alerta) es manté perquè coordinació la revisi.
+                $log->update(['hours_out_of_area' => 0, 'hours_worked' => $log->total_hours_worked]);
             }
 
             $log->refresh()->recalcularEfectivo();
@@ -142,9 +179,7 @@ class ReavaluaZona
                 'action' => 'modified',
                 'old_values' => $abans,
                 'new_values' => $canvis,
-                'comment' => 'Zona recalculada amb l\'assignació nova (centre, punt, codis postals o municipis): '
-                    . implode(' i ', array_filter([$iniciDins ? 'l\'entrada' : null, $fiDins ? 'la sortida' : null]))
-                    . ' ara queda dins de zona.',
+                'comment' => $comentari,
             ]);
         });
     }

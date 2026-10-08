@@ -49,6 +49,9 @@ class SafataController extends Controller
                 'n' => DretsSollicitud::whereNull('resposta_ts')->count()];
             $cues[] = ['clau' => 'comite', 'titol' => 'Hores de comitè per validar', 'icona' => '🤝', 'urgencia' => 'mitjana', 'enllac' => '/comite',
                 'n' => ComiteHora::where('estat', 'pendent')->count()];
+            // Sense horari no es poden calcular hores fora d'horari, extres ni la pausa obligatòria.
+            $cues[] = ['clau' => 'sensehorari', 'titol' => 'Persones sense horari', 'icona' => '🗓️', 'urgencia' => 'alta', 'enllac' => '/safata',
+                'n' => UserController::senseHorari()->count()];
         }
 
         $cues = array_values(array_filter($cues, fn ($c) => $c['n'] > 0));

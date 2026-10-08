@@ -164,7 +164,6 @@ class WorkLogService
         // acreditat dins de zona, no es penalitza. La sortida fora de zona no invalida
         // la jornada; genera l'alerta i queda com a esdeveniment per revisar.
         $startInZone = (bool) ($workLog->start_location_match ?? false);
-        $endInZone = (bool) ($workLog->end_location_match ?? false);
 
         // Àncores de zona: marques amb veredicte conegut, en ordre temporal. La pausa
         // (inici i represa) és una marca més: si porta veredicte, obre tram nou.
@@ -201,6 +200,11 @@ class WorkLogService
             return $trossos;
         };
 
+        // Minuts d'un tram comptats amb les hores que es veuen (HH:MM): tallar els segons de
+        // cada tram per separat feia perdre un minut per tall (08:20→15:00 amb una pausa a les
+        // 13:35:57 sortia 6h 39min). Així la suma dels trams quadra sempre amb el total.
+        $minuts = fn (Carbon $a, Carbon $b): int => max(0, intval($a->copy()->seconds(0)->diffInMinutes($b->copy()->seconds(0))));
+
         $segments = [];
 
         $iniciJornada = $startTime->copy();
@@ -227,7 +231,7 @@ class WorkLogService
                             'start_time' => $tIni, 'end_time' => $tFi,
                             'start_lat' => null, 'start_lng' => null, 'end_lat' => null, 'end_lng' => null,
                             'in_zone' => $dins, 'in_schedule' => true,
-                            'duration_minutes' => intval($tIni->diffInMinutes($tFi)),
+                            'duration_minutes' => $minuts($tIni, $tFi),
                             'status' => $dins ? 'approved' : 'pending',
                         ];
                     }
@@ -237,7 +241,7 @@ class WorkLogService
                         'start_time' => $p->copy(), 'end_time' => $q->copy(),
                         'start_lat' => null, 'start_lng' => null, 'end_lat' => null, 'end_lng' => null,
                         'in_zone' => $zonaA($p), 'in_schedule' => false,
-                        'duration_minutes' => intval($p->diffInMinutes($q)), 'status' => 'pending',
+                        'duration_minutes' => $minuts($p, $q), 'status' => 'pending',
                     ];
                 }
             }
@@ -248,7 +252,7 @@ class WorkLogService
                     'start_time' => $tIni, 'end_time' => $tFi,
                     'start_lat' => null, 'start_lng' => null, 'end_lat' => null, 'end_lng' => null,
                     'in_zone' => $dins, 'in_schedule' => true,
-                    'duration_minutes' => intval($tIni->diffInMinutes($tFi)),
+                    'duration_minutes' => $minuts($tIni, $tFi),
                     'status' => $dins ? 'approved' : 'pending',
                 ];
             }
@@ -284,10 +288,13 @@ class WorkLogService
         // Alerta si qualsevol de les dues marques ha estat fora de zona. La de sortida
         // no torna pendent cap tram anterior: és un esdeveniment puntual per revisar.
         $pausaFora = collect($anchors)->skip(1)->contains(fn ($a) => $a[1] === false);
-        if (! $startInZone || ! $endInZone || $pausaFora) {
+        // Una sortida SENSE marca (corregida a mà amb «Corregir hora», o declarada) no és una
+        // sortida fora de zona: abans cada correcció creava l'alerta «sortida fora de zona».
+        $sortidaFora = $workLog->end_location_match === false;
+        if (! $startInZone || $sortidaFora || $pausaFora) {
             $motius = [];
             if (! $startInZone) $motius[] = 'entrada fora de zona: els trams oberts amb aquesta marca queden pendents de revisió';
-            if (! $endInZone) $motius[] = 'sortida fora de zona: el temps anterior acreditat dins de zona es conserva';
+            if ($sortidaFora) $motius[] = 'sortida fora de zona: el temps anterior acreditat dins de zona es conserva';
             if ($pausaFora) $motius[] = 'marca de pausa fora de zona: el tram que obre queda pendent de revisió';
             \App\Models\WorkLogAlert::create([
                 'work_log_id' => $workLog->id, 'user_id' => $workLog->user_id,
