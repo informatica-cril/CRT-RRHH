@@ -45,6 +45,21 @@ class AuthController extends Controller
             ]);
         }
 
+        // «Accés a l'app» tret per RRHH: segueix a la plantilla però no entra aquí. Es diu després
+        // de comprovar la contrasenya, perquè no serveixi per saber quins comptes existeixen.
+        if ($user->acces_app === false) {
+            try {
+                \App\Models\AuditLog::create([
+                    'user_id' => $user->id, 'action' => 'LOGIN_SENSE_ACCES', 'entity_type' => 'auth',
+                    'description' => 'Intent d\'entrada d\'un compte sense accés a l\'app',
+                    'ip_address' => $request->ip(), 'user_agent' => substr((string) $request->userAgent(), 0, 500),
+                ]);
+            } catch (\Throwable $e) { /* la traça no bloqueja */ }
+            throw ValidationException::withMessages([
+                'email' => ['Aquest compte no té accés a l\'app. Si creus que és un error, parla amb RRHH.'],
+            ]);
+        }
+
         // ENS Fase 2 — SEGON FACTOR (simètric a domi). La contrasenya és el factor 1.
         $sf = \App\Support\SecondFactor::verifica($user, [
             'disp_token'       => $request->input('disp_token'),

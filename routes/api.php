@@ -94,6 +94,10 @@ Route::prefix('v1')->group(function () {
             Route::post('provisiona-domi-pendents', [UserController::class, 'provisionaDomiPendents'])->middleware('role:admin,hr');
             // Persones que fitxen sense horari assignat (Safata). Abans de {user}, com l'anterior.
             Route::get('sense-horari', [UserController::class, 'llistaSenseHorari'])->middleware('role:admin,hr');
+            // Treure o tornar l'accés a l'app a una selecció (segueixen a la plantilla).
+            Route::post('acces-app', [UserController::class, 'accesApp'])->middleware('role:admin,hr');
+            // Activar o desactivar una selecció (mateixes regles que la fitxa).
+            Route::post('estat-seleccio', [\App\Http\Controllers\Api\UserEstatController::class, 'seleccio'])->middleware('role:admin,hr');
             // Fitxa d'un usuari: el propi titular o personal de gestió.
             Route::get('{user}', [UserController::class, 'show'])->middleware('owner:user');
             // update: qualsevol autenticat, però el controlador limita què pot tocar

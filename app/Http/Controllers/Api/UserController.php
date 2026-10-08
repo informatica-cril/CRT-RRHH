@@ -90,6 +90,46 @@ class UserController extends Controller
             ->values();
     }
 
+    /**
+     * POST /api/v1/users/acces-app   Body: { ids: [..], acces: bool }
+     * Treu o torna l'«Accés a l'app» a una selecció de persones. Segueixen actives a la plantilla
+     * (horaris, informes, fitxatges de domi); només deixen de poder iniciar sessió. En treure'l
+     * es tanquen també les sessions obertes. Ningú no es treu l'accés a si mateix, i només
+     * administració el pot treure a un administrador.
+     */
+    public function accesApp(Request $request)
+    {
+        $data = $request->validate([
+            'ids' => 'required|array|min:1|max:500',
+            'ids.*' => 'integer',
+            'acces' => 'required|boolean',
+        ]);
+        $autor = $request->user();
+        $acces = (bool) $data['acces'];
+
+        $canviats = 0; $omesos = [];
+        foreach (User::whereIn('id', $data['ids'])->get() as $u) {
+            if ((int) $u->id === (int) $autor->id) { $omesos[] = ['id' => $u->id, 'motiu' => 'No et pots treure l\'accés a tu mateix.']; continue; }
+            if (in_array($u->role, ['admin', 'service'], true) && ! $autor->isAdmin()) { $omesos[] = ['id' => $u->id, 'motiu' => 'Només un administrador pot canviar l\'accés d\'un administrador.']; continue; }
+            if ((bool) ($u->acces_app ?? true) === $acces) continue;
+
+            $u->forceFill(['acces_app' => $acces])->save();
+            if (! $acces) $u->tokens()->delete();   // fora també les sessions obertes
+            $canviats++;
+
+            try {
+                \App\Models\AuditLog::create([
+                    'user_id' => $autor->id, 'action' => $acces ? 'ACCES_APP_TORNAT' : 'ACCES_APP_TRET',
+                    'entity_type' => 'user', 'entity_id' => $u->id,
+                    'description' => ($acces ? 'Accés a l\'app tornat a ' : 'Accés a l\'app tret a ') . $u->name,
+                    'ip_address' => $request->ip(), 'user_agent' => substr((string) $request->userAgent(), 0, 500),
+                ]);
+            } catch (\Throwable $e) { report($e); }
+        }
+
+        return response()->json(['canviats' => $canviats, 'omesos' => $omesos]);
+    }
+
     /** GET /api/v1/users/sense-horari — llista per a la Safata (admin i RRHH). */
     public function llistaSenseHorari()
     {
