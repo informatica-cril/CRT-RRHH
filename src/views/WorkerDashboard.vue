@@ -543,15 +543,15 @@
         <h3 class="card-title mb-md">Canviar contrasenya</h3>
         <div class="form-group">
           <label class="form-label">Contrasenya actual</label>
-          <input class="form-input" type="password" v-model="pwForm.oldPw" />
+          <CampContrasenya class="form-input" v-model="pwForm.oldPw" autocomplete="current-password" />
         </div>
         <div class="form-group">
           <label class="form-label">Nova contrasenya</label>
-          <input class="form-input" type="password" v-model="pwForm.newPw" />
+          <CampContrasenya class="form-input" v-model="pwForm.newPw" autocomplete="new-password" />
         </div>
         <div class="form-group">
           <label class="form-label">Confirmar nova contrasenya</label>
-          <input class="form-input" type="password" v-model="pwForm.confirmPw" />
+          <CampContrasenya class="form-input" v-model="pwForm.confirmPw" autocomplete="new-password" />
         </div>
         <div v-if="pwResult" class="mt-sm" style="padding:8px 12px;border-radius:8px;font-size:0.85rem;" 
           :style="{ background: pwResult.success ? 'rgba(76,175,80,0.1)' : 'rgba(239,68,68,0.1)', color: pwResult.success ? 'var(--color-success)' : 'var(--color-danger)' }">
@@ -834,6 +834,7 @@
 <script setup>
 import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, reactive, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import CampContrasenya from '../components/CampContrasenya.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useWorkLogStore } from '../stores/workLog'
@@ -927,7 +928,8 @@ async function startBreakCheckTimer() {
       console.warn('[Break] Treballador sense work_schedule_id assignat')
       return
     }
-    const schedule = await db.getWorkSchedule(scheduleId)
+    const schedule = await db.getWorkSchedule(scheduleId).catch(() => null)
+    if (!schedule) return
     const scheduledHours = getScheduledHoursForToday(schedule)
 
     console.log(`[Break] Hores previstes avui: ${scheduledHours}, llindar: ${settings.threshold_hours}`)
@@ -1651,7 +1653,11 @@ const overtimeAlertDismissed = ref(false)
 let overtimeCheckInterval = null
 
 async function getScheduledHours() {
-  const sched = await db.getWorkSchedule(authStore.user?.work_schedule_id)
+  // Sense horari assignat no hi ha hores previstes: abans es demanava /work-schedules/null
+  // cada pocs segons (404) i l'error trencava el botó de fitxar.
+  const sid = authStore.user?.work_schedule_id
+  if (!sid) return null
+  const sched = workerSchedule.value?.id === sid ? workerSchedule.value : await db.getWorkSchedule(sid).catch(() => null)
   if (!sched) return null
   const today = new Date().getDay() // 0=Sunday
   const dayEntry = sched.days?.find(d => (d.day === today || d.day_num === today) && d.active)

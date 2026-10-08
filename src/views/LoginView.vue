@@ -49,7 +49,7 @@
         </div>
         <div class="form-group">
           <label class="form-label" for="login-password">{{ t('login_password') }}</label>
-          <input class="form-input" id="login-password" type="password" v-model="password" required autocomplete="current-password" placeholder="••••••" />
+          <CampContrasenya class="form-input" id="login-password" v-model="password" required autocomplete="current-password" placeholder="••••••" />
         </div>
         <div class="form-group" style="display:flex;align-items:center;gap:8px;">
           <input id="login-remember" type="checkbox" v-model="rememberPassword" style="width:auto;" />
@@ -115,6 +115,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import CampContrasenya from '../components/CampContrasenya.vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { i18n } from '../i18n'

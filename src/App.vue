@@ -45,7 +45,7 @@
     </div>
 
     <!-- ═══ GEOLOCATION CONSENT (highest priority — blocks everything for workers) ═══ -->
-    <GeolocationConsent v-if="needsGeoConsent && isAuthenticated && isWorker" @accepted="geoConsentDone" />
+    <GeolocationConsent v-if="needsGeoConsent && isAuthenticated && isWorker && !canviObligatori" @accepted="geoConsentDone" />
 
     <!-- ═══ AVÍS D'UBICACIÓ DENEGADA ═══
          La ubicació és obligatòria per REGISTRAR LA JORNADA (art. 34.9 ET), no per
@@ -53,7 +53,7 @@
          deixava el treballador sense nòmina, sense sol·licituds i —el més greu— sense
          poder llegir ni contestar una notificació disciplinària (art. 55.1 ET).
          Ara bloqueja el fitxatge, que és el que depèn de la ubicació, i no la resta. -->
-    <div v-if="!needsGeoConsent && nativeGeoDenied && isAuthenticated && isWorker && !geoAvisTancat"
+    <div v-if="!needsGeoConsent && nativeGeoDenied && isAuthenticated && isWorker && !geoAvisTancat && !canviObligatori"
          style="position:fixed;left:0;right:0;bottom:0;z-index:9000;background:var(--color-card-bg,#fff);
                 border-top:3px solid var(--color-danger,#b42318);box-shadow:0 -8px 30px rgba(0,0,0,.15);padding:14px 18px;">
       <div style="max-width:900px;margin:0 auto;display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;">
@@ -74,10 +74,10 @@
     </div>
 
     <!-- ═══ ONBOARDING WIZARD (blocks everything, after geo consent) ═══ -->
-    <OnboardingWizard v-if="!needsGeoConsent && needsOnboarding && isAuthenticated && isWorker" @completed="onboardingDone" />
+    <OnboardingWizard v-if="!needsGeoConsent && needsOnboarding && isAuthenticated && isWorker && !canviObligatori" @completed="onboardingDone" />
 
     <!-- ═══ URGENT DOCUMENT MODAL (blocks all access) ═══ -->
-    <div v-if="!needsGeoConsent && !needsOnboarding && urgentDoc && isAuthenticated && isWorker" class="modal-overlay" style="z-index:99999;">
+    <div v-if="!needsGeoConsent && !needsOnboarding && urgentDoc && isAuthenticated && isWorker && !canviObligatori" class="modal-overlay" style="z-index:99999;">
       <div class="modal" style="max-width:750px;max-height:90vh;display:flex;flex-direction:column;">
         <div class="modal-header" style="background:rgba(239,68,68,0.08);border-radius:12px 12px 0 0;">
           <div>
@@ -167,7 +167,19 @@ const isAuthenticated = computed(() => authStore.isAuthenticated)
 const isWorker = computed(() => authStore.isWorker)
 const isDark = computed(() => settingsStore.darkMode)
 const showPrivacyBanner = ref(false)
-const isLoginRoute = computed(() => route.name === 'login')
+// La pantalla de canvi obligatori de contrasenya va sola, com el login: sense barra lateral ni
+// capçalera, que pregunten al servidor cada pocs segons i amb el compte bloquejat (423) feien
+// una allau d'errors (i el tallafocs del servidor pot acabar bloquejant la IP).
+const isLoginRoute = computed(() => route.name === 'login' || route.name === 'force-password-change')
+const canviObligatori = computed(() => !!authStore.user?.must_change_password)
+
+// L'API respon 423 quan cal canviar la contrasenya (p. ex. després d'un restabliment amb la
+// sessió ja oberta): es marca i es porta a la pantalla de canvi.
+function onCanviObligatori() {
+  if (authStore.user) authStore.user.must_change_password = true
+  if (route.name !== 'force-password-change') router.push({ name: 'force-password-change' })
+}
+window.addEventListener('cril:canvi-contrasenya', onCanviObligatori)
 
 // ── Geolocation consent check (highest priority for workers) ────
 const needsGeoConsent = ref(false)
@@ -346,6 +358,8 @@ watch(() => settingsStore.darkMode, (val) => {
 
 watch(() => authStore.isAuthenticated, async (val) => {
   if (val) {
+    // Amb el canvi de contrasenya pendent, l'API ho bloqueja tot (423): s'espera que la canviï.
+    if (canviObligatori.value) return
     checkGeoConsent()
     if (!needsGeoConsent.value) checkNativeGeo()
     await checkOnboarding()
@@ -357,6 +371,16 @@ watch(() => authStore.isAuthenticated, async (val) => {
     router.push({ name: 'login', query: { redirect: route.fullPath } })
   }
 }, { immediate: true })
+
+// Un cop canviada la contrasenya, es fan les comprovacions que s'havien deixat per després.
+watch(canviObligatori, async (val, abans) => {
+  if (abans && !val && authStore.isAuthenticated) {
+    checkGeoConsent()
+    if (!needsGeoConsent.value) checkNativeGeo()
+    await checkOnboarding()
+    await checkUrgentDocs()
+  }
+})
 
 // We no longer need the route name watcher for login redirects as the router's beforeEach and meta.guest already handle it properly.
 
@@ -373,7 +397,8 @@ onMounted(async () => {
     showPrivacyBanner.value = true
   }
   window.addEventListener('resize', onResize)
-  // Check geo consent, onboarding and urgent docs on load
+  // Check geo consent, onboarding and urgent docs on load (no amb el canvi de contrasenya pendent)
+  if (canviObligatori.value) return
   checkGeoConsent()
   await checkOnboarding()
   await checkUrgentDocs()

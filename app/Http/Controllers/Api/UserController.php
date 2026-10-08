@@ -52,6 +52,9 @@ class UserController extends Controller
         $data = $request->validated();
 
         $data['password'] = Hash::make($data['password']);
+        // ENS: la contrasenya de l'alta la tria (i la veu) qui dona d'alta; la persona l'ha de
+        // canviar en entrar per primer cop. Abans no es marcava i entrava sense canviar-la.
+        $data['must_change_password'] = true;
         $user = User::create($data);
 
         // Alta domiciliària → el compte domi es crea SOL (aprovisionament servei-a-servei; res manual).
@@ -304,6 +307,9 @@ class UserController extends Controller
                 $password = Hash::make($password);
             }
             $userData['password'] = $password;
+            // Igual que l'alta individual: qui dona d'alta coneix la contrasenya, així que s'ha
+            // de canviar en el primer accés (encara que la pantalla enviï el contrari).
+            $userData['must_change_password'] = true;
             $created[] = User::create($userData)->makeHidden(['password']);
         }
 

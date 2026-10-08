@@ -114,7 +114,10 @@ export const useWorkLogStore = defineStore('workLog', {
 
       try {
         // Get schedule for this worker
-        const schedule = await db.getWorkSchedule(authStore.user?.work_schedule_id || 1)
+        // Sense horari assignat no es demana res (abans es feia servir l'horari 1, d'una altra
+        // persona): compten les 8 h per defecte de més avall.
+        const sid = authStore.user?.work_schedule_id
+        const schedule = sid ? await db.getWorkSchedule(sid).catch(() => null) : null
         const dayOfWeek = now.getDay()
         const todaySchedule = schedule?.days?.find(d => (d.day === dayOfWeek || d.day_num === dayOfWeek) && d.active)
         const scheduledHours = todaySchedule
