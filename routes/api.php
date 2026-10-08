@@ -290,6 +290,8 @@ Route::prefix('v1')->group(function () {
             // Recalcular la zona quan canvien els codis postals o municipis d'una persona (domiciliària).
             Route::get('fora-zona/{user}', [\App\Http\Controllers\Api\WorkLogZonaController::class, 'foraZona'])->middleware('role:admin,hr');
             Route::post('reavalua-zona', [\App\Http\Controllers\Api\WorkLogZonaController::class, 'reavalua'])->middleware('role:admin,hr');
+            // «Corregir zona»: RRHH i admin indiquen que una marca es va fer dins de zona (amb motiu).
+            Route::post('{workLog}/corregir-zona', [\App\Http\Controllers\Api\WorkLogZonaController::class, 'corregir'])->middleware('role:admin,hr');
             Route::get('user/{userId}', [WorkLogController::class, 'byUser'])->middleware('owner');
             // store/update: el controlador comprova propietat (el propi titular o staff).
             Route::post('/', [WorkLogController::class, 'store']);

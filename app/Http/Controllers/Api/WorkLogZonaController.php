@@ -83,4 +83,35 @@ class WorkLogZonaController extends Controller
 
         return response()->json(['fitxatges_reavaluats' => $n]);
     }
+
+    /**
+     * POST /api/v1/work-logs/{workLog}/corregir-zona
+     * Body: { marques: ['entrada'|'sortida'|'pausa'], centre_id?, motiu }
+     * «Corregir zona»: la persona era en un centre que no tenia assignat (o el GPS va fallar).
+     * Les marques indicades passen a dins de zona i es recalculen trams, hores fora de zona i
+     * efectiu, igual que quan s'assigna un centre. Centre i motiu queden a la traçabilitat.
+     */
+    public function corregir(Request $request, WorkLog $workLog, ReavaluaZona $zona)
+    {
+        $data = $request->validate([
+            'marques' => 'required|array|min:1',
+            'marques.*' => 'in:entrada,sortida,pausa',
+            'centre_id' => 'nullable|integer|exists:ambulatory_centers,id',
+            'motiu' => 'required|string|min:10|max:1000',
+        ]);
+        abort_if(! $workLog->getRawOriginal('end_time'), 422, 'La jornada encara és oberta: corregeix la zona quan tingui sortida.');
+
+        $fora = fn ($v) => $v !== null && ! (bool) $v;
+        $marques = array_values(array_filter(array_unique($data['marques']), fn ($m) => match ($m) {
+            'entrada' => $fora($workLog->start_location_match),
+            'sortida' => $fora($workLog->end_location_match),
+            'pausa' => $fora($workLog->break_start_location_match) || $fora($workLog->break_end_location_match),
+        }));
+        abort_if(! $marques, 422, 'Cap de les marques triades no és fora de zona.');
+
+        $centre = isset($data['centre_id']) ? \App\Models\AmbulatoryCenter::find($data['centre_id'])?->name : null;
+        $zona->corregeixManual($workLog, $marques, $centre, trim($data['motiu']), $request->user()->id);
+
+        return response()->json($workLog->fresh()->load('segments'));
+    }
 }

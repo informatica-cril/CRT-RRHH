@@ -18,7 +18,7 @@
                 <span v-if="dia(f.declaracio.sortida) !== f.date"> del {{ dataCurta(f.declaracio.sortida) }}</span>
                 <div class="text-small text-muted">«{{ f.declaracio.explicacio }}»</div>
               </template>
-              <span v-else class="text-small" style="color:var(--color-danger);">Encara no ha declarat res</span>
+              <span v-else class="jss-sense">Sense declarar</span>
             </td>
             <td><router-link :to="`/work-logs/${f.id}/detail`" class="btn btn-outline btn-sm">🔍 Detall</router-link></td>
           </tr>
@@ -50,4 +50,5 @@ onMounted(async () => {
 <style scoped>
 .jss { margin-top: 18px; }
 .jss-cap { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+.jss-sense { display: inline-block; font-size: .74rem; font-weight: 600; color: #8a5a00; background: #fff4d6; border-radius: 99px; padding: 2px 10px; }
 </style>
