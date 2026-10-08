@@ -41,4 +41,10 @@ class UpdateUserRequest extends FormRequest
             'specialties.*' => 'string|exists:specialties,code',
         ];
     }
+
+    /** Els mateixos missatges en català que l'alta. */
+    public function messages(): array
+    {
+        return StoreUserRequest::missatges();
+    }
 }

@@ -36,4 +36,30 @@ class StoreUserRequest extends FormRequest
             'onboarding_profile_id' => 'nullable|integer',
         ];
     }
+
+    /**
+     * Missatges en català: no hi ha fitxers de traducció i es veia el codi («validation.unique»).
+     * El correu duplicat sovint és un compte de gestió (RRHH, administració), que no surt a la
+     * llista de Treballadors.
+     */
+    public function messages(): array
+    {
+        return self::missatges();
+    }
+
+    public static function missatges(): array
+    {
+        return [
+            'email.unique' => 'Ja hi ha un compte amb aquest correu. Pot ser una persona inactiva o un compte de gestió (RRHH, administració), que no surten a la llista de Treballadors. Fes servir un altre correu o parla amb administració.',
+            'email.required' => 'Cal el correu electrònic.',
+            'email.email' => 'El correu electrònic no és vàlid.',
+            'name.required' => 'Cal el nom.',
+            'password.required' => 'Cal una contrasenya.',
+            'password.min' => 'La contrasenya ha de tenir com a mínim :min caràcters.',
+            'role.in' => 'El rol no és vàlid.',
+            'work_type.in' => 'L\'àmbit no és vàlid.',
+            'work_schedule_id.exists' => 'L\'horari triat no existeix.',
+            'seniority_date.date' => 'La data d\'alta no és vàlida.',
+        ];
+    }
 }
