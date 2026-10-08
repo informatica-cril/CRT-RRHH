@@ -132,6 +132,12 @@ class ReavaluaZona
                 ]);
                 WorkLogAlert::where('work_log_id', $log->id)->where('type', 'out_of_zone')
                     ->whereNull('dismissed_at')->update(['dismissed_at' => now()]);
+            } elseif ($log->start_location_match !== false && ! $pausaFora
+                && $log->segmented && ! $log->teTramsForaZonaPendents()) {
+                // Només la sortida queda fora: per la regla de segmentació no descompta el temps
+                // anterior. Ja no hi ha hores fora de zona; la marca de sortida (hour_status i
+                // alerta) es manté perquè coordinació la revisi.
+                $log->update(['hours_out_of_area' => 0, 'hours_worked' => $log->total_hours_worked]);
             }
 
             $log->refresh()->recalcularEfectivo();

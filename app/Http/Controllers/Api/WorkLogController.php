@@ -36,6 +36,10 @@ class WorkLogController extends Controller
         // detall, i sota les condicions de coordsVisibles().
         return response()->json(
             WorkLog::with('user:id,name')
+                // Temps fet fora de l'horari que encara no s'ha resolt (no compta a l'efectiu):
+                // la llista el mostra perquè no quedi amagat.
+                ->withSum(['segments as minuts_fora_horari_pendents' => fn ($q) => $q
+                    ->where('in_schedule', false)->where('status', 'pending')], 'duration_minutes')
                 ->when($perMes, function ($q) use ($mes) {
                     $ini = \Carbon\Carbon::createFromFormat('Y-m-d', $mes . '-01');
                     $q->whereBetween('date', [$ini->toDateString(), $ini->copy()->endOfMonth()->toDateString()]);
@@ -157,6 +161,29 @@ class WorkLogController extends Controller
         }
         $justificacio = trim((string) ($data['justificacio'] ?? ''));
         unset($data['justificacio'], $data['disp'], $data['gps_error']);
+
+        // El titular només pot fitxar la sortida de la jornada oberta i bescanviar un codi
+        // d'hores extra; aprovar, rebutjar o tocar hores d'una jornada tancada és cosa de
+        // gestió. Tornar a enviar la sortida (p. ex. un reintent de l'app) no la mou.
+        if (! $request->user()?->isStaff()) {
+            $tancant = array_key_exists('end_time', $data) && ! $workLog->getRawOriginal('end_time');
+            if (! $tancant) {
+                $data = array_intersect_key($data, array_flip(['authorized_extra_code', 'extra_hours_authorized', 'extra_hours_unauthorized']));
+            }
+            unset($data['rejection_reason']);
+            if (($data['status'] ?? 'pending') !== 'pending') {
+                unset($data['status']);
+            }
+        }
+
+        // Aprovar donant per bones les hores fora de zona: les versions publicades de l'app
+        // envien total_hours_worked + hours_out_of_area, i com que total_hours_worked ja són
+        // les brutes, les duplicaven. Les hores les calcula el servidor.
+        if (($data['status'] ?? null) === 'approved' && ! array_key_exists('end_time', $data)
+            && array_key_exists('hours_out_of_area', $data) && (float) $data['hours_out_of_area'] === 0.0
+            && $workLog->getRawOriginal('end_time')) {
+            $data = array_merge($data, $workLog->canvisRestauraForaZona());
+        }
 
         // If clocking out, override end_time and recalculate hours server-side
         // (client clock may lag behind NTP, causing totalHours to be 0 or negative)

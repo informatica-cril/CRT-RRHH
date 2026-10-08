@@ -81,6 +81,23 @@ class ReavaluaZonaTest extends TestCase
         $this->assertDatabaseHas('work_log_modifications', ['work_log_id' => $log->id, 'action' => 'modified']);
     }
 
+    public function test_si_nomes_la_sortida_queda_fora_ja_no_descompta_hores(): void
+    {
+        $u = $this->persona();
+        $log = $this->fitxatgeForaZona($u, self::A_PROP);
+        $log->update(['end_location_lat' => self::LLUNY[0], 'end_location_lng' => self::LLUNY[1]]);
+
+        $this->assignaPuntNou($u)->assertOk()->assertJsonPath('fitxatges_reavaluats', 1);
+
+        $log->refresh();
+        $this->assertTrue($log->start_location_match);
+        $this->assertFalse($log->end_location_match);
+        $this->assertEquals(7.0, (float) $log->effective_hours);
+        $this->assertEquals(0.0, (float) $log->hours_out_of_area); // abans quedava «-7h (Fora Zona)»
+        $this->assertEquals(7.0, (float) $log->hours_worked);
+        $this->assertSame('out_of_area', $log->hour_status); // la sortida es continua revisant
+    }
+
     public function test_no_toca_els_que_queden_lluny_ni_els_ja_resolts(): void
     {
         $u = $this->persona();

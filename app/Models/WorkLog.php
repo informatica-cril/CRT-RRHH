@@ -120,6 +120,48 @@ class WorkLog extends Model
     }
 
     /**
+     * Hores brutes de la jornada (entrada → sortida), en hora de Madrid sense zona.
+     * Null si la jornada no té sortida.
+     */
+    public function horesBrutes(): ?float
+    {
+        $ini = $this->getRawOriginal('start_time');
+        $fi = $this->getRawOriginal('end_time');
+        if (! $ini || ! $fi) {
+            return null;
+        }
+
+        return round(max(0, \Carbon\Carbon::parse($ini, 'Europe/Madrid')
+            ->diffInSeconds(\Carbon\Carbon::parse($fi, 'Europe/Madrid'), false)) / 3600, 4);
+    }
+
+    /**
+     * Canvis per aprovar un fitxatge amb hores fora de zona donant-les per bones.
+     *
+     * total_hours_worked ja són les hores brutes (el servidor les recalcula en fitxar la
+     * sortida), així que «restaurar» és tornar a les brutes, no sumar-hi les de fora de zona
+     * (abans es feia i les duplicava: 4h20 fora de zona → 8h40).
+     */
+    public function canvisRestauraForaZona(): array
+    {
+        $brutes = $this->horesBrutes() ?? (float) $this->total_hours_worked;
+        $brutes = round($brutes, 2);
+
+        return [
+            'total_hours_worked' => $brutes,
+            'hours_worked' => $brutes,
+            'hours_out_of_area' => 0,
+            'hour_status' => (float) $this->extra_hours_unauthorized > 0 ? 'extra' : 'ok',
+        ];
+    }
+
+    /** Hi ha temps fora de zona encara per resoldre segons els trams? */
+    public function teTramsForaZonaPendents(): bool
+    {
+        return $this->segments()->where('in_zone', false)->where('status', 'pending')->exists();
+    }
+
+    /**
      * Recalcula el tiempo de trabajo EFECTIVO.
      *
      * - Si el fichaje está segmentado: solo cuentan los tramos con status='approved'
