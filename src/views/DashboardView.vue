@@ -408,6 +408,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">{{ t('rejection_reason') }}</label>
+          <FrasesRapides clau="rebuig_fitxatge" v-model="rejectReason" />
           <textarea class="form-textarea" v-model="rejectReason"></textarea>
         </div>
         <div class="modal-footer">
@@ -420,6 +421,7 @@
 </template>
 
 <script setup>
+import FrasesRapides from '../components/FrasesRapides.vue'
 import SelectorPersona from '../components/SelectorPersona.vue'
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'

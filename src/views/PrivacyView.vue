@@ -141,7 +141,7 @@ async function carregar() {
  */
 async function sollicitar(clau) {
   enviant.value = clau; error.value = ''
-  const detall = await demana(`Sol·licitud del dret de ${drets.value[clau]}.\n\nSi voleu, concreteu a quines dades o a quin període us referiu (opcional):`)
+  const detall = await demana(`Sol·licitud del dret de ${drets.value[clau]}.\n\nSi voleu, concreteu a quines dades o a quin període us referiu (opcional):`, { frases: 'dret_rgpd_detall' })
   if (detall === null) { enviant.value = null; return }
   try {
     await api.post('/v1/privacy/requests', { dret: clau, detall: detall.trim() || null })
@@ -155,7 +155,7 @@ async function sollicitar(clau) {
 
 /** Resposta escrita a una sol·licitud. El servidor no en deixa desar cap de buida ni sobreescriure'n una. */
 async function respondre(s) {
-  const text = await demana(`Resposta a la sol·licitud de ${drets.value[s.dret]} de ${s.user?.name}.\n\nQueda desada amb data i el treballador la veurà a la seva pantalla de privadesa:`)
+  const text = await demana(`Resposta a la sol·licitud de ${drets.value[s.dret]} de ${s.user?.name}.\n\nQueda desada amb data i el treballador la veurà a la seva pantalla de privadesa:`, { frases: 'resposta_rgpd' })
   if (text === null) return
   if (text.trim().length < 10) { error.value = 'La resposta no pot ser buida.'; return }
   responent.value = s.id; error.value = ''

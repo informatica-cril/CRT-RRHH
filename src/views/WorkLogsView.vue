@@ -150,6 +150,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">{{ t('rejection_reason') }}</label>
+          <FrasesRapides clau="rebuig_fitxatge" v-model="rejectReason" />
           <textarea class="form-textarea" v-model="rejectReason" required></textarea>
         </div>
         <div class="modal-footer">
@@ -162,6 +163,7 @@
 </template>
 
 <script setup>
+import FrasesRapides from '../components/FrasesRapides.vue'
 import SelectorPersona from '../components/SelectorPersona.vue'
 import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
@@ -393,7 +395,7 @@ function confirmReject() {
 
 // «Revisar de nou»: el fitxatge torna a pendent; la decisió anterior i el motiu queden a la traçabilitat.
 async function reobrir(log) {
-  const motiu = await demana('Per què cal revisar de nou aquest fitxatge? (mínim 10 caràcters)\nQuedarà registrat a la traçabilitat.')
+  const motiu = await demana('Per què cal revisar de nou aquest fitxatge? (mínim 10 caràcters)\nQuedarà registrat a la traçabilitat.', { frases: 'revisar_de_nou' })
   if (motiu === null) return
   if (motiu.trim().length < 10) return alert("Cal un motiu d'almenys 10 caràcters.")
   try {

@@ -178,7 +178,7 @@ async function encua (m) {
 async function decideix (m, estat) {
   let nota = null
   if (estat === 'descartada') {
-    nota = await demana('Per què la descartes? (opcional)')
+    nota = await demana('Per què la descartes? (opcional)', { frases: 'descartar_millora' })
     if (nota === null) return
   }
   try {

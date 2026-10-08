@@ -203,9 +203,9 @@ async function signa () {
 }
 
 async function lliura () {
-  const a = await demana('A qui s\'ha lliurat? (òrgan i persona)')
+  const a = await demana('A qui s\'ha lliurat? (òrgan i persona)', { frases: 'rlt_lliurat_a' })
   if (a === null) return
-  const nota = await demana('Com s\'ha lliurat? (data, via, acusament de rebut)')
+  const nota = await demana('Com s\'ha lliurat? (data, via, acusament de rebut)', { frases: 'rlt_com' })
   if (nota === null) return
   try {
     await api.post(`/v1/rlt/informes/${obert.value.id}/lliurar`, { lliurat_a: a, nota })

@@ -383,6 +383,7 @@
             </div>
             <div v-if="tePrac('observacions')" class="form-group">
               <label class="form-label">Observacions</label>
+              <FrasesRapides clau="observacions_practiques" v-model="prac.detall.observacions" />
               <textarea class="form-textarea" rows="2" v-model="prac.detall.observacions" :disabled="desantPrac"></textarea>
             </div>
             <div v-if="tePrac('alta_ss') && !prac.detall.alta_ss" class="prac-avis prac-avis-alerta">⚠ {{ pracAvisSs }}</div>
@@ -834,6 +835,7 @@
 </template>
 
 <script setup>
+import FrasesRapides from '../components/FrasesRapides.vue'
 import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'

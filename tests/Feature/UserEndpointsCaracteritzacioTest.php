@@ -120,9 +120,11 @@ class UserEndpointsCaracteritzacioTest extends TestCase
         $this->postJson('/api/v1/users', ['name' => 'X', 'password' => 'secret123'])
             ->assertStatus(422)->assertJsonValidationErrors(['email']);
 
-        $this->postJson('/api/v1/users', [
+        $r = $this->postJson('/api/v1/users', [
             'name' => 'X', 'email' => $existent->email, 'password' => 'secret123',
         ])->assertStatus(422)->assertJsonValidationErrors(['email']);
+        // Missatge entenedor, no el codi «validation.unique».
+        $this->assertStringContainsString('Ja hi ha un compte amb aquest correu', $r->json('errors.email.0'));
     }
 
     public function test_update_no_admin_ignora_camps_privilegiats(): void

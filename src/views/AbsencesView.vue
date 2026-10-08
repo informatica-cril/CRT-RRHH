@@ -106,6 +106,7 @@
 
         <div class="form-group">
           <label class="form-label">{{ t('absence_reason') }}</label>
+          <FrasesRapides clau="motiu_absencia" v-model="newAbsence.reason" />
           <textarea class="form-textarea" v-model="newAbsence.reason"></textarea>
         </div>
         <div v-if="createError" class="text-small" style="color:var(--color-danger);margin-bottom:6px;">{{ createError }}</div>
@@ -119,6 +120,7 @@
 </template>
 
 <script setup>
+import FrasesRapides from '../components/FrasesRapides.vue'
 import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
@@ -243,7 +245,7 @@ async function approveAbsence(absence) {
 }
 
 async function rejectAbsence(absence) {
-  const motiu = await demana('Motiu de la denegació (obligatori):')
+  const motiu = await demana('Motiu de la denegació (obligatori):', { frases: 'denegacio' })
   if (motiu === null) return
   if (!motiu.trim()) { alert('Cal escriure el motiu de la denegació.'); return }
   try {

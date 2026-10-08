@@ -16,6 +16,7 @@ export const dialeg = reactive({
   obligatori: false,
   minim: 0,
   placeholder: '',
+  frases: '',              // clau de src/utils/frasesRapides.js (frases ràpides)
   resol: null,
 })
 
@@ -31,17 +32,17 @@ export function confirma(missatge, { boto = null, perill = null } = {}) {
   const m = String(missatge ?? '')
   const delicat = perill ?? PERILL.test(m)
   return obre({ tipus: 'confirma', missatge: m, perill: delicat, boto: boto || (delicat ? 'Sí, continuar' : 'Acceptar'),
-    valor: '', obligatori: false, minim: 0, placeholder: '' })
+    valor: '', obligatori: false, minim: 0, placeholder: '', frases: '' })
 }
 
-export function demana(missatge, { obligatori = null, minim = 0, placeholder = '', valor = '' } = {}) {
+export function demana(missatge, { obligatori = null, minim = 0, placeholder = '', valor = '', frases = '' } = {}) {
   const m = String(missatge ?? '')
   // Si el text diu «obligatori» o demana un mínim de caràcters, no es pot deixar buit.
   const mMin = /mínim\s+(\d+)\s+caràcters/i.exec(m)
   const min = minim || (mMin ? Number(mMin[1]) : 0)
   const oblig = obligatori ?? (/obligatori/i.test(m) || min > 0)
   return obre({ tipus: 'demana', missatge: m, perill: false, boto: 'Acceptar', valor, obligatori: oblig,
-    minim: min || (oblig ? 1 : 0), placeholder: placeholder || (oblig ? 'Escriu-ho aquí' : 'Opcional') })
+    minim: min || (oblig ? 1 : 0), placeholder: placeholder || (oblig ? 'Escriu-ho aquí' : 'Opcional'), frases })
 }
 
 export function respon(acceptat) {

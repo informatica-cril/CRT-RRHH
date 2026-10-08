@@ -113,7 +113,7 @@ async function autoritzar(p) {
 }
 async function denegar(p) {
   // El motiu és OBLIGATORI: qui rep la denegació ha de saber per què.
-  const reason = await demana('Motiu de la denegació (obligatori):')
+  const reason = await demana('Motiu de la denegació (obligatori):', { frases: 'denegacio' })
   if (reason === null) return
   if (!reason.trim()) { alert('Cal escriure el motiu de la denegació.'); return }
   p._busy = true

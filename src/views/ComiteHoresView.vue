@@ -59,6 +59,7 @@
           </div>
           <div class="form-group comite-ample">
             <label class="form-label">Motiu</label>
+            <FrasesRapides clau="motiu_comite" v-model="form.motiu" />
             <textarea v-model="form.motiu" class="form-textarea" rows="2" required
               placeholder="Ex.: reunió ordinària del comitè per preparar la negociació del calendari"></textarea>
           </div>
@@ -107,6 +108,7 @@
 </template>
 
 <script setup>
+import FrasesRapides from '../components/FrasesRapides.vue'
 import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, onMounted } from 'vue'
 import { useEstatUrl } from '../composables/useEstatUrl'

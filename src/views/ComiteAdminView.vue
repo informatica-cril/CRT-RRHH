@@ -261,7 +261,7 @@ async function valida (h) {
 }
 
 async function rebutja (h) {
-  const motiu = await demana(`Motiu del rebuig (${h.user?.name}, ${dmy(h.data)}):`)
+  const motiu = await demana(`Motiu del rebuig (${h.user?.name}, ${dmy(h.data)}):`, { frases: 'rebuig_comite' })
   if (!motiu) return
   try {
     await api.post(`/v1/comite/hores/${h.id}/rebutja`, { motiu_rebuig: motiu })
