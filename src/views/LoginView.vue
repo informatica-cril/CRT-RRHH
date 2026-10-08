@@ -44,7 +44,7 @@
       <form v-if="!showResetForm" class="login-form" @submit.prevent="handleLogin" id="login-form">
         <div class="form-group">
           <label class="form-label" for="login-email">{{ t('login_email') }}</label>
-          <input class="form-input" id="login-email" type="email" v-model="email" required autocomplete="email" 
+          <input class="form-input" id="login-email" type="email" v-model="email" required autocomplete="username"
             :placeholder="loginMode === 'admin' ? 'admin@crtbcn.cat' : 'nom@crtbcn.cat'" />
         </div>
         <div class="form-group">
@@ -129,14 +129,22 @@ const email = ref('')
 const password = ref('')
 const loading = ref(false)
 
-// Remember password
+// Recordar NOMÉS el correu. La contrasenya no es desa mai a l'app (abans es guardava en clar
+// a localStorage): si la persona vol, la desa el gestor de contrasenyes del navegador, xifrada.
 const REMEMBER_KEY = 'remembered_credentials'
 const rememberPassword = ref(false)
-const remembered = JSON.parse(window.localStorage.getItem(REMEMBER_KEY) || 'null')
-if (remembered) {
+let remembered = null
+try { remembered = JSON.parse(window.localStorage.getItem(REMEMBER_KEY) || 'null') } catch (e) { remembered = null }
+if (remembered && typeof remembered === 'object') {
   email.value = remembered.email || ''
-  password.value = remembered.password || ''
-  rememberPassword.value = true
+  rememberPassword.value = !!remembered.email
+  // Les desades amb la versió antiga perden la contrasenya ara mateix.
+  if ('password' in remembered) {
+    try {
+      if (remembered.email) window.localStorage.setItem(REMEMBER_KEY, JSON.stringify({ email: remembered.email }))
+      else window.localStorage.removeItem(REMEMBER_KEY)
+    } catch (e) { /* emmagatzematge bloquejat */ }
+  }
 }
 const locales = i18n.availableLocales
 const currentLocale = computed(() => i18n.locale)
@@ -172,7 +180,7 @@ async function handleLogin() {
   loading.value = false
   if (success) {
     if (rememberPassword.value) {
-      window.localStorage.setItem(REMEMBER_KEY, JSON.stringify({ email: email.value, password: password.value }))
+      window.localStorage.setItem(REMEMBER_KEY, JSON.stringify({ email: email.value }))
     } else {
       window.localStorage.removeItem(REMEMBER_KEY)
     }
