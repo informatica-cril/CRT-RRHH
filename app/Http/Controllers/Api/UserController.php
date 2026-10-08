@@ -27,6 +27,9 @@ class UserController extends Controller
     /** Dades de CONTACTE que RRHH pot corregir a la fitxa d'una altra persona. */
     public const CAMPS_CONTACTE = ['name', 'email', 'device_phone'];
 
+    /** Només administració pot crear (o fer) administradors; RRHH no. */
+    public const NOMES_ADMIN = 'Només un administrador pot donar d\'alta un altre administrador (p. ex. el lloc «Gerencia»).';
+
     public function index()
     {
         // Excluir la columna password de la consulta (ya está en $hidden,
@@ -50,6 +53,7 @@ class UserController extends Controller
     public function store(StoreUserRequest $request)
     {
         $data = $request->validated();
+        abort_if(($data['role'] ?? null) === 'admin' && ! $request->user()->isAdmin(), 403, self::NOMES_ADMIN);
 
         $data['password'] = Hash::make($data['password']);
         // ENS: la contrasenya de l'alta la tria (i la veu) qui dona d'alta; la persona l'ha de
@@ -299,6 +303,8 @@ class UserController extends Controller
     public function bulkStore(Request $request)
     {
         $request->validate(['users' => 'required|array']);
+        abort_if(! $request->user()->isAdmin()
+            && collect($request->users)->contains(fn ($u) => ($u['role'] ?? null) === 'admin'), 403, self::NOMES_ADMIN);
 
         $created = [];
         foreach ($request->users as $userData) {

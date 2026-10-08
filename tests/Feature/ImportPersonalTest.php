@@ -52,6 +52,32 @@ class ImportPersonalTest extends TestCase
         $this->post('/api/v1/users/import', ['file' => $this->xlsx([$this->filaLaboral()])])->assertForbidden();
     }
 
+    public function test_rrhh_no_crea_ni_fa_administradors_per_excel(): void
+    {
+        $hr = User::create(['name' => 'RRHH', 'email' => 'hr@test.local', 'dni' => '22222222B',
+            'password' => Hash::make('x'), 'role' => 'hr', 'active' => true]);
+        $adm = User::create(['name' => 'Adm', 'email' => 'adm2@test.local', 'dni' => '33333333C',
+            'password' => Hash::make('x'), 'role' => 'admin', 'active' => true]);
+        \Laravel\Sanctum\Sanctum::actingAs($hr);
+
+        $nouAdmin = $this->filaLaboral(); $nouAdmin[7] = 'admin';
+        $this->post('/api/v1/users/import', ['file' => $this->xlsx([$nouAdmin])])->assertStatus(422);
+        $this->assertNull(User::where('dni', '11111111A')->first());
+
+        // RRHH es fa admin a si mateixa (actualització per DNI): no.
+        $joAdmin = $this->filaLaboral(); $joAdmin[1] = '22222222B'; $joAdmin[2] = 'hr@test.local'; $joAdmin[7] = 'admin';
+        $this->post('/api/v1/users/import', ['file' => $this->xlsx([$joAdmin])])->assertStatus(422);
+        $this->assertSame('hr', $hr->fresh()->role);
+
+        // Treure el rol a un administrador: tampoc.
+        $baixa = $this->filaLaboral(); $baixa[1] = '33333333C'; $baixa[2] = 'adm2@test.local'; $baixa[7] = 'worker';
+        $this->post('/api/v1/users/import', ['file' => $this->xlsx([$baixa])])->assertStatus(422);
+        $this->assertSame('admin', $adm->fresh()->role);
+
+        // Una alta normal sí.
+        $this->post('/api/v1/users/import', ['file' => $this->xlsx([$this->filaLaboral()])])->assertOk();
+    }
+
     public function test_alta_correcta(): void
     {
         \Laravel\Sanctum\Sanctum::actingAs($this->admin());

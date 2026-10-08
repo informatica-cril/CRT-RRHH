@@ -72,6 +72,19 @@ class ImportPersonalController extends Controller
             foreach ($dups as $d) if ($d !== '') $errors[] = ['fila' => '-', 'valors' => $d, 'errors' => ["$etq repetit dins del fitxer"]];
         }
 
+        // Només administració crea o fa administradors, i només administració toca el rol d'un
+        // administrador (l'Excel actualitza per DNI: si no, RRHH es podria fer admin a si mateixa).
+        if (! $request->user()->isAdmin()) {
+            $admins = User::where('role', 'admin')->whereIn('dni', array_column($valides, 'dni'))->pluck('dni')->all();
+            foreach ($valides as $r) {
+                if (($r['rol_rrhh'] ?: 'worker') === 'admin' && ! in_array($r['dni'], $admins, true)) {
+                    $errors[] = ['fila' => '-', 'valors' => $r['dni'], 'errors' => ['Només un administrador pot donar d\'alta o fer administrador.']];
+                } elseif (in_array($r['dni'], $admins, true) && ($r['rol_rrhh'] ?: 'worker') !== 'admin') {
+                    $errors[] = ['fila' => '-', 'valors' => $r['dni'], 'errors' => ['Només un administrador pot canviar el rol d\'un administrador.']];
+                }
+            }
+        }
+
         if ($errors) {
             return response()->json(['ok' => false, 'importats' => 0, 'total' => count($valides) + count($errors),
                 'message' => 'No s\'ha importat res: corregeix els errors i torna a provar (tot o res).',
