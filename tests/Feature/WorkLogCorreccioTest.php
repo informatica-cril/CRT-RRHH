@@ -107,6 +107,8 @@ class WorkLogCorreccioTest extends TestCase
         $trams = WorkLogSegment::where('work_log_id', $log->id)->get();
         $this->assertSame(460, (int) $trams->sum('duration_minutes'));
         $this->assertSame(60, (int) $trams->where('in_schedule', false)->where('status', 'pending')->sum('duration_minutes'));
+        // La sortida corregida no té marca GPS: no és «sortida fora de zona» (abans en creava l'alerta).
+        $this->assertSame(0, \App\Models\WorkLogAlert::where('work_log_id', $log->id)->where('type', 'out_of_zone')->count());
     }
 
     public function test_valida_les_hores(): void

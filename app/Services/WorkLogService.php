@@ -164,7 +164,6 @@ class WorkLogService
         // acreditat dins de zona, no es penalitza. La sortida fora de zona no invalida
         // la jornada; genera l'alerta i queda com a esdeveniment per revisar.
         $startInZone = (bool) ($workLog->start_location_match ?? false);
-        $endInZone = (bool) ($workLog->end_location_match ?? false);
 
         // Àncores de zona: marques amb veredicte conegut, en ordre temporal. La pausa
         // (inici i represa) és una marca més: si porta veredicte, obre tram nou.
@@ -289,10 +288,13 @@ class WorkLogService
         // Alerta si qualsevol de les dues marques ha estat fora de zona. La de sortida
         // no torna pendent cap tram anterior: és un esdeveniment puntual per revisar.
         $pausaFora = collect($anchors)->skip(1)->contains(fn ($a) => $a[1] === false);
-        if (! $startInZone || ! $endInZone || $pausaFora) {
+        // Una sortida SENSE marca (corregida a mà amb «Corregir hora», o declarada) no és una
+        // sortida fora de zona: abans cada correcció creava l'alerta «sortida fora de zona».
+        $sortidaFora = $workLog->end_location_match === false;
+        if (! $startInZone || $sortidaFora || $pausaFora) {
             $motius = [];
             if (! $startInZone) $motius[] = 'entrada fora de zona: els trams oberts amb aquesta marca queden pendents de revisió';
-            if (! $endInZone) $motius[] = 'sortida fora de zona: el temps anterior acreditat dins de zona es conserva';
+            if ($sortidaFora) $motius[] = 'sortida fora de zona: el temps anterior acreditat dins de zona es conserva';
             if ($pausaFora) $motius[] = 'marca de pausa fora de zona: el tram que obre queda pendent de revisió';
             \App\Models\WorkLogAlert::create([
                 'work_log_id' => $workLog->id, 'user_id' => $workLog->user_id,

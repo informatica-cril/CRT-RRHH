@@ -92,6 +92,8 @@ Route::prefix('v1')->group(function () {
                vegeu UserController::MAX_TANDA. Ha d'anar ABANS de {user} o «provisiona-domi-
                pendents» s'entendria com un identificador d'usuari. */
             Route::post('provisiona-domi-pendents', [UserController::class, 'provisionaDomiPendents'])->middleware('role:admin,hr');
+            // Persones que fitxen sense horari assignat (Safata). Abans de {user}, com l'anterior.
+            Route::get('sense-horari', [UserController::class, 'llistaSenseHorari'])->middleware('role:admin,hr');
             // Fitxa d'un usuari: el propi titular o personal de gestió.
             Route::get('{user}', [UserController::class, 'show'])->middleware('owner:user');
             // update: qualsevol autenticat, però el controlador limita què pot tocar

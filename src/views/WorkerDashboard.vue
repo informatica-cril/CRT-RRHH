@@ -3,6 +3,15 @@
     <!-- Alert Banner (alertas molestas) -->
     <WorkLogAlertBanner />
 
+    <!-- Sense horari assignat: no es poden calcular hores fora d'horari, extres ni la pausa -->
+    <div v-if="senseHorari" class="avis-sense-horari" role="alert">
+      <span class="ash-ico">🗓️</span>
+      <div>
+        <strong>Encara no tens horari assignat.</strong>
+        <div>Pots fitxar igualment, però fins que no el tinguis no es poden calcular bé les hores fora d'horari, les extres ni la pausa. Avisa RRHH perquè te l'assigni.</div>
+      </div>
+    </div>
+
     <!-- Break Timer Modal (pausa obligatoria, no se puede omitir) -->
     <BreakTimerModal
       :visible="breakModalVisible"
@@ -1075,6 +1084,15 @@ const t = (key) => i18n.t(key)
 
 // --- State Declarations ---
 const workerSchedule = ref(null)
+// Persona que fitxa sense horari assignat (els autònoms no fan registre de jornada).
+// Un horari sense cap dia actiu és com no tenir-ne.
+const senseHorari = computed(() => {
+  const u = authStore.user
+  if (!u || u.role !== 'worker' || u.relacio === 'autonom') return false
+  if (!u.work_schedule_id) return true
+  const dies = workerSchedule.value?.days
+  return Array.isArray(dies) && !dies.some(d => d && d.start && d.end && d.active !== false)
+})
 async function loadWorkerSchedule() {
   const sid = authStore.user?.work_schedule_id
   if (!sid) { workerSchedule.value = null; return }
@@ -1835,3 +1853,9 @@ watch(() => activeTab.value, async (tab) => {
   }
 })
 </script>
+<style scoped>
+.avis-sense-horari { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 16px; padding: 12px 16px;
+  border-radius: 12px; background: #fff4d6; border: 1px solid #f0d58a; border-left: 5px solid #D9A400; color: #5c4400; font-size: .9rem; line-height: 1.4; }
+.avis-sense-horari strong { display: block; margin-bottom: 2px; }
+.ash-ico { font-size: 1.4rem; line-height: 1; }
+</style>

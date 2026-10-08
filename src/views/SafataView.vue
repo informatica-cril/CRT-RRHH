@@ -14,13 +14,13 @@
     <!-- Només el que té feina; el que és al dia queda en una línia discreta a sota. -->
     <div v-if="!carregant && actives.length" class="sf-cards">
       <router-link v-for="c in actives" :key="c.clau" :to="c.enllac"
-        class="sf-card" :class="c.urgencia" @click="c.clau === 'sensesortida' && baixaALaLlista()">
+        class="sf-card" :class="c.urgencia" @click="baixaALaLlista(c.clau)">
         <div class="sf-ico">{{ c.icona }}</div>
         <div class="sf-body">
           <div class="sf-sub sf-urg">{{ URGENCIA[c.urgencia] }}</div>
           <div class="sf-titol">{{ c.titol }}</div>
           <div class="sf-sub">{{ c.sub }}</div>
-          <span class="sf-cta">{{ c.clau === 'sensesortida' ? 'Veure la llista' : 'Obrir i resoldre' }} →</span>
+          <span class="sf-cta">{{ LLISTES[c.clau] ? 'Veure la llista' : 'Obrir i resoldre' }} →</span>
         </div>
         <span class="sf-n">{{ c.n }}</span>
       </router-link>
@@ -32,6 +32,7 @@
     </div>
 
     <JornadesSenseSortida />
+    <PersonesSenseHorari v-if="esGestio" />
   </div>
 </template>
 
@@ -41,11 +42,16 @@ import db from '../services/db'
 import api from '../services/apiClient'
 import { useAuthStore } from '../stores/auth'
 import JornadesSenseSortida from '../components/JornadesSenseSortida.vue'
+import PersonesSenseHorari from '../components/PersonesSenseHorari.vue'
 
-// La llista de jornades sense sortida ja és a sota de les targetes: la targeta només hi baixa.
-function baixaALaLlista() {
-  setTimeout(() => document.getElementById('sense-sortida')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+// Llistes que ja són a sota de les targetes: la targeta només hi baixa.
+const LLISTES = { sensesortida: 'sense-sortida', sensehorari: 'sense-horari' }
+function baixaALaLlista(clau) {
+  const id = LLISTES[clau]
+  if (!id) return
+  setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
 }
+const esGestio = ['admin', 'hr'].includes(useAuthStore().user?.role)
 
 const authStore = useAuthStore()
 const carregant = ref(true)
@@ -75,6 +81,7 @@ onMounted(async () => {
   const fitxatges = nCua('fitxatges')
   const foraZona = nCua('forazona')
   const senseSortida = nCua('sensesortida')
+  const senseHorari = nCua('sensehorari')
   const [absencies, excedencies, suggeriments, conciliacio] = await Promise.all([
     n(db.getAbsences(), a => a.approved === null || a.approved === undefined),
     n(db.getExcedencias(), e => e.status === 'pending'),
@@ -98,6 +105,7 @@ onMounted(async () => {
     { clau: 'disciplinari', titol: 'Suggeriments disciplinaris', sub: 'el motor proposa; decideix una persona', icona: '⚖️', n: suggeriments, urgencia: 'alta', enllac: '/disciplinary' },
     { clau: 'conciliacio', titol: 'Comptes domi per conciliar', sub: 'identitats domi ↔ RRHH sense vincular', icona: '🔗', n: conciliacio, urgencia: 'baixa', enllac: '/conciliacio' },
     { clau: 'drets', titol: 'Drets RGPD per respondre', sub: 'sol·licituds amb termini d\'un mes (art. 12.3)', icona: '🔐', n: drets, urgencia: 'alta', enllac: '/privacy' },
+    { clau: 'sensehorari', titol: 'Persones sense horari', sub: "no se'ls poden calcular hores ni pauses: llista a sota", icona: '🗓️', n: senseHorari, urgencia: 'alta', enllac: '/safata#sense-horari', nomesGestio: true },
     { clau: 'comite', titol: 'Hores de comitè per validar', sub: 'crèdit horari de la representació (art. 68 ET)', icona: '🤝', n: comite, urgencia: 'mitjana', enllac: '/comite' },
   ]
   carregant.value = false

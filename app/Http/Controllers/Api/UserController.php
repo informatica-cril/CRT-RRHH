@@ -74,6 +74,31 @@ class UserController extends Controller
         return response()->json($user->makeHidden(['password'])->toArray() + ($domi !== null ? ['domi' => $domi] : []), 201);
     }
 
+    /**
+     * Persones que fitxen i no tenen horari assignat (els autònoms no fan registre de jornada).
+     * Sense horari no es poden calcular les hores fora d'horari, les extres ni la pausa.
+     */
+    public static function senseHorari()
+    {
+        // Un horari sense cap dia actiu és com no tenir-ne (n'hi havia amb 0 dies i 30 h setmanals).
+        // Es filtra aquí i no a SQL: els dies són JSON i la BD de producció i la dels tests difereixen.
+        return User::with('workSchedule')->where('active', true)->where('role', 'worker')
+            ->where(fn ($q) => $q->whereNull('relacio')->orWhere('relacio', '<>', 'autonom'))
+            ->orderBy('name')->get()
+            ->filter(fn (User $u) => ! $u->workSchedule
+                || ! collect(\App\Models\WorkSchedule::normalizeDays($u->workSchedule->days))->contains('active', true))
+            ->values();
+    }
+
+    /** GET /api/v1/users/sense-horari — llista per a la Safata (admin i RRHH). */
+    public function llistaSenseHorari()
+    {
+        return response()->json(self::senseHorari()->map(fn (User $u) => [
+            'id' => $u->id, 'name' => $u->name, 'email' => $u->email, 'job_profile' => $u->job_profile,
+            'created_at' => $u->created_at, 'motiu' => $u->workSchedule ? 'Horari sense cap dia' : 'Sense horari',
+        ]));
+    }
+
     public function show(User $user)
     {
         return response()->json($user->load(['workSchedule', 'specialties', 'lots', 'departments'])->makeHidden(['password']));
