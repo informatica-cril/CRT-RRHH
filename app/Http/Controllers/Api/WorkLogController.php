@@ -189,6 +189,11 @@ class WorkLogController extends Controller
         // (client clock may lag behind NTP, causing totalHours to be 0 or negative)
         if (array_key_exists('end_time', $data) && $data['end_time'] !== null) {
             $endNow = $this->workLogs->getAccurateTime();
+            // En tancar, la jornada deixa d'estar «en curs» encara que qui tanca no enviï
+            // hour_status (el pont de domi no l'envia).
+            if (($data['hour_status'] ?? $workLog->hour_status) === 'in_progress') {
+                $data['hour_status'] = 'ok';
+            }
             // Hora de Madrid directa (mateix conveni que start_time, veure store()).
             $data['end_time'] = $endNow->toDateTimeString();
 

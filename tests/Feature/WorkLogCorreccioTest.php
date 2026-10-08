@@ -80,6 +80,35 @@ class WorkLogCorreccioTest extends TestCase
         $this->assertCount(1, $mod->old_values['trams']);
     }
 
+    public function test_divendres_amb_pausa_els_trams_quadren_i_deixa_d_estar_en_curs(): void
+    {
+        // Cas real: Dl-Dj 08:20-16:00, Dv 08:20-15:00; divendres 2/10 sortida corregida a les 16:00
+        // i pausa amb segons (13:35:57). L'efectiu ha de ser 6h40 exactes (abans 6h39) i la
+        // jornada no pot quedar «en curs».
+        $dies = [];
+        foreach ([1, 2, 3, 4] as $d) $dies[] = ['day' => $d, 'start' => '08:20', 'end' => '16:00'];
+        $dies[] = ['day' => 5, 'start' => '08:20', 'end' => '15:00'];
+        $horari = \App\Models\WorkSchedule::create(['name' => '37,5', 'total_hours_weekly' => 37.5, 'days' => $dies]);
+        $treb = User::factory()->create(['role' => 'worker', 'active' => true, 'work_schedule_id' => $horari->id]);
+
+        $log = WorkLog::create([
+            'user_id' => $treb->id, 'date' => '2026-10-02', 'start_time' => '2026-10-02 08:27:00',
+            'break_start_time' => '2026-10-02 13:35:57', 'break_end_time' => '2026-10-02 13:55:57',
+            'start_location_match' => true, 'break_start_location_match' => true, 'break_end_location_match' => true,
+            'status' => 'pending', 'hour_status' => 'in_progress',
+        ]);
+
+        Sanctum::actingAs($this->user('hr'));
+        $this->corregeix($log, ['start_time' => '2026-10-02 08:20', 'end_time' => '2026-10-02 16:00', 'motiu' => 'No va fitxar la sortida'])->assertOk();
+
+        $log->refresh();
+        $this->assertSame('ok', $log->hour_status);
+        $this->assertEquals(6.67, (float) $log->effective_hours);
+        $trams = WorkLogSegment::where('work_log_id', $log->id)->get();
+        $this->assertSame(460, (int) $trams->sum('duration_minutes'));
+        $this->assertSame(60, (int) $trams->where('in_schedule', false)->where('status', 'pending')->sum('duration_minutes'));
+    }
+
     public function test_valida_les_hores(): void
     {
         Sanctum::actingAs($this->user('admin'));

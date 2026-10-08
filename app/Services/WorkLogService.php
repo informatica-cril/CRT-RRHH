@@ -201,6 +201,11 @@ class WorkLogService
             return $trossos;
         };
 
+        // Minuts d'un tram comptats amb les hores que es veuen (HH:MM): tallar els segons de
+        // cada tram per separat feia perdre un minut per tall (08:20→15:00 amb una pausa a les
+        // 13:35:57 sortia 6h 39min). Així la suma dels trams quadra sempre amb el total.
+        $minuts = fn (Carbon $a, Carbon $b): int => max(0, intval($a->copy()->seconds(0)->diffInMinutes($b->copy()->seconds(0))));
+
         $segments = [];
 
         $iniciJornada = $startTime->copy();
@@ -227,7 +232,7 @@ class WorkLogService
                             'start_time' => $tIni, 'end_time' => $tFi,
                             'start_lat' => null, 'start_lng' => null, 'end_lat' => null, 'end_lng' => null,
                             'in_zone' => $dins, 'in_schedule' => true,
-                            'duration_minutes' => intval($tIni->diffInMinutes($tFi)),
+                            'duration_minutes' => $minuts($tIni, $tFi),
                             'status' => $dins ? 'approved' : 'pending',
                         ];
                     }
@@ -237,7 +242,7 @@ class WorkLogService
                         'start_time' => $p->copy(), 'end_time' => $q->copy(),
                         'start_lat' => null, 'start_lng' => null, 'end_lat' => null, 'end_lng' => null,
                         'in_zone' => $zonaA($p), 'in_schedule' => false,
-                        'duration_minutes' => intval($p->diffInMinutes($q)), 'status' => 'pending',
+                        'duration_minutes' => $minuts($p, $q), 'status' => 'pending',
                     ];
                 }
             }
@@ -248,7 +253,7 @@ class WorkLogService
                     'start_time' => $tIni, 'end_time' => $tFi,
                     'start_lat' => null, 'start_lng' => null, 'end_lat' => null, 'end_lng' => null,
                     'in_zone' => $dins, 'in_schedule' => true,
-                    'duration_minutes' => intval($tIni->diffInMinutes($tFi)),
+                    'duration_minutes' => $minuts($tIni, $tFi),
                     'status' => $dins ? 'approved' : 'pending',
                 ];
             }
