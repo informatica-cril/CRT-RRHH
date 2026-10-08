@@ -92,6 +92,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Motiu / Justificació</label>
+          <FrasesRapides clau="motiu_excedencia" v-model="form.reason" />
           <textarea class="form-textarea" v-model="form.reason" placeholder="Descriviu el motiu de la sol·licitud..."></textarea>
         </div>
         <div class="modal-footer">
@@ -104,6 +105,7 @@
 </template>
 
 <script setup>
+import FrasesRapides from '../components/FrasesRapides.vue'
 import { ref, computed, reactive, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { db } from '../services/db'

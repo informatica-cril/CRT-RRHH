@@ -684,6 +684,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Motiu</label>
+          <FrasesRapides clau="motiu_absencia" v-model="permForm.reason" />
           <textarea class="form-textarea" v-model="permForm.reason" :required="selectedType?.requires_justification"></textarea>
           <span v-if="selectedType?.requires_justification" class="text-small" style="color:var(--color-warning);">* Justificació obligatòria</span>
         </div>
@@ -721,6 +722,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Motiu</label>
+          <FrasesRapides clau="motiu_excedencia" v-model="excForm.reason" />
           <textarea class="form-textarea" v-model="excForm.reason"></textarea>
         </div>
         <div class="modal-footer">
@@ -745,6 +747,7 @@
             <option>Permís d'ubicació denegat al dispositiu personal</option>
             <option>Altres</option>
           </select>
+          <FrasesRapides clau="justificacio_gps" v-model="manualRegText" />
           <input v-model="manualRegText" class="form-input" placeholder="Explica-ho breument — OBLIGATORI, mínim 15 caràcters" style="margin-bottom:4px;width:100%;" />
           <div class="text-small" :style="{ color: manualRegText.trim().length < 15 ? 'var(--color-danger)' : 'var(--color-success)', marginBottom: '12px' }">
             {{ manualRegText.trim().length < 15 ? `Justificació obligatòria: falten ${15 - manualRegText.trim().length} caràcters` : '✓ Justificació vàlida' }}
@@ -841,6 +844,7 @@
 </template>
 
 <script setup>
+import FrasesRapides from '../components/FrasesRapides.vue'
 import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, reactive, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import CampContrasenya from '../components/CampContrasenya.vue'

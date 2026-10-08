@@ -116,7 +116,7 @@ async function accepta (periode) {
 
 async function revoca (periode) {
   /* El motiu es demana però no s'exigeix: es pot revocar sense donar explicacions. */
-  const motiu = await demana('Motiu de la revocació (opcional):') ?? ''
+  const motiu = await demana('Motiu de la revocació (opcional):', { frases: 'revocacio_pacte' }) ?? ''
   desant.value = periode.period_start
   error.value = null
   try {

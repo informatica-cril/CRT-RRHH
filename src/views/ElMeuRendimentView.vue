@@ -62,6 +62,7 @@
         La data la posa el sistema. L'escrit arriba a Direcció i a Recursos Humans i ha de tenir
         resposta escrita.
       </div>
+      <FrasesRapides clau="allegacio_rendiment" v-model="text" />
       <textarea v-model="text" class="form-input" rows="6" style="width:100%;"
                 placeholder="Escriu aquí la teva explicació i, si escau, les dades concretes que la sostenen (mínim 20 caràcters)."></textarea>
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
@@ -108,6 +109,7 @@
 </template>
 
 <script setup>
+import FrasesRapides from '../components/FrasesRapides.vue'
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/apiClient'
 import { useAuthStore } from '../stores/auth'

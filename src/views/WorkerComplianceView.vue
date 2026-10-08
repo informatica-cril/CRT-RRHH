@@ -59,6 +59,7 @@
       </div>
 
       <template v-if="c.pot_alegar">
+        <FrasesRapides clau="allegacio_disciplinari" v-model="alegacio[c.id]" />
         <textarea class="form-input" v-model="alegacio[c.id]" rows="6" style="width:100%;margin-top:12px;"
                   placeholder="Escriu aquí la teva versió dels fets, les proves que vulguis proposar i el que consideris rellevant (mínim 10 caràcters)."></textarea>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
@@ -103,6 +104,7 @@
 </template>
 
 <script setup>
+import FrasesRapides from '../components/FrasesRapides.vue'
 import { confirma, demana } from '../utils/dialegs'
 import { ref, onMounted } from 'vue'
 import api from '../services/apiClient'

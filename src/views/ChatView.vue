@@ -164,6 +164,7 @@
               <span>📎 {{ pendingFile.name }}</span>
               <button @click="pendingFile = null">✕</button>
             </div>
+            <FrasesRapides class="chat-frases" clau="xat" v-model="newMessage" />
             <textarea 
               v-model="newMessage" 
               @keydown.enter.exact.prevent="sendMessage"
@@ -229,6 +230,7 @@
 </template>
 
 <script setup>
+import FrasesRapides from '../components/FrasesRapides.vue'
 import SelectorPersona from '../components/SelectorPersona.vue'
 import { ref, computed, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { db } from '../services/db'
@@ -655,6 +657,7 @@ async function createConversation() {
 
 .chat-input-wrap { flex: 1; border: 1px solid var(--color-border-light); border-radius: 16px; overflow: hidden; transition: border-color 0.2s; }
 .chat-input-wrap:focus-within { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+.chat-frases { padding: 8px 12px 0; margin: 0; }
 .chat-input-wrap textarea { border: none; background: none; width: 100%; resize: none; padding: 10px 14px; font-size: 0.9rem; min-height: 38px; max-height: 100px; font-family: inherit; outline: none; color: var(--color-text); }
 .pending-file-tag { display: flex; align-items: center; gap: 6px; padding: 4px 10px; background: rgba(59,130,246,0.08); font-size: 0.78rem; color: var(--color-primary); }
 .pending-file-tag button { background: none; border: none; cursor: pointer; color: var(--color-danger); padding: 0 4px; }

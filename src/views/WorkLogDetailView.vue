@@ -37,6 +37,7 @@
               <label>Entrada <input type="datetime-local" v-model="correccio.inici" class="form-input" /></label>
               <label>Sortida <input type="datetime-local" v-model="correccio.fi" class="form-input" /></label>
             </div>
+            <FrasesRapides clau="correccio_hora" v-model="correccio.motiu" />
             <textarea v-model="correccio.motiu" rows="2" class="form-input"
               placeholder="Motiu de la correcció (mínim 10 caràcters). Quedarà registrat a la traçabilitat."></textarea>
             <div v-if="correccio.error" class="correccio-error">{{ correccio.error }}</div>
@@ -66,6 +67,7 @@
                 <option v-for="c in zona.centres" :key="c.id" :value="c.id">{{ c.name }}</option>
               </select>
             </label>
+            <FrasesRapides clau="correccio_zona" v-model="zona.motiu" />
             <textarea v-model="zona.motiu" rows="2" class="form-input"
               placeholder="Motiu (mínim 10 caràcters). P. ex.: era a Viladomat, centre que encara no tenia assignat."></textarea>
             <div v-if="zona.error" class="correccio-error">{{ zona.error }}</div>
@@ -161,6 +163,7 @@
             </div>
             <!-- Al·legació del TITULAR (treballador) sobre tram pendent -->
             <div v-if="esTitular && seg.status === 'pending'" class="allegation-form">
+              <FrasesRapides clau="allegacio_tram" v-model="allegationText[seg.id]" />
               <textarea v-model="allegationText[seg.id]" rows="2" class="form-input"
                 placeholder="La teva explicació (p. ex. error del GPS a l'interior, canvi de domicili del pacient...)"></textarea>
               <button class="btn-approve" @click="sendAllegation(seg)"
@@ -180,6 +183,7 @@
                     <option v-for="ft in g.items" :key="ft.clau" :value="ft.clau">{{ ft.base_conveni }} · {{ ft.descripcio }}</option>
                   </optgroup>
                 </select>
+                <FrasesRapides clau="rebuig_tram" v-model="rejectReason[seg.id]" />
                 <textarea v-model="rejectReason[seg.id]" rows="2" class="form-input" placeholder="Motiu del rebuig (mínim 5 caràcters)"></textarea>
                 <div v-if="(rejectReason[seg.id] || '').trim().length > 0 && (rejectReason[seg.id] || '').trim().length < 5"
                   class="reject-hint">Falten {{ 5 - (rejectReason[seg.id] || '').trim().length }} caràcters més al motiu.</div>
@@ -209,6 +213,7 @@
 </template>
 
 <script setup>
+import FrasesRapides from '../components/FrasesRapides.vue'
 import { confirma, demana } from '../utils/dialegs'
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
@@ -360,7 +365,7 @@ async function rejectSegment(seg) {
 const esTitular = computed(() => authStore.user?.id === workLog.value?.user_id)
 const potReobrir = computed(() => ['admin', 'hr'].includes(authStore.user?.role))
 async function reobrirTram(seg) {
-  const motiu = await demana(`Per què cal revisar de nou el tram ${seg.segment_number}? (mínim 10 caràcters)\nQuedarà registrat a la traçabilitat.`)
+  const motiu = await demana(`Per què cal revisar de nou el tram ${seg.segment_number}? (mínim 10 caràcters)\nQuedarà registrat a la traçabilitat.`, { frases: 'revisar_de_nou' })
   if (motiu === null) return
   if (motiu.trim().length < 10) return alert("Cal un motiu d'almenys 10 caràcters.")
   try {

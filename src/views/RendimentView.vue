@@ -101,6 +101,7 @@
           · presentat el {{ fmtData(a.presentada_ts) }}
         </div>
         <div style="white-space:pre-wrap;background:var(--color-bg);border-radius:8px;padding:10px;margin-top:8px;">{{ a.text }}</div>
+        <FrasesRapides clau="resposta_rendiment" v-model="resposta[a.id]" />
         <textarea v-model="resposta[a.id]" class="form-input" rows="4" style="width:100%;margin-top:10px;"
                   placeholder="Resposta motivada (mínim 20 caràcters). Queda desada amb data i autor, i la persona la veu a la seva pantalla."></textarea>
         <button class="btn btn-primary" style="margin-top:8px;"
@@ -129,6 +130,7 @@
 </template>
 
 <script setup>
+import FrasesRapides from '../components/FrasesRapides.vue'
 import { ref, onMounted } from 'vue'
 import api from '../services/apiClient'
 

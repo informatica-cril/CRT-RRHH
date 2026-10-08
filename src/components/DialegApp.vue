@@ -7,6 +7,7 @@
           <div class="dlg-text">{{ dialeg.missatge }}</div>
         </div>
 
+        <FrasesRapides v-if="dialeg.tipus === 'demana' && dialeg.frases" :clau="dialeg.frases" v-model="dialeg.valor" />
         <textarea v-if="dialeg.tipus === 'demana'" ref="camp" v-model="dialeg.valor" class="form-input dlg-camp" rows="3"
           :placeholder="dialeg.placeholder" @keydown.enter.ctrl="pot && respon(true)"></textarea>
         <div v-if="dialeg.tipus === 'demana' && dialeg.minim > 1" class="dlg-compte" :class="{ ok: pot }">
@@ -27,6 +28,7 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
 import { dialeg, respon } from '../utils/dialegs'
+import FrasesRapides from './FrasesRapides.vue'
 
 const camp = ref(null)
 const ok = ref(null)

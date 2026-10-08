@@ -15,6 +15,7 @@
 
         <template v-else>
           <input type="time" class="form-input avis-ss-hora" v-model="form[j.id].hora" title="Hora de sortida" />
+          <FrasesRapides class="avis-ss-frases" clau="declaracio_sortida" v-model="form[j.id].explicacio" />
           <input type="text" class="form-input avis-ss-text" v-model="form[j.id].explicacio" placeholder="Què va passar? (mín. 10 caràcters)" />
           <button class="btn btn-primary btn-sm" :disabled="form[j.id].enviant || !form[j.id].hora || form[j.id].explicacio.trim().length < 10"
             @click="declara(j)">{{ form[j.id].enviant ? '…' : 'Enviar' }}</button>
@@ -26,6 +27,7 @@
 </template>
 
 <script setup>
+import FrasesRapides from './FrasesRapides.vue'
 import { ref, reactive, computed, onMounted } from 'vue'
 import api from '../services/apiClient'
 
@@ -87,6 +89,7 @@ defineExpose({ carrega })
 .avis-ss-fila { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 0; border-top: 1px solid var(--color-border-light, #eee); }
 .avis-ss-dia { min-width: 150px; font-weight: 600; }
 .avis-ss-hora { width: 110px; padding: 4px 8px; }
+.avis-ss-frases { flex-basis: 100%; margin: 0; }
 .avis-ss-text { flex: 1; min-width: 180px; padding: 4px 8px; }
 .avis-ss-feta { color: var(--color-success, #2e7d32); }
 .avis-ss-error { width: 100%; color: var(--color-danger, #c62828); font-size: 0.8rem; }
