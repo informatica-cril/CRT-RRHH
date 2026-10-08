@@ -1680,9 +1680,9 @@ async function saveMuniAssignment() {
 .tr-filtre { width: auto; min-width: 170px; }
 .tr-check { width: 34px; text-align: center; }
 .tr-check input { width: 16px; height: 16px; cursor: pointer; }
-.tr-fila-sel { background: rgba(9, 78, 140, 0.05); }
+.tr-fila-sel { background: rgba(0, 128, 108, 0.06); }
 .tr-seleccio { position: sticky; top: 8px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-  margin-bottom: 12px; padding: 10px 14px; border-radius: 12px; background: #0A2A4A; color: #fff; box-shadow: 0 6px 18px rgba(10,42,74,.18); }
+  margin-bottom: 12px; padding: 10px 14px; border-radius: 12px; background: var(--color-primary, #00806C); color: #fff; box-shadow: 0 6px 18px rgba(0,128,108,.22); }
 .tr-seleccio strong { margin-right: 6px; }
 .tr-seleccio .btn-outline { background: #fff; }
 .tr-sep { width: 1px; height: 22px; background: rgba(255,255,255,.3); margin: 0 4px; }

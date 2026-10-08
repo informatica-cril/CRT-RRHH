@@ -179,7 +179,7 @@ function onCanviObligatori() {
   if (authStore.user) authStore.user.must_change_password = true
   if (route.name !== 'force-password-change') router.push({ name: 'force-password-change' })
 }
-window.addEventListener('cril:canvi-contrasenya', onCanviObligatori)
+window.addEventListener('crt:canvi-contrasenya', onCanviObligatori)
 
 // ── Geolocation consent check (highest priority for workers) ────
 const needsGeoConsent = ref(false)

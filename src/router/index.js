@@ -345,7 +345,7 @@ router.beforeEach(async (to, from, next) => {
 
   // Sessió caducada: l'apiClient ja ha esborrat el token, però l'estat seguia «connectat» i
   // el login rebotava cap a l'inici (perdent la pàgina i el motiu). Es dona per tancada.
-  if (authStore.isAuthenticated && !localStorage.getItem('cril_api_token')) {
+  if (authStore.isAuthenticated && !localStorage.getItem('crt_api_token')) {
     authStore.user = null
     authStore.token = null
     authStore.isAuthenticated = false

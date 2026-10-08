@@ -124,7 +124,7 @@ export async function apiRequest(endpoint, options = {}) {
   // 423: cal canviar la contrasenya abans de res (ForcePasswordChange). L'App porta a la
   // pantalla de canvi; abans no ho tractava ningú i cada pantalla seguia demanant dades.
   if (response.status === 423) {
-    window.dispatchEvent(new CustomEvent('cril:canvi-contrasenya'))
+    window.dispatchEvent(new CustomEvent('crt:canvi-contrasenya'))
     throw new Error('Has de canviar la contrasenya abans de continuar.')
   }
 

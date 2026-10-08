@@ -35,6 +35,6 @@ const visible = ref(false)
 .cc-ull { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px;
   display: flex; align-items: center; justify-content: center; border: none; background: transparent;
   color: var(--color-text-muted, #7a8aa0); cursor: pointer; border-radius: 8px; padding: 0; }
-.cc-ull:hover { color: var(--color-primary, #094E8C); background: rgba(9, 78, 140, 0.06); }
-.cc-ull:focus-visible { outline: 2px solid var(--color-primary, #094E8C); outline-offset: 1px; }
+.cc-ull:hover { color: var(--color-primary, #00806C); background: rgba(0, 128, 108, 0.08); }
+.cc-ull:focus-visible { outline: 2px solid var(--color-primary, #00806C); outline-offset: 1px; }
 </style>
