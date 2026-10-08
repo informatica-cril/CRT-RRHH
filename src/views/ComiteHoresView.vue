@@ -109,9 +109,11 @@
 <script setup>
 import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, onMounted } from 'vue'
+import { useEstatUrl } from '../composables/useEstatUrl'
 import api, { apiFetchRaw } from '../services/apiClient'
 
 const mes = ref(new Date().toISOString().slice(0, 7))
+useEstatUrl('mes', mes)
 const membre = ref(null)
 const resum = ref({})
 const tipus = ref({})

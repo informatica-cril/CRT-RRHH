@@ -28,6 +28,8 @@ async function xsrfToken(refresh = false) {
 function needsXsrf(options) {
   return SAME_ORIGIN && UNSAFE_METHODS.includes((options.method || 'GET').toUpperCase())
 }
+// Mentre es tanca la sessió, els 401 de peticions en curs no són una sessió caducada.
+let tancantSessio = false
 
 function getToken() {
   return localStorage.getItem(TOKEN_KEY)
@@ -104,10 +106,16 @@ export async function apiRequest(endpoint, options = {}) {
     if (!isAuthEndpoint) {
       // Only do hard redirect for non-init endpoints (actual user actions)
       // For init checks, just throw so the auth store can handle it gracefully
-      if (!isInitEndpoint) {
+      // Sense token, o mentre es tanca la sessió (el servidor ja ha anul·lat el token), és una
+      // petició que ha acabat en sortir: no ha caducat res.
+      if (!isInitEndpoint && getToken() && !tancantSessio) {
         clearToken()
         window.localStorage.setItem('auth_error', 'La sessió ha caducat. Torneu a iniciar sessió.')
-        window.location.hash = '#/login'
+        // En tornar a entrar es torna a la mateixa pàgina.
+        const actual = window.location.hash.replace(/^#/, '')
+        window.location.hash = actual && actual !== '/' && !actual.startsWith('/login')
+          ? '#/login?redirect=' + encodeURIComponent(actual)
+          : '#/login'
       }
       throw new Error('Session expired')
     }
@@ -178,10 +186,12 @@ export const api = {
   },
 
   async logout() {
+    tancantSessio = true
     try {
       await apiRequest('/v1/auth/logout', { method: 'POST' })
     } finally {
       clearToken()
+      tancantSessio = false
     }
   },
 

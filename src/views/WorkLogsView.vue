@@ -173,6 +173,7 @@ import api, { apiFetchRaw } from '../services/apiClient'
 import { i18n } from '../i18n'
 import { formatHM } from '../utils/formatHours'
 import { sortidaAltreDia } from '../utils/sortidaAltreDia'
+import { useEstatUrl, idOText } from '../composables/useEstatUrl'
 
 const authStore = useAuthStore()
 const workLogStore = useWorkLogStore()
@@ -186,6 +187,8 @@ function viewDetail(logId) {
 const now = new Date()
 const selectedMonth = ref(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
 const selectedUser = ref('all')
+useEstatUrl('mes', selectedMonth)
+useEstatUrl('persona', selectedUser, idOText)
 const showRejectModal = ref(false)
 const rejectReason = ref('')
 const rejectLogId = ref(null)
@@ -252,6 +255,7 @@ function esLlarg(l) {
 }
 
 const vista = ref('tots')
+useEstatUrl('vista', vista)
 const filtres = [
   { clau: 'tots', nom: 'Tots', icona: '📋', to: 'neutre', fn: () => true },
   { clau: 'pendents', nom: "Pendents d'aprovar", icona: '⏳', to: 'groc', fn: l => l.status === 'pending' },

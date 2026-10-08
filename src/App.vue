@@ -350,11 +350,11 @@ watch(() => authStore.isAuthenticated, async (val) => {
     if (!needsGeoConsent.value) checkNativeGeo()
     await checkOnboarding()
     await checkUrgentDocs()
-  } else {
-    // Redirect to login if session is lost and not on a public route
-    if (route.name !== 'login' && !route.meta?.guest) {
-      router.push('/login')
-    }
+  } else if (authStore.isInitialized && route.meta?.requiresAuth) {
+    // Sessió perduda DESPRÉS d'haver-la comprovat (tancar sessió, token caducat). En recarregar
+    // (F5), abans de comprovar-la isAuthenticated encara és false: si s'enviava a /login aquí,
+    // en confirmar la sessió el router la treia del login cap a l'inici i es perdia la pàgina.
+    router.push({ name: 'login', query: { redirect: route.fullPath } })
   }
 }, { immediate: true })
 

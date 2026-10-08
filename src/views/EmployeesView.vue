@@ -805,6 +805,7 @@
 import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useEstatUrl } from '../composables/useEstatUrl'
 import { db } from '../services/db'
 import api from '../services/apiClient'
 import { auditLog } from '../services/audit'
@@ -854,6 +855,7 @@ const showCalendarModal = ref(false), calendarUser = ref(null)
 const calendarSchedule = computed(() => schedules.value.find(s => s.id === calendarUser.value?.work_schedule_id) || null)
 function openCalendarModal(user) { calendarUser.value = user; showCalendarModal.value = true }
 const searchQuery = ref('')
+useEstatUrl('cerca', searchQuery)
 const sortKey = ref('name')
 const sortDir = ref(1)
 

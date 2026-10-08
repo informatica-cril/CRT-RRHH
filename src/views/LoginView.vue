@@ -115,12 +115,13 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { i18n } from '../i18n'
 
 const authStore = useAuthStore()
 const router = useRouter()
+const route = useRoute()
 const t = (key) => i18n.t(key)
 
 const loginMode = ref('admin')
@@ -175,7 +176,11 @@ async function handleLogin() {
     } else {
       window.localStorage.removeItem(REMEMBER_KEY)
     }
-    if (authStore.isWorker) {
+    // Torna a la pàgina on anava (sessió caducada o enllaç directe); només rutes internes.
+    const desti = String(route.query.redirect || '')
+    if (desti.startsWith('/') && !desti.startsWith('//') && !desti.startsWith('/login')) {
+      router.push(desti)
+    } else if (authStore.isWorker) {
       router.push('/worker')
     } else {
       router.push('/')

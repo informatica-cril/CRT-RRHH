@@ -353,6 +353,7 @@
 import SelectorPersona from '../components/SelectorPersona.vue'
 import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, reactive, onMounted } from 'vue'
+import { useEstatUrl, idOText } from '../composables/useEstatUrl'
 import { db } from '../services/db'
 import { auditLog } from '../services/audit'
 import { useAuthStore } from '../stores/auth'
@@ -372,6 +373,9 @@ const showPreviewModal = ref(false)
 const filterUser = ref('all')
 const filterMonth = ref('')
 const filterYear = ref('')
+useEstatUrl('persona', filterUser, idOText)
+useEstatUrl('mes', filterMonth)
+useEstatUrl('any', filterYear, idOText)
 const sortOrder = ref('desc')
 const previewPayroll = ref(null)
 const previewUrl = ref(null)
