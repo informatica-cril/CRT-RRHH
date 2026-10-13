@@ -164,7 +164,7 @@
             <!-- Al·legació del TITULAR (treballador) sobre tram pendent -->
             <div v-if="esTitular && seg.status === 'pending'" class="allegation-form">
               <FrasesRapides clau="allegacio_tram" v-model="allegationText[seg.id]" />
-              <textarea v-model="allegationText[seg.id]" rows="2" class="form-input"
+              <textarea v-model="allegationText[seg.id]" rows="4" class="form-input allegation-text"
                 placeholder="La teva explicació (p. ex. error del GPS a l'interior, canvi de domicili del pacient...)"></textarea>
               <button class="btn-approve" @click="sendAllegation(seg)"
                 :disabled="(allegationText[seg.id] || '').trim().length < 20">Presentar al·legació (mín. 20 caràcters)</button>
@@ -490,7 +490,7 @@ async function sendAllegation(seg) {
 .status-rejected { background: #f8d7da; }
 .audiencia-box { background: #fff8e6; border-left: 3px solid #f0a500; border-radius: 6px; padding: 10px 12px; margin-top: 8px; }
 .allegation-form { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }  /* frases, text a tota l'amplada i botó a sota */
-.allegation-form textarea { width: 100%; min-height: 64px; resize: vertical; }
+.allegation-form textarea { width: 100%; min-height: 110px; resize: vertical; font-size: 0.95rem; line-height: 1.4; padding: 10px 12px; }
 .allegation-form .btn-approve { align-self: flex-end; padding: 8px 16px; }
 .segment-actions { display: flex; gap: 8px; margin-top: 8px; }
 .btn-approve { background: #4caf50; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
