@@ -8,7 +8,7 @@
       <span class="ash-ico">🗓️</span>
       <div>
         <strong>Encara no tens horari assignat.</strong>
-        <div>Pots fitxar igualment, però fins que no el tinguis no es poden calcular bé les hores fora d'horari, les extres ni la pausa. Avisa RRHH perquè te l'assigni.</div>
+        <div>Pots fitxar igualment, però fins que no el tinguis no es poden calcular bé les hores fora d'horari, les extres ni la pausa. Avisa RRHH perquè te l'assigni: <a href="mailto:rrhh@lirc.es">rrhh@lirc.es</a>.</div>
       </div>
     </div>
 

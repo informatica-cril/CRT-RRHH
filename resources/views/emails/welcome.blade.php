@@ -110,6 +110,7 @@
             <td style="background-color:#F4F8F7; padding:18px 40px; text-align:center; border-top:1px solid #E1EEEB;">
               <p style="margin:0; font-size:11px; color:#888888; font-family:Arial, sans-serif;">
                 <strong style="color:#666666;">CRT &mdash; Centre de Rehabilitació Terapèutica</strong><br>
+                Per a qualsevol dubte, escriu a <a href="mailto:{{ config('mail.reply_to.address') }}" style="color:inherit;">{{ config('mail.reply_to.address') }}</a>.<br>
                 Aquest missatge és automàtic, no cal respondre.
               </p>
             </td>
