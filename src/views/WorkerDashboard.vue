@@ -852,7 +852,7 @@ import { useAuthStore } from '../stores/auth'
 import { useWorkLogStore } from '../stores/workLog'
 import { db } from '../services/db'
 import { TILE_URL, TILE_ATTRIBUTION, TILE_MAX_ZOOM } from '../config/geo'
-import { getCurrentPosition, checkUserLocation, BARCELONA_POSTAL_CODES, VALLES_MUNICIPALITIES } from '../services/geolocation'
+import { getCurrentPosition, posicioRapida, checkUserLocation, BARCELONA_POSTAL_CODES, VALLES_MUNICIPALITIES } from '../services/geolocation'
 import { Capacitor } from '@capacitor/core'
 import { getPolygon } from '../services/geoPolygonService'
 import { auditLog } from '../services/audit'
@@ -1409,12 +1409,10 @@ async function endWorkday() {
   
   isFinishing.value = true
   try {
-    // GPS Reliable End: Try to get current position with a strict timeout
-    const gpsTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000))
-    const pos = await Promise.race([
-      getCurrentPosition(),
-      gpsTimeout
-    ]).catch(() => lastKnownPos.value)
+    // Posició sense fer esperar: la que el dispositiu ja té (fins a 2 min) o una de nova, la primera
+    // que arribi i com a màxim 4 s. Abans s'esperava una posició nova d'alta precisió fins a 6 s i
+    // molta gent marxava sense que la sortida s'acabés de registrar.
+    const pos = (await posicioRapida(4000)) || lastKnownPos.value
 
     await workLogStore.endWorkday(pos?.lat || null, pos?.lng || null,
       pos?.lat ? null : 'GPS no disponible al tancament de jornada — anotació automàtica',
