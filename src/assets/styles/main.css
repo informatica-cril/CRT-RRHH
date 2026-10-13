@@ -819,6 +819,12 @@ a:hover { color: var(--color-primary); }
   margin: var(--space-md) 0;
 }
 
+.time-tracker .tracker-entrada {
+  font-size: 0.9rem;
+  opacity: 0.85;
+  margin: calc(-1 * var(--space-sm)) 0 var(--space-sm);
+}
+
 .time-tracker .tracker-label {
   font-size: 0.85rem;
   opacity: 0.8;

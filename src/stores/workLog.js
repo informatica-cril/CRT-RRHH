@@ -26,6 +26,11 @@ export const useWorkLogStore = defineStore('workLog', {
       const m = Math.floor((state.elapsed % 3600) / 60)
       const s = state.elapsed % 60
       return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    },
+    // Hora d'entrada (HH:MM) llegida del text: ve en hora de Madrid sense zona, no es converteix.
+    horaEntrada: (state) => {
+      const m = String(state.currentLog?.start_time || '').match(/[T ](\d{2}):(\d{2})/)
+      return m ? `${m[1]}:${m[2]}` : ''
     }
   },
 
