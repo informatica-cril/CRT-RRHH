@@ -130,7 +130,12 @@ export const useWorkLogStore = defineStore('workLog', {
 
         // Get active CP assignment
         const cpAssignment = await db.getActiveCpAssignment(authStore.userId)
-        let geoResult = await checkUserLocation(authStore.user, cpAssignment, lat, lng)
+        // Sense GPS a la sortida (registre manual): sense veredicte de posició, com a l'entrada.
+        // Abans es validava amb coordenades buides (= punt 0,0) i sortia «fora de zona a 4.600 km».
+        const hasCoords = lat != null && lng != null
+        let geoResult = hasCoords
+          ? await checkUserLocation(authStore.user, cpAssignment, lat, lng)
+          : { valid: null, distance: null }
 
         const isAmbulatory = authStore.user?.work_type === 'AMBULATORIA'
         const startInGeo = this.currentLog.start_location_match !== false
@@ -138,7 +143,8 @@ export const useWorkLogStore = defineStore('workLog', {
         
         // For Ambulatory, we prioritize the start location per user's "only at start" rule
         // For others, we consider it out of area if either start or end is invalid
-        const inGeo = isAmbulatory ? startInGeo : (startInGeo && endInGeo)
+        // Una sortida sense posició (null) no és «fora»: només compta un veredicte negatiu.
+        const inGeo = isAmbulatory ? startInGeo : (startInGeo && endInGeo !== false)
 
         let validHours = 0
         let extraHoursUnauth = 0
@@ -168,7 +174,7 @@ export const useWorkLogStore = defineStore('workLog', {
           end_location_lat: lat,
           end_location_lng: lng,
           end_location_match: endInGeo,
-          end_location_distance: geoResult.distance,
+          end_location_distance: geoResult.distance ?? null,
           location_match: inGeo,
           total_hours_worked: validHours,
           hours_worked: validHours,
