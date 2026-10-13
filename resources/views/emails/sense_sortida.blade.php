@@ -59,12 +59,13 @@
       </div>
 
       <p class="text-small">
-        Rebràs aquest avís cada matí fins que ho declaris. Si tens cap dubte, escriu a rrhh@lirc.es.
+        Rebràs aquest avís cada matí fins que ho declaris. Si tens cap dubte, escriu a {{ config('mail.reply_to.address') }}.
       </p>
     </div>
 
     <div class="footer">
       <strong>CRT &mdash; Centre de Rehabilitació Terapèutica</strong><br>
+      Per a qualsevol dubte, escriu a <a href="mailto:{{ config('mail.reply_to.address') }}" style="color:inherit;">{{ config('mail.reply_to.address') }}</a>.<br>
       Aquest missatge és automàtic. Registre de jornada conforme al RDL 8/2019.
     </div>
   </div>

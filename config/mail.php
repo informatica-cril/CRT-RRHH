@@ -107,6 +107,15 @@ return [
     |
     */
 
+    /*
+    | Respondre a: les respostes als correus de l'app van a RRHH de CRIL (també des de CRT,
+    | que envia des del seu buzó). És també el contacte que surt al peu dels correus.
+    */
+    'reply_to' => [
+        'address' => env('MAIL_REPLY_TO_ADDRESS', 'rrhh@lirc.es'),
+        'name' => env('MAIL_REPLY_TO_NAME', 'RRHH CRIL'),
+    ],
+
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', 'Example'),

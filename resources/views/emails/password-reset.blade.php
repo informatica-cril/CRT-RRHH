@@ -53,6 +53,7 @@
 
     <div class="footer">
       <strong>CRT &mdash; Centre de Rehabilitació Terapèutica</strong><br>
+      Per a qualsevol dubte, escriu a <a href="mailto:{{ config('mail.reply_to.address') }}" style="color:inherit;">{{ config('mail.reply_to.address') }}</a>.<br>
       Aquest missatge és automàtic, no cal respondre.
     </div>
   </div>
