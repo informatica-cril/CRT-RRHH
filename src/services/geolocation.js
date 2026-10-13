@@ -221,7 +221,7 @@ export function isWithinAnyGeofence(lat, lng, postalCodes, polygonMap = {}) {
 export async function isWithinAmbulatoryPoints(lat, lng, userId) {
   const points = await db.getAmbulatoryPoints(userId)
   if (!points || points.length === 0) {
-    return { valid: true, method: 'no_points', message: 'Cap punt configurat — accés permès' }
+    return { valid: true, method: 'no_points', senseZona: true, message: 'Cap punt configurat — accés permès' }
   }
 
   for (const point of points) {
@@ -281,7 +281,7 @@ export function isWithinMunicipality(lat, lng, municipalityCode) {
 export async function isWithinAssignedMunicipalities(lat, lng, userId) {
   const assignment = await db.getActiveMunicipalAssignment(userId)
   if (!assignment || !assignment.municipalities || assignment.municipalities.length === 0) {
-    return { valid: true, method: 'no_municipalities', message: 'Cap terme municipal assignat — accés permès' }
+    return { valid: true, method: 'no_municipalities', senseZona: true, message: 'Cap terme municipal assignat — accés permès' }
   }
 
   for (const muniCode of assignment.municipalities) {
