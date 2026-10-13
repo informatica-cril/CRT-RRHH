@@ -14,7 +14,7 @@
     </div>
     <div class="page-header" v-else>
       <div>
-        <h1 class="page-title">Menú administrador</h1>
+        <h1 class="page-title">Menú de gestió</h1>
         <p class="page-subtitle">Accediu a totes les eines de gestió</p>
       </div>
     </div>

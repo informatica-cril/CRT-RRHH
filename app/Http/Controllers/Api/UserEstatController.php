@@ -59,7 +59,7 @@ class UserEstatController extends Controller
             return [422, 'No podeu canviar el vostre propi estat.'];
         }
         if ($jo->role !== 'admin' && in_array($user->role, ['admin', 'service'], true)) {
-            return [403, "Els comptes d'administració només els pot activar o desactivar l'administració."];
+            return [403, "Els comptes Superior només els pot activar o desactivar un usuari Superior."];
         }
         if ((bool) $user->active === $active) {
             return null;

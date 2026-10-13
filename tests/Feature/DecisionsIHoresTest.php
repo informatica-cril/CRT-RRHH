@@ -266,6 +266,27 @@ class DecisionsIHoresTest extends TestCase
         $this->assertNull($admin->work_schedule_id);
     }
 
+    public function test_el_rol_el_tria_administracio_sense_quedar_se_sense_cap_admin(): void
+    {
+        $admin = User::create(['name' => 'Adm', 'email' => uniqid() . '@test.local', 'password' => bcrypt('x'), 'role' => 'admin', 'active' => true]);
+        $gerencia = User::create(['name' => 'Gerent', 'email' => uniqid() . '@test.local', 'password' => bcrypt('x'),
+            'role' => 'admin', 'job_profile' => 'Gerencia', 'active' => true]);
+        Sanctum::actingAs($admin);
+
+        // Gerència passa a fitxar com la resta (rol de treballador).
+        $this->putJson("/api/v1/users/{$gerencia->id}", ['role' => 'worker'])->assertOk();
+        $this->assertSame('worker', $gerencia->fresh()->role);
+        $this->assertSame('Gerencia', $gerencia->fresh()->job_profile);
+
+        // Ni el propi rol ni l'últim administrador actiu.
+        $this->putJson("/api/v1/users/{$admin->id}", ['role' => 'worker'])->assertStatus(422);
+        $this->assertSame('admin', $admin->fresh()->role);
+
+        // Nomenar un altre administrador sí.
+        $this->putJson("/api/v1/users/{$gerencia->id}", ['role' => 'admin'])->assertOk();
+        $this->assertSame('admin', $gerencia->fresh()->role);
+    }
+
     public function test_qui_te_registre_horari_es_dona_de_baixa_i_no_s_esborra(): void
     {
         $hr = $this->hr();

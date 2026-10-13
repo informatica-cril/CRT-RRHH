@@ -28,7 +28,7 @@ class UserController extends Controller
     public const CAMPS_CONTACTE = ['name', 'email', 'device_phone'];
 
     /** Només administració pot crear (o fer) administradors; RRHH no. */
-    public const NOMES_ADMIN = 'Només un administrador pot donar d\'alta un altre administrador (p. ex. el lloc «Gerencia»).';
+    public const NOMES_ADMIN = 'Només un usuari Superior pot donar d\'alta un altre usuari Superior.';
 
     public function index()
     {
@@ -110,7 +110,7 @@ class UserController extends Controller
         $canviats = 0; $omesos = [];
         foreach (User::whereIn('id', $data['ids'])->get() as $u) {
             if ((int) $u->id === (int) $autor->id) { $omesos[] = ['id' => $u->id, 'motiu' => 'No et pots treure l\'accés a tu mateix.']; continue; }
-            if (in_array($u->role, ['admin', 'service'], true) && ! $autor->isAdmin()) { $omesos[] = ['id' => $u->id, 'motiu' => 'Només un administrador pot canviar l\'accés d\'un administrador.']; continue; }
+            if (in_array($u->role, ['admin', 'service'], true) && ! $autor->isAdmin()) { $omesos[] = ['id' => $u->id, 'motiu' => 'Només un usuari Superior pot canviar l\'accés d\'un altre usuari Superior.']; continue; }
             if ((bool) ($u->acces_app ?? true) === $acces) continue;
 
             $u->forceFill(['acces_app' => $acces])->save();
@@ -179,6 +179,14 @@ class UserController extends Controller
         // sense servei), es manté el valor actual en comptes de petar a la BD.
         if (array_key_exists('work_type', $data) && $data['work_type'] === null) {
             unset($data['work_type']);
+        }
+
+        // El rol el canvia administració, però mai el propi ni deixant l'app sense cap administrador actiu.
+        if (array_key_exists('role', $data) && $data['role'] !== $user->role) {
+            abort_if((int) $request->user()->id === (int) $user->id, 422, 'No podeu canviar el vostre propi rol.');
+            abort_if($user->role === 'admin' && $user->active
+                && User::where('role', 'admin')->where('active', true)->where('id', '<>', $user->id)->doesntExist(),
+                422, 'És l\'únic usuari Superior actiu: dona primer el rol Superior a una altra persona.');
         }
 
         if (isset($data['password'])) {

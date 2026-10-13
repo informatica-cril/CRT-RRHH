@@ -78,9 +78,9 @@ class ImportPersonalController extends Controller
             $admins = User::where('role', 'admin')->whereIn('dni', array_column($valides, 'dni'))->pluck('dni')->all();
             foreach ($valides as $r) {
                 if (($r['rol_rrhh'] ?: 'worker') === 'admin' && ! in_array($r['dni'], $admins, true)) {
-                    $errors[] = ['fila' => '-', 'valors' => $r['dni'], 'errors' => ['Només un administrador pot donar d\'alta o fer administrador.']];
+                    $errors[] = ['fila' => '-', 'valors' => $r['dni'], 'errors' => ['Només un usuari Superior pot donar d\'alta o fer usuaris Superior.']];
                 } elseif (in_array($r['dni'], $admins, true) && ($r['rol_rrhh'] ?: 'worker') !== 'admin') {
-                    $errors[] = ['fila' => '-', 'valors' => $r['dni'], 'errors' => ['Només un administrador pot canviar el rol d\'un administrador.']];
+                    $errors[] = ['fila' => '-', 'valors' => $r['dni'], 'errors' => ['Només un usuari Superior pot canviar el rol d\'un usuari Superior.']];
                 }
             }
         }
