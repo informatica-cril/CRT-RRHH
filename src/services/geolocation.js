@@ -131,6 +131,24 @@ export function getCurrentPosition() {
 }
 
 /**
+ * Posició per fitxar sense fer esperar: es demanen alhora la que el dispositiu ja té en memòria
+ * (fins a 2 min, sol arribar a l'instant) i una de nova, i es queda la primera que arribi.
+ * Com a màxim `maxMs`; si no n'arriba cap, null (registre sense GPS). No hi ha seguiment
+ * continu (EIPD): només es demana en el moment de fitxar.
+ */
+export function posicioRapida(maxMs = 5000) {
+  if (!navigator.geolocation) return Promise.resolve(null)
+  return new Promise((resolve) => {
+    let fet = false
+    const acaba = (v) => { if (!fet) { fet = true; resolve(v) } }
+    const ok = (pos) => acaba({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy, timestamp: pos.timestamp })
+    navigator.geolocation.getCurrentPosition(ok, () => {}, { enableHighAccuracy: false, maximumAge: 120000, timeout: maxMs })
+    navigator.geolocation.getCurrentPosition(ok, () => {}, { enableHighAccuracy: true, maximumAge: 60000, timeout: maxMs })
+    setTimeout(() => acaba(null), maxMs)
+  })
+}
+
+/**
  * Haversine distance between two coordinates (meters)
  */
 function haversineDistance(lat1, lng1, lat2, lng2) {

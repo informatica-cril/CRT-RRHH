@@ -117,7 +117,11 @@ export const useWorkLogStore = defineStore('workLog', {
         // Sense horari assignat no es demana res (abans es feia servir l'horari 1, d'una altra
         // persona): compten les 8 h per defecte de més avall.
         const sid = authStore.user?.work_schedule_id
-        const schedule = sid ? await db.getWorkSchedule(sid).catch(() => null) : null
+        // Horari i zona alhora (abans un darrere l'altre): la sortida ha de ser ràpida.
+        const [schedule, cpAssignment] = await Promise.all([
+          sid ? db.getWorkSchedule(sid).catch(() => null) : null,
+          db.getActiveCpAssignment(authStore.userId).catch(() => null),
+        ])
         const dayOfWeek = now.getDay()
         const todaySchedule = schedule?.days?.find(d => (d.day === dayOfWeek || d.day_num === dayOfWeek) && d.active)
         const scheduledHours = todaySchedule
@@ -128,8 +132,6 @@ export const useWorkLogStore = defineStore('workLog', {
             })()
           : 8
 
-        // Get active CP assignment
-        const cpAssignment = await db.getActiveCpAssignment(authStore.userId)
         // Sense GPS a la sortida (registre manual): sense veredicte de posició, com a l'entrada.
         // Abans es validava amb coordenades buides (= punt 0,0) i sortia «fora de zona a 4.600 km».
         const hasCoords = lat != null && lng != null
@@ -198,7 +200,8 @@ export const useWorkLogStore = defineStore('workLog', {
         this.isWorking = false
         this.currentLog = null
         this.elapsed = 0
-        this.logs = await db.getWorkLogsByUser(authStore.userId)
+        // La sortida ja és desada: la llista es refresca sense fer esperar la persona.
+        db.getWorkLogsByUser(authStore.userId).then(l => { this.logs = l }).catch(() => {})
       } catch (e) {
         console.error('[WorkLogStore] endWorkday failed:', e)
         throw e

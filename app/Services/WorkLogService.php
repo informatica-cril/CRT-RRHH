@@ -20,19 +20,30 @@ class WorkLogService
      */
     public function getAccurateTime(): Carbon
     {
-        try {
-            // Timeout curt: cada fichatge crida aquí. connectTimeout baix per fallar
-            // ràpid si worldtimeapi no respon (caigudes conegudes) i no penjar la petició.
-            $response = Http::connectTimeout(1)->timeout(2)
-                ->get('https://worldtimeapi.org/api/timezone/Europe/Madrid');
-            if ($response->successful()) {
-                return Carbon::parse($response->json('datetime'))->setTimezone('Europe/Madrid');
+        // Abans es preguntava l'hora a worldtimeapi a cada fitxatge (fins a 3 s d'espera, i amb
+        // caigudes freqüents): la sortida trigava i hi havia qui marxava sense acabar de fitxar.
+        // Ara es desa el desfasament respecte del rellotge del servidor durant 1 h (10 min si l'API
+        // no respon) i cada fitxatge només hi suma els segons.
+        $desfas = \Illuminate\Support\Facades\Cache::get('rellotge_desfas_s');
+        if ($desfas === null) {
+            $desfas = 0;
+            $ok = false;
+            try {
+                $response = Http::connectTimeout(1)->timeout(2)
+                    ->get('https://worldtimeapi.org/api/timezone/Europe/Madrid');
+                if ($response->successful()) {
+                    $desfas = Carbon::parse($response->json('datetime'))->getTimestamp() - Carbon::now()->getTimestamp();
+                    // Un desfasament absurd és una resposta dolenta: es fa servir el rellotge del servidor.
+                    $desfas = abs($desfas) <= 300 ? $desfas : 0;
+                    $ok = true;
+                }
+            } catch (\Throwable $e) {
+                // API externa no disponible: rellotge del servidor
             }
-        } catch (\Throwable $e) {
-            // External API unreachable — fall back to local clock
+            \Illuminate\Support\Facades\Cache::put('rellotge_desfas_s', $desfas, $ok ? 3600 : 600);
         }
 
-        return Carbon::now();
+        return Carbon::now('Europe/Madrid')->addSeconds((int) $desfas);
     }
 
     /**
