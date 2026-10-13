@@ -326,6 +326,9 @@ class AuthController extends Controller
         }
 
         $newPassword = \App\Support\PasswordPolicy::genera(14);   // ENS: compleix política
+        // Es guarda l'anterior: si el correu no surt, la persona no es pot quedar amb una contrasenya
+        // nova que no coneix ningú (abans passava i quedava fora de l'app).
+        $abans = ['password' => $user->getRawOriginal('password'), 'must_change_password' => $user->must_change_password];
         $user->update([
             'password' => Hash::make($newPassword),
             'must_change_password' => true,
@@ -333,15 +336,17 @@ class AuthController extends Controller
 
         try {
             Mail::to($user->email)->send(new PasswordResetMail($user, $newPassword));
-            \Log::info("Password reset email sent", ['user_id' => $user->id, 'email' => $user->email]);
         } catch (\Throwable $e) {
-            \Log::error('Password reset email failed', [
-                'user_id' => $user->id,
-                'email' => $user->email,
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            \Illuminate\Support\Facades\DB::table('users')->where('id', $user->id)->update($abans);
+            $this->anota('error', 'Password reset email failed', ['user_id' => $user->id, 'message' => $e->getMessage()]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'No s\'ha pogut enviar el correu. La contrasenya no ha canviat: torna-ho a provar més tard o escriu a '
+                    . config('mail.reply_to.address') . '.',
+            ], 503);
         }
+        $this->anota('info', 'Password reset email sent', ['user_id' => $user->id]);
 
         return response()->json([
             'success' => true,
@@ -374,5 +379,15 @@ class AuthController extends Controller
         $user = $request->user();
         $user->update(['geo_consent_accepted_at' => now()]);
         return response()->json($user->fresh()->makeHidden(['password']));
+    }
+
+    /** Anota al registre sense que un registre no escrivible (permisos del servidor) torni un 500. */
+    private function anota(string $nivell, string $missatge, array $context = []): void
+    {
+        try {
+            \Log::{$nivell}($missatge, $context);
+        } catch (\Throwable $e) {
+            // el registre no pot fer fallar la petició
+        }
     }
 }
