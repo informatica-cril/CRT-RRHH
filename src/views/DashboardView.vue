@@ -170,7 +170,7 @@
       <!-- Right Column: Time Tracker + Pending -->
       <div>
         <!-- Time Tracker Widget -->
-        <div class="time-tracker" id="time-tracker" v-if="authStore.user?.job_profile !== 'Gerencia'">
+        <div class="time-tracker" id="time-tracker">
           <div class="tracker-label">{{ t('time_tracker') }}</div>
           <div class="tracker-time">{{ workLogStore.formattedElapsed }}</div>
           <div class="tracker-buttons" v-if="workLogStore.isWorking">

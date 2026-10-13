@@ -44,14 +44,13 @@
               {{ locationText }}
             </div>
             <div class="tracker-buttons">
-              <button v-if="!workLogStore.isWorking && authStore.user?.job_profile !== 'Gerencia'" class="btn btn-start" @click="startWorkday" id="btn-clock-in">
+              <button v-if="!workLogStore.isWorking" class="btn btn-start" @click="startWorkday" id="btn-clock-in">
                 ▶ {{ t('start_workday') }}
               </button>
-              <button v-else-if="authStore.user?.job_profile !== 'Gerencia'" class="btn btn-stop" @click="endWorkday" id="btn-clock-out" :disabled="isFinishing">
+              <button v-else class="btn btn-stop" @click="endWorkday" id="btn-clock-out" :disabled="isFinishing">
                 <span v-if="isFinishing" class="spinner-small" style="margin-right:8px;"></span>
                 <span v-else>⏹</span> {{ isFinishing ? 'Finalitzant...' : t('end_workday') }}
               </button>
-              <div v-else class="text-small text-muted text-center" style="padding:12px;">El perfil de Gerència no porta control horari.</div>
             </div>
           </div>
 
