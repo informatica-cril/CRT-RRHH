@@ -238,21 +238,23 @@
               <option value="Gerencia">Gerència</option>
             </select>
           </div>
-          <!-- Rol: només el veu i el canvia Superior. Per defecte, Treballador (el lloc no dona permisos). -->
-          <div v-if="authStore.isAdmin && form.job_profile" class="form-group">
-            <label class="form-label">Rol a l'aplicació</label>
-            <select class="form-select" v-model="form.role" :disabled="isSaving || editingUser?.id === authStore.userId">
-              <option value="worker">Treballador</option>
-              <option value="hr">RRHH</option>
-              <option value="admin">Superior</option>
-            </select>
-            <div class="text-small text-muted" style="margin-top:4px;">{{ DESC_ROL[form.role] || DESC_ROL.worker }}</div>
-          </div>
           <div class="form-group">
             <label class="form-label">Horari</label>
             <select class="form-select" v-model="form.work_schedule_id" :disabled="isSaving">
               <option v-for="s in schedules" :key="s.id" :value="s.id">{{ s.name }}</option>
             </select>
+          </div>
+          <!-- Rol: només el veu i el canvia Superior. Per defecte, Treballador (el lloc no dona permisos). -->
+          <div v-if="authStore.isAdmin && form.job_profile" class="form-group rol-fila">
+            <label class="form-label">Rol a l'aplicació</label>
+            <div class="rol-linia">
+              <select class="form-select" v-model="form.role" :disabled="isSaving || editingUser?.id === authStore.userId">
+                <option value="worker">Treballador</option>
+                <option value="hr">RRHH</option>
+                <option value="admin">Superior</option>
+              </select>
+              <span class="text-small text-muted">{{ DESC_ROL[form.role] || DESC_ROL.worker }}</span>
+            </div>
           </div>
           </div>
           <div v-if="['Fisioterapeuta', 'Logopeda', 'Terapeuta Ocupacional'].includes(form.job_profile)">
@@ -1723,6 +1725,9 @@ async function saveMuniAssignment() {
 
 <style scoped>
 .tr-filtre { width: auto; min-width: 170px; }
+.rol-fila { grid-column: 1 / -1; }
+.rol-linia { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.rol-linia .form-select { width: 220px; flex: none; }
 .ent-xip { font-size: .66rem; font-weight: 700; padding: 1px 7px; border-radius: 99px; letter-spacing: .02em; white-space: nowrap; }
 .ent-CRIL { background: #e3ecf7; color: #1a3c5e; }
 .ent-CRT { background: #ddf2ee; color: #00665a; }
