@@ -173,6 +173,7 @@
         <div class="time-tracker" id="time-tracker">
           <div class="tracker-label">{{ t('time_tracker') }}</div>
           <div class="tracker-time">{{ workLogStore.formattedElapsed }}</div>
+          <div v-if="workLogStore.isWorking && workLogStore.horaEntrada" class="tracker-entrada">Entrada a les <strong>{{ workLogStore.horaEntrada }}</strong></div>
           <div class="tracker-buttons" v-if="workLogStore.isWorking">
             <button class="tracker-btn stop" @click="endWorkday" :title="t('end_workday')">⏹</button>
           </div>

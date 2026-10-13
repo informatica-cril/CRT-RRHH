@@ -39,6 +39,7 @@
           <div class="time-tracker" id="worker-clock">
             <div class="tracker-label">{{ t('time_tracker') }}</div>
             <div class="tracker-time">{{ workLogStore.formattedElapsed }}</div>
+            <div v-if="workLogStore.isWorking && workLogStore.horaEntrada" class="tracker-entrada">Entrada a les <strong>{{ workLogStore.horaEntrada }}</strong></div>
             <div class="location-status mb-md" :class="locationClass" style="display:inline-flex;margin:8px auto;">
               <span class="location-dot" :class="locationClass"></span>
               {{ locationText }}
