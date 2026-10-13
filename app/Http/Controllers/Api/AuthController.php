@@ -56,7 +56,7 @@ class AuthController extends Controller
                 ]);
             } catch (\Throwable $e) { /* la traça no bloqueja */ }
             throw ValidationException::withMessages([
-                'email' => ['Aquest compte no té accés a l\'app. Si creus que és un error, parla amb RRHH.'],
+                'email' => ['Aquest compte no té accés a l\'app. Si creus que és un error, escriu a RRHH (' . config('mail.reply_to.address') . ').'],
             ]);
         }
 

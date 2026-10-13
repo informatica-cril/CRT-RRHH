@@ -33,7 +33,7 @@ class AccesAppTest extends TestCase
         $this->assertSame(0, $t->tokens()->count());         // sessions obertes tancades
 
         $this->postJson('/api/v1/auth/login', ['email' => $t->email, 'password' => 'Contrasenya-123'])
-            ->assertStatus(422)->assertJsonFragment(['Aquest compte no té accés a l\'app. Si creus que és un error, parla amb RRHH.']);
+            ->assertStatus(422)->assertJsonFragment(['Aquest compte no té accés a l\'app. Si creus que és un error, escriu a RRHH (rrhh@lirc.es).']);
 
         // Tornar l'accés: torna a entrar.
         $this->postJson('/api/v1/users/acces-app', ['ids' => [$t->id], 'acces' => true])->assertOk();

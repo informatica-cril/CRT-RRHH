@@ -22,14 +22,15 @@ class MailSetting extends Model
     /** Registre únic de configuració de correu. */
     public static function getSettings(): self
     {
+        // Valors inicials des de config/mail.php: env() fora de config/ torna null amb config:cache.
         return self::first() ?? self::create([
-            'mailer' => env('MAIL_MAILER', 'smtp'),
-            'host' => env('MAIL_HOST'),
-            'port' => (int) env('MAIL_PORT', 587),
-            'encryption' => env('MAIL_ENCRYPTION', 'tls'),
-            'username' => env('MAIL_USERNAME'),
-            'from_address' => env('MAIL_FROM_ADDRESS'),
-            'from_name' => env('MAIL_FROM_NAME', 'CRT RRHH'),
+            'mailer' => config('mail.default', 'smtp'),
+            'host' => config('mail.mailers.smtp.host'),
+            'port' => (int) config('mail.mailers.smtp.port', 587),
+            'encryption' => config('mail.mailers.smtp.encryption', 'tls'),
+            'username' => config('mail.mailers.smtp.username'),
+            'from_address' => config('mail.from.address'),
+            'from_name' => config('mail.from.name') ?: 'CRT RRHH',
         ]);
     }
 
