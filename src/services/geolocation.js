@@ -306,6 +306,9 @@ function puntDinsPoligon(lat, lng, anell) {
 }
 
 export async function checkUserLocation(user, activeCpAssignment, lat, lng) {
+  // Sense coordenades no hi ha veredicte: mai «fora de zona» per una posició que no existeix
+  // (abans es calculava contra el punt 0,0 i sortia a uns 4.600 km).
+  if (lat == null || lng == null) return { valid: null, distance: null }
   // Geovalla decidida a domi (Coordinació/Admin): si existeix, MANA.
   const gv = activeCpAssignment?.domi_geovalla
   if (gv && ((gv.poligons && gv.poligons.length) || (gv.cps && gv.cps.length))) {
