@@ -631,6 +631,9 @@ Route::prefix('v1')->group(function () {
             Route::get('/policy-status/{userId}', [App\Http\Controllers\Api\ChatController::class, 'hasPolicyAccepted'])->middleware('owner');
             Route::post('/accept-policy', [App\Http\Controllers\Api\ChatController::class, 'acceptPolicy']);
 
+            // Contactes (nom i perfil) per triar destinatari i veure qui escriu.
+            Route::get('/contactes', [App\Http\Controllers\Api\ChatController::class, 'contactes']);
+
             // Presence
             Route::post('/presence', [App\Http\Controllers\Api\ChatController::class, 'setUserPresence']);
             // Presència de tothom en una sola crida (la pantalla en feia una per persona).

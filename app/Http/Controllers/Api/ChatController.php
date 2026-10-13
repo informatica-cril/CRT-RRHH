@@ -155,6 +155,18 @@ class ChatController extends Controller
      * Retorna només connectat sí/no: l'hora exacta de l'última activitat d'un company
      * no li cal a ningú per escriure-li, i sí que és una dada de control.
      */
+    /**
+     * Contactes del xat: nom i perfil de la plantilla activa, per a tothom autenticat.
+     * /v1/users és només de gestió (dades personals) i el treballador no veia cap nom ni destinatari.
+     */
+    public function contactes()
+    {
+        return response()->json(
+            User::query()->where('active', true)->orderBy('name')
+                ->get(['id', 'name', 'job_profile', 'active'])
+        );
+    }
+
     public function presenceAll()
     {
         $usuaris = User::query()
