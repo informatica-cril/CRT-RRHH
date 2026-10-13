@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Http;
 class WorkLogService
 {
     /** Minuts fora d'horari (entrar abans o sortir després) que s'ajunten al tram d'horari sense revisió. */
-    public const MARGE_HORARI_MIN = 10;
+    public const MARGE_HORARI_MIN = 5;
 
     /**
      * Fetch current time from worldtimeapi.org (immune to server clock drift).
@@ -274,7 +274,7 @@ class WorkLogService
 
         // Marge d'horari: un tram fora d'horari curt (fins a MARGE_HORARI_MIN), dins de zona i tocant a un
         // tram d'horari també dins de zona, no és un tram a revisar: s'hi ajunta (sortir a les 16:00:17 o
-        // a les 16:06 amb horari fins a les 16:00). Primer s'ajunta a l'anterior i, si no n'hi ha, al següent.
+        // a les 16:04 amb horari fins a les 16:00). Primer s'ajunta a l'anterior i, si no n'hi ha, al següent.
         $ajuntable = function (int $j) use (&$segments): bool {
             return isset($segments[$j]) && $segments[$j]['in_schedule'] && $segments[$j]['in_zone']
                 && $segments[$j]['status'] === 'approved';

@@ -67,21 +67,21 @@ class SegmentacioHorariTest extends TestCase
         $this->assertSame(420, (int) $t[0]->duration_minutes);
     }
 
-    public function test_fins_a_10_minuts_fora_d_horari_s_ajunten_al_tram_sense_revisio(): void
+    public function test_fins_a_5_minuts_fora_d_horari_s_ajunten_al_tram_sense_revisio(): void
     {
-        $t = $this->trams($this->horari('14:00', '20:00', [1, 2, 3, 4, 5]), '13:52', '20:10');
+        $t = $this->trams($this->horari('14:00', '20:00', [1, 2, 3, 4, 5]), '13:56', '20:05');
 
         $this->assertCount(1, $t);
         $this->assertSame('approved', $t[0]->status);
-        $this->assertSame(378, (int) $t[0]->duration_minutes);   // 13:52 → 20:10
+        $this->assertSame(369, (int) $t[0]->duration_minutes);   // 13:56 → 20:05
     }
 
-    public function test_mes_de_10_minuts_fora_d_horari_segueix_pendent(): void
+    public function test_mes_de_5_minuts_fora_d_horari_segueix_pendent(): void
     {
-        $t = $this->trams($this->horari('14:00', '20:00', [1, 2, 3, 4, 5]), '14:00', '20:11');
+        $t = $this->trams($this->horari('14:00', '20:00', [1, 2, 3, 4, 5]), '14:00', '20:06');
 
         $this->assertSame(['approved', 'pending'], $t->pluck('status')->all());
-        $this->assertSame(11, (int) $t[1]->duration_minutes);
+        $this->assertSame(6, (int) $t[1]->duration_minutes);
     }
 
     public function test_els_talls_de_l_horari_queden_en_hora_de_madrid(): void
