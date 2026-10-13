@@ -79,7 +79,7 @@
           <tbody>
             <tr v-for="user in filteredWorkers" :key="user.id" :class="{ 'tr-fila-sel': seleccionats.includes(user.id) }">
               <td class="tr-check"><input type="checkbox" :value="user.id" v-model="seleccionats" /></td>
-              <td><div style="display:flex;align-items:center;gap:8px;"><div class="header-avatar" style="width:28px;height:28px;font-size:0.7rem;">{{ initials(user.name) }}</div>{{ user.name }}<span class="ent-xip" :class="'ent-' + (user.entitat || 'CRIL')" :title="'Entitat: ' + nomEntitat(user.entitat)">{{ nomEntitat(user.entitat) }}</span><span v-if="esHospital(user)" class="ent-xip ent-hosp" title="Treballa a l'Hospital de Barcelona">🏥 Hospital</span><span v-if="user.practiques" class="badge badge-info" style="font-size:.68rem;" title="Alumne/a en pràctiques">🎓 Pràctiques</span></div></td>
+              <td><div style="display:flex;align-items:center;gap:8px;"><div class="header-avatar" style="width:28px;height:28px;font-size:0.7rem;">{{ initials(user.name) }}</div>{{ user.name }}<span class="ent-xip" :class="'ent-' + (user.entitat || 'CRT')" :title="'Entitat: ' + nomEntitat(user.entitat)">{{ nomEntitat(user.entitat) }}</span><span v-if="esHospital(user)" class="ent-xip ent-hosp" title="Treballa a l'Hospital de Barcelona">🏥 Hospital</span><span v-if="user.practiques" class="badge badge-info" style="font-size:.68rem;" title="Alumne/a en pràctiques">🎓 Pràctiques</span></div></td>
               <td style="font-family:monospace;font-size:0.8rem;">{{ user.dni || '—' }}</td>
               <td>{{ user.email }}</td>
               <td>
@@ -1027,13 +1027,13 @@ const passaAmbit = (u) => {
 }
 // Entitat de la fitxa (CRIL, CRT o totes dues) i Hospital (departament de modalitat HOSP).
 const NOMS_ENTITAT = { CRIL: 'CRIL', CRT: 'CRT', CRIL_CRT: 'CRIL i CRT' }
-const nomEntitat = (e) => NOMS_ENTITAT[e] || 'CRIL'
+const nomEntitat = (e) => NOMS_ENTITAT[e] || 'CRT'
 const esHospital = (u) => (u.departments || []).some(d => d.modality === 'HOSP' || String(d.code || '').startsWith('HOSP'))
 const passaEntitat = (u) => {
   const e = filtreEntitat.value
   if (!e) return true
   if (e === 'HOSP') return esHospital(u)
-  return (u.entitat || 'CRIL') === e
+  return (u.entitat || 'CRT') === e
 }
 const passaEstat = (u) => {
   const e = filtreEstat.value
@@ -1169,7 +1169,7 @@ watch(() => route.query.obre, obreDesDeRuta)
 const csvPreview = ref([])
 const importResults = ref([])
 
-const form = reactive({ entitat: 'CRIL', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: '', specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
+const form = reactive({ entitat: 'CRT', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: '', specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
 const scheduleForm = reactive({ id: 1, days: [] })
 const isNewSchedule = ref(false)
 const newScheduleName = ref('')
@@ -1291,7 +1291,7 @@ async function openEditModal(user) {
   if (user) carregaPractiques(user.id)
   if (user) {
     const sDate = user.seniority_date ? user.seniority_date.split('T')[0] : ''
-    Object.assign(form, { entitat: user.entitat || 'CRIL', name: user.name, email: user.email, dni: user.dni || '', device_phone: user.device_phone || '', pacte_complementaries: !!user.pacte_complementaries,  work_type: user.work_type || 'DOMICILIARIA', job_profile: user.job_profile || 'Fisioterapeuta', postal_code_assigned: user.postal_code_assigned, work_schedule_id: user.work_schedule_id, seniority_date: sDate, specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
+    Object.assign(form, { entitat: user.entitat || 'CRT', name: user.name, email: user.email, dni: user.dni || '', device_phone: user.device_phone || '', pacte_complementaries: !!user.pacte_complementaries,  work_type: user.work_type || 'DOMICILIARIA', job_profile: user.job_profile || 'Fisioterapeuta', postal_code_assigned: user.postal_code_assigned, work_schedule_id: user.work_schedule_id, seniority_date: sDate, specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
     ratioActual.value = Number(user.complementary_ratio ?? 0.30)
     ratioPct.value = Math.round(ratioActual.value * 100)
     ratioPendent.value = user.complementary_ratio_pending != null ? Number(user.complementary_ratio_pending) : null
@@ -1311,7 +1311,7 @@ async function openEditModal(user) {
         form.departments = (full.departments || []).map(d => d.code)
       } catch (e) { /* es queda buit */ }
   } else {
-    Object.assign(form, { entitat: 'CRIL', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: new Date().toISOString().split('T')[0], specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
+    Object.assign(form, { entitat: 'CRT', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: new Date().toISOString().split('T')[0], specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
     showEditModal.value = true
   }
 }
