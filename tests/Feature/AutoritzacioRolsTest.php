@@ -335,11 +335,12 @@ class AutoritzacioRolsTest extends TestCase
         $this->nega('worker', 'GET', "/api/v1/chat/unread-count/{$altre->id}");
     }
 
-    // ── CONFIGURACIÓ DE SISTEMA: escriptura admin; lectura sense hr (= blockHr) ──
+    // ── CONFIGURACIÓ DE SISTEMA: escriptura admin (la pausa obligatòria, també RRHH) ──
 
     public function test_configuracio_de_sistema_escriptura_nomes_admin(): void
     {
-        $this->nomes(['admin'], 'PUT', '/api/v1/break-settings', []);
+        // La pausa obligatòria també la gestiona RRHH (13-10-2026).
+        $this->nomes(['admin', 'hr'], 'PUT', '/api/v1/break-settings', []);
         $this->nomes(['admin'], 'GET', '/api/v1/mail-settings');
         $this->nomes(['admin'], 'PUT', '/api/v1/mail-settings', []);
         $this->nomes(['admin'], 'POST', '/api/v1/mail-settings/test', []);
@@ -349,7 +350,7 @@ class AutoritzacioRolsTest extends TestCase
     {
         // La configuració global SÍ la llegeix tothom (filtrada, veure més avall),
         // però la llista de la plantilla amb els seus overrides no s'obre.
-        $this->nomes(['admin'], 'GET', '/api/v1/break-settings/workers');
+        $this->nomes(['admin', 'hr'], 'GET', '/api/v1/break-settings/workers');
     }
 
     // ── LECTURES FILTRADES: ni tancades de més ni obertes de més ──
@@ -393,7 +394,8 @@ class AutoritzacioRolsTest extends TestCase
         $esperats = self::CAMPS_PAUSA_TREBALLADOR;
         sort($esperats);
 
-        foreach (['worker', 'hr'] as $rol) {
+        // RRHH gestiona la pausa (13-10-2026) i rep la configuració sencera: la filtrada és la del treballador.
+        foreach (['worker'] as $rol) {
             Sanctum::actingAs($this->make($rol));
             $filtrada = $this->getJson('/api/v1/break-settings')->assertStatus(200)->json();
 

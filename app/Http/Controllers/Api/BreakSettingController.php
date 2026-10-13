@@ -9,8 +9,8 @@ use Illuminate\Support\Arr;
 
 class BreakSettingController extends Controller
 {
-    /** Rols que veuen la configuració de pausa SENCERA (gestió del sistema). */
-    private const ROLS_GESTIO = ['admin', 'coordinator'];
+    /** Rols que veuen i modifiquen la configuració de pausa SENCERA (RRHH inclòs, 13-10-2026). */
+    private const ROLS_GESTIO = ['admin', 'coordinator', 'hr'];
 
     /**
      * Camps que el TREBALLADOR necessita per armar el seu temporitzador de pausa
@@ -56,7 +56,7 @@ class BreakSettingController extends Controller
 
     /**
      * PUT /api/v1/break-settings
-     * Actualiza la configuración de pausa (solo admin).
+     * Actualiza la configuración de pausa (admin i RRHH).
      */
     public function update(Request $request)
     {

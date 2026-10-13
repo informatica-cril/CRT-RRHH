@@ -574,10 +574,10 @@ Route::prefix('v1')->group(function () {
         // rol dins del controlador: gestió veu la config sencera, la resta només els
         // camps del seu temporitzador.
         Route::get('break-settings', [BreakSettingController::class, 'show'])->middleware('role:admin,coordinator,hr,worker');
-        Route::put('break-settings', [BreakSettingController::class, 'update'])->middleware('role:admin');
+        Route::put('break-settings', [BreakSettingController::class, 'update'])->middleware('role:admin,hr');
         // La llista de TOTA la plantilla amb els seus overrides és pura gestió: no s'obre.
-        Route::get('break-settings/workers', [BreakSettingController::class, 'workers'])->middleware('role:admin,coordinator');
-        Route::put('break-settings/workers/{user}', [BreakSettingController::class, 'updateWorker'])->middleware('role:admin');
+        Route::get('break-settings/workers', [BreakSettingController::class, 'workers'])->middleware('role:admin,coordinator,hr');
+        Route::put('break-settings/workers/{user}', [BreakSettingController::class, 'updateWorker'])->middleware('role:admin,hr');
 
         // Configuració de correu (admin) + enviament de prova
         Route::middleware('role:admin')->group(function () {
