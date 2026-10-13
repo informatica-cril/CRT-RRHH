@@ -193,15 +193,6 @@
               <option value="CRIL_CRT">CRIL i CRT (totes dues)</option>
             </select>
           </div>
-          <!-- El rol el decideix administració (el lloc «Gerencia» ja no dona permisos de gestió). -->
-          <div v-if="authStore.isAdmin" class="form-group">
-            <label class="form-label">Rol a l'aplicació</label>
-            <select class="form-select" v-model="form.role" :disabled="isSaving || editingUser?.id === authStore.userId">
-              <option value="worker">Treballador — fitxa i veu el seu portal</option>
-              <option value="hr">RRHH — gestiona la plantilla</option>
-              <option value="admin">Superior — control total de l'aplicació</option>
-            </select>
-          </div>
           </div>
 
           <!-- Estat: desactivar no esborra res; la persona deixa d'entrar però conserva el seu historial. -->
@@ -246,6 +237,16 @@
               <option value="Responsable RRHH">Responsable RRHH</option>
               <option value="Gerencia">Gerència</option>
             </select>
+          </div>
+          <!-- Rol: només el veu i el canvia Superior. Per defecte, Treballador (el lloc no dona permisos). -->
+          <div v-if="authStore.isAdmin && form.job_profile" class="form-group">
+            <label class="form-label">Rol a l'aplicació</label>
+            <select class="form-select" v-model="form.role" :disabled="isSaving || editingUser?.id === authStore.userId">
+              <option value="worker">Treballador</option>
+              <option value="hr">RRHH</option>
+              <option value="admin">Superior</option>
+            </select>
+            <div class="text-small text-muted" style="margin-top:4px;">{{ DESC_ROL[form.role] || DESC_ROL.worker }}</div>
           </div>
           <div class="form-group">
             <label class="form-label">Horari</label>
@@ -1178,6 +1179,11 @@ watch(() => route.query.obre, obreDesDeRuta)
 const csvPreview = ref([])
 const importResults = ref([])
 
+const DESC_ROL = {
+  worker: 'Fitxa i veu el seu portal (permisos, nòmines, documents).',
+  hr: 'Gestiona la plantilla: fitxes, horaris, zones, fitxatges i permisos.',
+  admin: "Control total de l'aplicació, també la configuració i qui és Superior.",
+}
 const form = reactive({ role: 'worker', entitat: 'CRT', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: '', specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
 const scheduleForm = reactive({ id: 1, days: [] })
 const isNewSchedule = ref(false)
