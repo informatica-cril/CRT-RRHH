@@ -489,8 +489,9 @@ async function sendAllegation(seg) {
 .status-approved { background: #d4edda; }
 .status-rejected { background: #f8d7da; }
 .audiencia-box { background: #fff8e6; border-left: 3px solid #f0a500; border-radius: 6px; padding: 10px 12px; margin-top: 8px; }
-.allegation-form { display: flex; gap: 8px; margin-top: 8px; align-items: flex-start; }
-.allegation-form textarea { flex: 1; }
+.allegation-form { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }  /* frases, text a tota l'amplada i botó a sota */
+.allegation-form textarea { width: 100%; min-height: 64px; resize: vertical; }
+.allegation-form .btn-approve { align-self: flex-end; padding: 8px 16px; }
 .segment-actions { display: flex; gap: 8px; margin-top: 8px; }
 .btn-approve { background: #4caf50; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
 .btn-reject { background: #f44336; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
