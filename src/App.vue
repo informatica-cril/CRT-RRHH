@@ -4,10 +4,12 @@
     <AvisosApp />
     <DialegApp />
     <!-- Global Navigation Blocker / Loader -->
-    <div v-if="isNavigating" class="nav-loader-overlay">
+    <!-- Barra fina a dalt mentre es canvia de pantalla; la targeta només si triga -->
+    <div v-if="isNavigating" class="nav-progress"><span></span></div>
+    <div v-if="showNavCard" class="nav-loader-overlay">
       <div class="nav-loader-content">
         <div class="premium-spinner"></div>
-        <div class="nav-loader-text">Carregant la pàgina...</div>
+        <div class="nav-loader-text">Carregant la pàgina…</div>
       </div>
     </div>
 
@@ -147,21 +149,27 @@ const router = useRouter()
 const route = useRoute()
 
 const isNavigating = ref(false)
+const showNavCard = ref(false)
+let navCardTimer = null
 
-// Router hooks for global navigation blocking
+// Canvi de pantalla: barra fina de seguida; la targeta central només si triga més de 400 ms
+// (abans el text sortia sempre, sense fons ni roda, i quedava surant damunt la pàgina).
 router.beforeEach((to, from, next) => {
   if (to.path !== from.path) {
     isNavigating.value = true
+    clearTimeout(navCardTimer)
+    navCardTimer = setTimeout(() => { showNavCard.value = true }, 400)
   }
   next()
 })
 
-router.afterEach(() => {
-  // Add a tiny delay to ensure the component is actually "hydrated" and rendered
-  setTimeout(() => {
-    isNavigating.value = false
-  }, 250)
-})
+function acabaNavegacio() {
+  clearTimeout(navCardTimer)
+  isNavigating.value = false
+  showNavCard.value = false
+}
+router.afterEach(acabaNavegacio)
+router.onError(acabaNavegacio)
 
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const isWorker = computed(() => authStore.isWorker)
@@ -480,44 +488,76 @@ function rejectPrivacy() {
 /* ============================================
    PREMIUM NAVIGATION LOADER
    ============================================ */
-.nav-loader-overlay {
+.nav-progress {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(var(--color-bg-rgb), 0.6);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  right: 0;
+  height: 3px;
+  z-index: 1000000;
+  overflow: hidden;
+  background: transparent;
+  pointer-events: none;
+}
+.nav-progress span {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 40%;
+  background: var(--color-accent, var(--color-primary));
+  border-radius: 0 3px 3px 0;
+  animation: navProgress 1s ease-in-out infinite;
+}
+@keyframes navProgress {
+  from { left: -40%; }
+  to { left: 100%; }
+}
+
+.nav-loader-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.25);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   z-index: 999999;
   display: flex;
   align-items: center;
   justify-content: center;
   pointer-events: all; /* Blocks all interaction */
+  animation: navFade 0.2s ease;
 }
 
 .nav-loader-content {
   text-align: center;
-  animation: fadeInDown 0.4s ease;
+  background: var(--color-bg-card, #fff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 16px;
+  padding: 28px 40px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+  min-width: 220px;
 }
 
 .nav-loader-text {
   margin-top: 16px;
   font-weight: 600;
-  letter-spacing: 0.5px;
-  color: var(--color-primary);
-  font-size: 0.95rem;
+  color: var(--color-text, #1a202c);
+  font-size: 1rem;
 }
 
 .premium-spinner {
-  width: 48px;
-  height: 48px;
-  border: 3px solid rgba(var(--color-primary-rgb), 0.1);
-  border-top-color: var(--color-primary);
+  width: 44px;
+  height: 44px;
+  border: 4px solid var(--color-border, #e2e8f0);
+  border-top-color: var(--color-accent, var(--color-primary));
   border-radius: 50%;
-  animation: spin 0.8s cubic-bezier(0.5, 0.1, 0.4, 0.9) infinite;
+  animation: spin 0.8s linear infinite;
   margin: 0 auto;
-  box-shadow: 0 0 20px rgba(var(--color-primary-rgb), 0.2);
+}
+
+@keyframes navFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes spin {
