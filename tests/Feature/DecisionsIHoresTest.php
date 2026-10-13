@@ -236,6 +236,36 @@ class DecisionsIHoresTest extends TestCase
         $this->assertSame('worker', $u->role);
     }
 
+    public function test_rrhh_gestiona_la_fitxa_horari_i_zona_pero_no_rol_ni_contrasenya(): void
+    {
+        $hr = $this->hr();
+        $u = $this->treballador();
+        $horari = \App\Models\WorkSchedule::create(['name' => 'Matins', 'total_hours_weekly' => 20,
+            'days' => [['day' => 1, 'start' => '08:00', 'end' => '12:00']]]);
+        $hashAbans = $u->password;
+        Sanctum::actingAs($hr);
+
+        $this->putJson("/api/v1/users/{$u->id}", [
+            'work_schedule_id' => $horari->id, 'work_type' => 'DOMICILIARIA', 'postal_code_assigned' => '08015',
+            'job_profile' => 'Logopeda', 'role' => 'admin', 'password' => 'NovaContra-123',
+        ])->assertOk();
+
+        $u->refresh();
+        $this->assertSame($horari->id, (int) $u->work_schedule_id);   // abans es descartava en silenci
+        $this->assertSame('DOMICILIARIA', $u->work_type);
+        $this->assertSame('08015', $u->postal_code_assigned);
+        $this->assertSame('Logopeda', $u->job_profile);
+        $this->assertSame('worker', $u->role);                        // el rol, només administració
+        $this->assertSame($hashAbans, $u->password);                  // la contrasenya, també
+
+        // A la fitxa d'un administrador, RRHH només hi toca el contacte.
+        $admin = User::create(['name' => 'Adm', 'email' => uniqid() . '@test.local', 'password' => bcrypt('x'), 'role' => 'admin', 'active' => true]);
+        $this->putJson("/api/v1/users/{$admin->id}", ['device_phone' => '600999888', 'work_schedule_id' => $horari->id])->assertOk();
+        $admin->refresh();
+        $this->assertSame('600999888', $admin->device_phone);
+        $this->assertNull($admin->work_schedule_id);
+    }
+
     public function test_qui_te_registre_horari_es_dona_de_baixa_i_no_s_esborra(): void
     {
         $hr = $this->hr();

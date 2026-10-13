@@ -33,6 +33,8 @@ class UpdateUserRequest extends FormRequest
             'onboarding_completed' => 'boolean',
             'must_change_password' => 'boolean',
             'dni' => 'nullable|string',
+            // CP principal de la persona (domiciliària). No hi era i es descartava sempre en desar.
+            'postal_code_assigned' => 'nullable|string|max:255',
             'device_phone' => 'nullable|string|max:20',
             'pacte_complementaries' => 'boolean',
             'relacio' => 'nullable|in:laboral,autonom',
