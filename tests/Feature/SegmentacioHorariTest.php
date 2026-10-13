@@ -50,12 +50,46 @@ class SegmentacioHorariTest extends TestCase
         $this->assertSame(360, (int) $t[0]->duration_minutes);
     }
 
+    public function test_uns_segons_de_mes_a_la_sortida_no_fan_un_tram_fora_d_horari(): void
+    {
+        $s = WorkSchedule::create(['name' => 'Matí', 'total_hours_weekly' => 35, 'days' => $this->horari('09:00', '16:00', [1, 2, 3, 4, 5])]);
+        $u = User::create(['name' => 'T', 'email' => uniqid() . '@test.local', 'password' => bcrypt('x'),
+            'role' => 'worker', 'active' => true, 'work_schedule_id' => $s->id]);
+        $log = WorkLog::create(['user_id' => $u->id, 'date' => '2026-10-07',
+            'start_time' => '2026-10-07 09:00:00', 'end_time' => '2026-10-07 16:00:17',
+            'start_location_match' => true, 'end_location_match' => true, 'status' => 'pending']);
+        app(WorkLogService::class)->segmentWorkLog($log->fresh(), $u);
+
+        $t = WorkLogSegment::where('work_log_id', $log->id)->get();
+        $this->assertCount(1, $t);
+        $this->assertSame('approved', $t[0]->status);
+        $this->assertSame('2026-10-07 16:00:17', $t[0]->getRawOriginal('end_time'));
+        $this->assertSame(420, (int) $t[0]->duration_minutes);
+    }
+
+    public function test_fins_a_10_minuts_fora_d_horari_s_ajunten_al_tram_sense_revisio(): void
+    {
+        $t = $this->trams($this->horari('14:00', '20:00', [1, 2, 3, 4, 5]), '13:52', '20:10');
+
+        $this->assertCount(1, $t);
+        $this->assertSame('approved', $t[0]->status);
+        $this->assertSame(378, (int) $t[0]->duration_minutes);   // 13:52 → 20:10
+    }
+
+    public function test_mes_de_10_minuts_fora_d_horari_segueix_pendent(): void
+    {
+        $t = $this->trams($this->horari('14:00', '20:00', [1, 2, 3, 4, 5]), '14:00', '20:11');
+
+        $this->assertSame(['approved', 'pending'], $t->pluck('status')->all());
+        $this->assertSame(11, (int) $t[1]->duration_minutes);
+    }
+
     public function test_els_talls_de_l_horari_queden_en_hora_de_madrid(): void
     {
-        $t = $this->trams($this->horari('14:00', '20:00', [1, 2, 3, 4, 5]), '13:55', '20:05');
+        $t = $this->trams($this->horari('14:00', '20:00', [1, 2, 3, 4, 5]), '13:40', '20:20');
 
-        $this->assertSame(['13:55', '14:00', '20:00'], $t->map(fn ($s) => substr($s->getRawOriginal('start_time'), 11, 5))->all());
-        $this->assertSame(['14:00', '20:00', '20:05'], $t->map(fn ($s) => substr($s->getRawOriginal('end_time'), 11, 5))->all());
+        $this->assertSame(['13:40', '14:00', '20:00'], $t->map(fn ($s) => substr($s->getRawOriginal('start_time'), 11, 5))->all());
+        $this->assertSame(['14:00', '20:00', '20:20'], $t->map(fn ($s) => substr($s->getRawOriginal('end_time'), 11, 5))->all());
         $this->assertSame(['pending', 'approved', 'pending'], $t->pluck('status')->all());
     }
 

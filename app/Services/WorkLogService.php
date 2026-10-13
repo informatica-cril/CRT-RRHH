@@ -14,6 +14,9 @@ use Illuminate\Support\Facades\Http;
  */
 class WorkLogService
 {
+    /** Minuts fora d'horari (entrar abans o sortir després) que s'ajunten al tram d'horari sense revisió. */
+    public const MARGE_HORARI_MIN = 10;
+
     /**
      * Fetch current time from worldtimeapi.org (immune to server clock drift).
      * Falls back to Carbon::now() if the external API is unreachable.
@@ -267,6 +270,28 @@ class WorkLogService
                     'status' => $dins ? 'approved' : 'pending',
                 ];
             }
+        }
+
+        // Marge d'horari: un tram fora d'horari curt (fins a MARGE_HORARI_MIN), dins de zona i tocant a un
+        // tram d'horari també dins de zona, no és un tram a revisar: s'hi ajunta (sortir a les 16:00:17 o
+        // a les 16:06 amb horari fins a les 16:00). Primer s'ajunta a l'anterior i, si no n'hi ha, al següent.
+        $ajuntable = function (int $j) use (&$segments): bool {
+            return isset($segments[$j]) && $segments[$j]['in_schedule'] && $segments[$j]['in_zone']
+                && $segments[$j]['status'] === 'approved';
+        };
+        for ($i = count($segments) - 1; $i >= 0; $i--) {
+            $s = $segments[$i];
+            if ($s['in_schedule'] || ! $s['in_zone'] || $s['duration_minutes'] > self::MARGE_HORARI_MIN) continue;
+            if ($ajuntable($i - 1)) {
+                $segments[$i - 1]['end_time'] = $s['end_time'];
+                $segments[$i - 1]['duration_minutes'] = $minuts($segments[$i - 1]['start_time'], $s['end_time']);
+            } elseif ($ajuntable($i + 1)) {
+                $segments[$i + 1]['start_time'] = $s['start_time'];
+                $segments[$i + 1]['duration_minutes'] = $minuts($s['start_time'], $segments[$i + 1]['end_time']);
+            } else {
+                continue;
+            }
+            array_splice($segments, $i, 1);
         }
 
         // La posició de l'entrada i la de la sortida van al tram que obren o tanquen, caigui on caigui
