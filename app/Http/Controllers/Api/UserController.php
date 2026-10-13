@@ -152,17 +152,19 @@ class UserController extends Controller
         // bàsics de perfil. Els camps privilegiats i la CONTRASENYA queden fora
         // (el canvi propi de contrasenya té endpoint dedicat: auth/change-password).
         //
-        // EXCEPCIÓ: RRHH pot corregir les DADES DE CONTACTE de qualsevol persona.
-        // Era absurd que pogués esborrar una fitxa sencera i no li pogués canviar
-        // un telèfon mal escrit.
+        // RRHH gestiona les fitxes de la plantilla («Altes, baixes, fitxes, horaris i zones»,
+        // 13-10-2026): ho pot canviar tot (horari, àmbit, lloc, CP, pacte, jornada...) tret del
+        // rol i la contrasenya, que són d'administració. L'estat actiu té el seu botó (tanca
+        // sessions). A les fitxes d'administració, només el contacte.
         if (! $request->user()->isAdmin()) {
             $esGestioRrhh = $request->user()->role === 'hr';
             $propia = (int) $request->user()->id === (int) $user->id;
             abort_unless($propia || $esGestioRrhh, 403, 'No autoritzat');
 
-            if ($esGestioRrhh && ! $propia) {
-                // Contacte i prou: res de rol, jornada, pacte ni contrasenya.
+            if ($esGestioRrhh && ! $propia && in_array($user->role, ['admin', 'service'], true)) {
                 $data = array_intersect_key($data, array_flip(self::CAMPS_CONTACTE));
+            } elseif ($esGestioRrhh && ! $propia) {
+                unset($data['role'], $data['password'], $data['active']);
             } else {
                 foreach (['role', 'active', 'work_type', 'job_profile', 'work_schedule_id', 'device_phone',
                           'pacte_complementaries', 'relacio', 'disponibilitat_setmanal',
@@ -198,8 +200,10 @@ class UserController extends Controller
             try { $user->materialitzaPacte($request->user()->id); } catch (\Throwable $e) {}
         }
 
-        // Especialitat clínica: dada privilegiada (com job_profile), només admin.
-        if ($request->user()->isAdmin() && $request->has('specialties')) {
+        // Especialitat clínica: dada de la fitxa, l'assignen administració i RRHH (no a fitxes d'administració).
+        $potFitxa = $request->user()->isAdmin()
+            || ($request->user()->role === 'hr' && ! in_array($user->role, ['admin', 'service'], true));
+        if ($potFitxa && $request->has('specialties')) {
             $ids = \App\Models\Specialty::whereIn('code', (array) $request->input('specialties'))->pluck('id');
             $user->specialties()->sync($ids);
         }
