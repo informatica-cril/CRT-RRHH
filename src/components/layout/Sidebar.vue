@@ -167,7 +167,7 @@
           <span>{{ t('permissions_config') }}</span>
         </router-link>
       </li>
-      <li v-if="authStore.isAdmin">
+      <li v-if="authStore.canManageStaff">
         <router-link to="/break-settings" :class="{ active: $route.name === 'break-settings' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span>Pausa Obligatòria</span>

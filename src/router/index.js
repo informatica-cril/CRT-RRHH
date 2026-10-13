@@ -319,7 +319,8 @@ const routes = [
     path: '/break-settings',
     name: 'break-settings',
     component: () => import('../views/BreakSettingsView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true, blockHr: true }
+    // RRHH també gestiona la pausa obligatòria (general i per persona).
+    meta: { requiresAuth: true, requiresAdmin: true }
   },
   // ── Mail Settings (configuració de correu) ──
   {
