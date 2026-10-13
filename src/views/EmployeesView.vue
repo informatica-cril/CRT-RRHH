@@ -3,10 +3,27 @@
     <div class="page-header">
       <div><h1 class="page-title">{{ t('employees') }}</h1></div>
       <div class="page-actions">
-        <button class="btn btn-outline" @click="showCsvModal = true">📥 Importar CSV</button>
-        <button class="btn btn-outline" @click="showRevisarNoms = true" title="Noms desats amb els cognoms davant">🔤 Revisar noms</button>
+        <!-- Eines poc freqüents, agrupades en un desplegable -->
+        <div class="eines" ref="einesRef" @keydown.esc="einesObertes = false">
+          <button class="btn btn-outline eines-boto" :aria-expanded="einesObertes" @click="einesObertes = !einesObertes">
+            🛠️ Eines <span class="eines-fletxa" :class="{ oberta: einesObertes }">▾</span>
+          </button>
+          <div v-if="einesObertes" class="eines-menu" role="menu">
+            <button class="eines-opcio" role="menuitem" @click="obreEina(() => showCsvModal = true)">
+              <span class="eines-icona">📥</span>
+              <span><strong>Importar CSV</strong><small>Donar d'alta persones des d'un fitxer</small></span>
+            </button>
+            <button class="eines-opcio" role="menuitem" @click="obreEina(() => showRevisarNoms = true)">
+              <span class="eines-icona">🔤</span>
+              <span><strong>Revisar noms</strong><small>Noms desats amb els cognoms davant</small></span>
+            </button>
+            <button class="eines-opcio" role="menuitem" @click="obreEina(() => showCpEnBloc = true)">
+              <span class="eines-icona">📮</span>
+              <span><strong>CP en bloc</strong><small>Assignar codis postals enganxant una llista</small></span>
+            </button>
+          </div>
+        </div>
         <RevisarNomsModal v-if="showRevisarNoms" :persones="workers" @close="showRevisarNoms = false" @fet="fetchData" />
-        <button class="btn btn-outline" @click="showCpEnBloc = true" title="Enganxar una llista de persones amb els seus codis postals">📮 CP en bloc</button>
         <CpEnBlocModal v-if="showCpEnBloc" :persones="workers" :cps-actuals="id => extraData[id]?.cpAssignment?.postal_codes || []" @close="showCpEnBloc = false" @fet="fetchData" />
         <!-- Crear a domi els comptes que falten, sense entrar al servidor. Només apareix si
              realment en falta algun: un botó sempre visible que gairebé mai cal fer res
@@ -866,7 +883,7 @@
 <script setup>
 import FrasesRapides from '../components/FrasesRapides.vue'
 import { confirma, demana } from '../utils/dialegs'
-import { ref, computed, reactive, onMounted, watch } from 'vue'
+import { ref, computed, reactive, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useEstatUrl } from '../composables/useEstatUrl'
 import { db } from '../services/db'
@@ -1126,6 +1143,13 @@ async function aplicaSeleccio(tipus, valor) {
 
 const showRevisarNoms = ref(false)
 const showCpEnBloc = ref(false)
+const einesObertes = ref(false)
+function obreEina(obre) { einesObertes.value = false; obre() }
+// Es tanca en clicar fora del desplegable.
+const einesRef = ref(null)
+function tancaEines(e) { if (einesObertes.value && !einesRef.value?.contains(e.target)) einesObertes.value = false }
+onMounted(() => document.addEventListener('mousedown', tancaEines))
+onUnmounted(() => document.removeEventListener('mousedown', tancaEines))
 
 async function fetchData() {
   try {
@@ -1728,6 +1752,23 @@ async function saveMuniAssignment() {
 </script>
 
 <style scoped>
+.eines { position: relative; }
+.eines-fletxa { display: inline-block; margin-left: 4px; transition: transform 0.15s; }
+.eines-fletxa.oberta { transform: rotate(180deg); }
+.eines-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 50; min-width: 280px;
+  background: var(--color-bg-card, #fff); border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 12px; box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16); padding: 6px;
+}
+.eines-opcio {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px;
+  background: none; border: 0; border-radius: 8px; cursor: pointer; text-align: left; color: var(--color-text);
+}
+.eines-opcio:hover, .eines-opcio:focus-visible { background: var(--color-bg-hover, #edf2f7); outline: none; }
+.eines-opcio strong { display: block; font-size: 0.9rem; }
+.eines-opcio small { display: block; font-size: 0.78rem; color: var(--color-text-secondary); margin-top: 1px; }
+.eines-icona { font-size: 1.2rem; width: 28px; text-align: center; }
+@media (max-width: 600px) { .eines-menu { right: auto; left: 0; } }
 .tr-filtre { width: auto; min-width: 170px; }
 .rol-fila { grid-column: 1 / -1; }
 .rol-linia { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
