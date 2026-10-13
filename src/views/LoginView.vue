@@ -14,7 +14,7 @@
             style="flex:1;padding:8px 16px;border:none;border-radius:10px;cursor:pointer;font-weight:600;font-size:0.85rem;transition:all 0.2s;"
             :style="loginMode === 'admin' ? 'background:var(--color-primary);color:#fff;' : 'background:transparent;color:var(--color-text-secondary);'"
             @click="loginMode = 'admin'; resetForm()">
-            🛡️ Administrador
+            🛡️ Gestió
           </button>
           <button 
             style="flex:1;padding:8px 16px;border:none;border-radius:10px;cursor:pointer;font-weight:600;font-size:0.85rem;transition:all 0.2s;"

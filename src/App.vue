@@ -45,7 +45,7 @@
     </div>
 
     <!-- ═══ GEOLOCATION CONSENT (highest priority — blocks everything for workers) ═══ -->
-    <GeolocationConsent v-if="needsGeoConsent && isAuthenticated && isWorker && !canviObligatori" @accepted="geoConsentDone" />
+    <GeolocationConsent v-if="needsGeoConsent && isAuthenticated && potFitxar && !canviObligatori" @accepted="geoConsentDone" />
 
     <!-- ═══ AVÍS D'UBICACIÓ DENEGADA ═══
          La ubicació és obligatòria per REGISTRAR LA JORNADA (art. 34.9 ET), no per
@@ -53,7 +53,7 @@
          deixava el treballador sense nòmina, sense sol·licituds i —el més greu— sense
          poder llegir ni contestar una notificació disciplinària (art. 55.1 ET).
          Ara bloqueja el fitxatge, que és el que depèn de la ubicació, i no la resta. -->
-    <div v-if="!needsGeoConsent && nativeGeoDenied && isAuthenticated && isWorker && !geoAvisTancat && !canviObligatori"
+    <div v-if="!needsGeoConsent && nativeGeoDenied && isAuthenticated && potFitxar && !geoAvisTancat && !canviObligatori"
          style="position:fixed;left:0;right:0;bottom:0;z-index:9000;background:var(--color-card-bg,#fff);
                 border-top:3px solid var(--color-danger,#b42318);box-shadow:0 -8px 30px rgba(0,0,0,.15);padding:14px 18px;">
       <div style="max-width:900px;margin:0 auto;display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;">
@@ -184,12 +184,12 @@ window.addEventListener('crt:canvi-contrasenya', onCanviObligatori)
 // ── Geolocation consent check (highest priority for workers) ────
 const needsGeoConsent = ref(false)
 
+// Qui fitxa: treballadors i el lloc de Gerència (té rol d'administració, però fitxa com la resta
+// des del 13-10-2026). Han d'acceptar l'avís de geolocalització i tenir la ubicació permesa.
+const potFitxar = computed(() => authStore.isWorker || authStore.user?.job_profile === 'Gerencia')
+
 function checkGeoConsent() {
-  if (authStore.isAuthenticated && authStore.isWorker && authStore.user) {
-    if (authStore.user.job_profile === 'Gerencia') {
-      needsGeoConsent.value = false
-      return
-    }
+  if (authStore.isAuthenticated && potFitxar.value && authStore.user) {
     const dbConsent = !!authStore.user.geo_consent_accepted_at
     const localConsent = !!localStorage.getItem(`crt_geo_consent_${authStore.userId}`)
     needsGeoConsent.value = !dbConsent && !localConsent
@@ -209,8 +209,7 @@ const nativeGeoDenied = ref(false)
 const geoAvisTancat = ref(false)
 
 async function checkNativeGeo() {
-  if (!authStore.isAuthenticated || !authStore.isWorker) return
-  if (authStore.user?.job_profile === 'Gerencia') return
+  if (!authStore.isAuthenticated || !potFitxar.value) return
 
   if (navigator.permissions) {
     try {

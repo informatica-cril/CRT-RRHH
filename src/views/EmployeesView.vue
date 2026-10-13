@@ -193,6 +193,15 @@
               <option value="CRIL_CRT">CRIL i CRT (totes dues)</option>
             </select>
           </div>
+          <!-- El rol el decideix administració (el lloc «Gerencia» ja no dona permisos de gestió). -->
+          <div v-if="authStore.isAdmin" class="form-group">
+            <label class="form-label">Rol a l'aplicació</label>
+            <select class="form-select" v-model="form.role" :disabled="isSaving || editingUser?.id === authStore.userId">
+              <option value="worker">Treballador — fitxa i veu el seu portal</option>
+              <option value="hr">RRHH — gestiona la plantilla</option>
+              <option value="admin">Superior — control total de l'aplicació</option>
+            </select>
+          </div>
           </div>
 
           <!-- Estat: desactivar no esborra res; la persona deixa d'entrar però conserva el seu historial. -->
@@ -1169,7 +1178,7 @@ watch(() => route.query.obre, obreDesDeRuta)
 const csvPreview = ref([])
 const importResults = ref([])
 
-const form = reactive({ entitat: 'CRT', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: '', specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
+const form = reactive({ role: 'worker', entitat: 'CRT', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: '', specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
 const scheduleForm = reactive({ id: 1, days: [] })
 const isNewSchedule = ref(false)
 const newScheduleName = ref('')
@@ -1291,7 +1300,7 @@ async function openEditModal(user) {
   if (user) carregaPractiques(user.id)
   if (user) {
     const sDate = user.seniority_date ? user.seniority_date.split('T')[0] : ''
-    Object.assign(form, { entitat: user.entitat || 'CRT', name: user.name, email: user.email, dni: user.dni || '', device_phone: user.device_phone || '', pacte_complementaries: !!user.pacte_complementaries,  work_type: user.work_type || 'DOMICILIARIA', job_profile: user.job_profile || 'Fisioterapeuta', postal_code_assigned: user.postal_code_assigned, work_schedule_id: user.work_schedule_id, seniority_date: sDate, specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
+    Object.assign(form, { role: user.role || 'worker', entitat: user.entitat || 'CRT', name: user.name, email: user.email, dni: user.dni || '', device_phone: user.device_phone || '', pacte_complementaries: !!user.pacte_complementaries,  work_type: user.work_type || 'DOMICILIARIA', job_profile: user.job_profile || 'Fisioterapeuta', postal_code_assigned: user.postal_code_assigned, work_schedule_id: user.work_schedule_id, seniority_date: sDate, specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
     ratioActual.value = Number(user.complementary_ratio ?? 0.30)
     ratioPct.value = Math.round(ratioActual.value * 100)
     ratioPendent.value = user.complementary_ratio_pending != null ? Number(user.complementary_ratio_pending) : null
@@ -1311,7 +1320,7 @@ async function openEditModal(user) {
         form.departments = (full.departments || []).map(d => d.code)
       } catch (e) { /* es queda buit */ }
   } else {
-    Object.assign(form, { entitat: 'CRT', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: new Date().toISOString().split('T')[0], specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
+    Object.assign(form, { role: 'worker', entitat: 'CRT', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: new Date().toISOString().split('T')[0], specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
     showEditModal.value = true
   }
 }
@@ -1325,7 +1334,8 @@ async function saveUser() {
       auditLog(authStore.userId, 'UPDATE_USER', 'user', editingUser.value.id, `Actualitzat: ${form.name}`)
     } else {
       const pw = db.generateRandomPasswordSync()
-      const finalRole = form.job_profile === 'Gerencia' ? 'admin' : 'worker'
+      // El lloc no decideix el rol: Gerència fitxa com la resta. El rol el tria administració.
+      const finalRole = authStore.isAdmin ? (form.role || 'worker') : 'worker'
       await db.addUser({ ...form, password: pw, role: finalRole, active: true, privacy_consent: false })
       auditLog(authStore.userId, 'CREATE_USER', 'user', null, `Creat: ${form.name} (DNI: ${form.dni})`)
       alert(`Treballador creat.\nUsuari: ${form.email}\nContrasenya: ${pw}`)

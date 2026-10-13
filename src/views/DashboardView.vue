@@ -14,7 +14,7 @@
     </div>
     <div class="page-header" v-else>
       <div>
-        <h1 class="page-title">Menú administrador</h1>
+        <h1 class="page-title">Menú de gestió</h1>
         <p class="page-subtitle">Accediu a totes les eines de gestió</p>
       </div>
     </div>
@@ -170,7 +170,7 @@
       <!-- Right Column: Time Tracker + Pending -->
       <div>
         <!-- Time Tracker Widget -->
-        <div class="time-tracker" id="time-tracker" v-if="authStore.user?.job_profile !== 'Gerencia'">
+        <div class="time-tracker" id="time-tracker">
           <div class="tracker-label">{{ t('time_tracker') }}</div>
           <div class="tracker-time">{{ workLogStore.formattedElapsed }}</div>
           <div class="tracker-buttons" v-if="workLogStore.isWorking">
