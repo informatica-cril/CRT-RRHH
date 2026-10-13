@@ -31,6 +31,13 @@
           <option value="DOMI_TOTA">Domiciliària (totes)</option>
           <option value="SENSE">Sense àmbit</option>
         </select>
+        <select class="form-select tr-filtre" v-model="filtreEntitat" title="Entitat">
+          <option value="">Totes les entitats</option>
+          <option value="CRIL">CRIL</option>
+          <option value="CRT">CRT</option>
+          <option value="CRIL_CRT">CRIL i CRT</option>
+          <option value="HOSP">🏥 Hospital</option>
+        </select>
         <select class="form-select tr-filtre" v-model="filtreEstat" title="Estat">
           <option value="">Actius i inactius</option>
           <option value="actiu">Només actius</option>
@@ -72,7 +79,7 @@
           <tbody>
             <tr v-for="user in filteredWorkers" :key="user.id" :class="{ 'tr-fila-sel': seleccionats.includes(user.id) }">
               <td class="tr-check"><input type="checkbox" :value="user.id" v-model="seleccionats" /></td>
-              <td><div style="display:flex;align-items:center;gap:8px;"><div class="header-avatar" style="width:28px;height:28px;font-size:0.7rem;">{{ initials(user.name) }}</div>{{ user.name }}<span v-if="user.practiques" class="badge badge-info" style="font-size:.68rem;" title="Alumne/a en pràctiques">🎓 Pràctiques</span></div></td>
+              <td><div style="display:flex;align-items:center;gap:8px;"><div class="header-avatar" style="width:28px;height:28px;font-size:0.7rem;">{{ initials(user.name) }}</div>{{ user.name }}<span class="ent-xip" :class="'ent-' + (user.entitat || 'CRT')" :title="'Entitat: ' + nomEntitat(user.entitat)">{{ nomEntitat(user.entitat) }}</span><span v-if="esHospital(user)" class="ent-xip ent-hosp" title="Treballa a l'Hospital de Barcelona">🏥 Hospital</span><span v-if="user.practiques" class="badge badge-info" style="font-size:.68rem;" title="Alumne/a en pràctiques">🎓 Pràctiques</span></div></td>
               <td style="font-family:monospace;font-size:0.8rem;">{{ user.dni || '—' }}</td>
               <td>{{ user.email }}</td>
               <td>
@@ -177,6 +184,14 @@
           <div class="form-group">
             <label class="form-label">Data alta (antiguitat)</label>
             <input class="form-input" type="date" v-model="form.seniority_date" :disabled="isSaving" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Entitat</label>
+            <select class="form-select" v-model="form.entitat" :disabled="isSaving">
+              <option value="CRIL">CRIL</option>
+              <option value="CRT">CRT</option>
+              <option value="CRIL_CRT">CRIL i CRT (totes dues)</option>
+            </select>
           </div>
           </div>
 
@@ -998,7 +1013,9 @@ const extraData = ref({}) // Stores assignments and points per worker
 // Filtres d'àmbit i d'estat (es desen a la URL, com la cerca).
 const filtreAmbit = ref('')
 const filtreEstat = ref('')
+const filtreEntitat = ref('')
 useEstatUrl('ambit', filtreAmbit)
+useEstatUrl('entitat', filtreEntitat)
 useEstatUrl('estat', filtreEstat)
 const senseAcces = (u) => u.acces_app === false || u.acces_app === 0
 const passaAmbit = (u) => {
@@ -1007,6 +1024,16 @@ const passaAmbit = (u) => {
   if (a === 'SENSE') return !u.work_type
   if (a === 'DOMI_TOTA') return String(u.work_type || '').startsWith('DOMICILIARIA')
   return u.work_type === a
+}
+// Entitat de la fitxa (CRIL, CRT o totes dues) i Hospital (departament de modalitat HOSP).
+const NOMS_ENTITAT = { CRIL: 'CRIL', CRT: 'CRT', CRIL_CRT: 'CRIL i CRT' }
+const nomEntitat = (e) => NOMS_ENTITAT[e] || 'CRT'
+const esHospital = (u) => (u.departments || []).some(d => d.modality === 'HOSP' || String(d.code || '').startsWith('HOSP'))
+const passaEntitat = (u) => {
+  const e = filtreEntitat.value
+  if (!e) return true
+  if (e === 'HOSP') return esHospital(u)
+  return (u.entitat || 'CRT') === e
 }
 const passaEstat = (u) => {
   const e = filtreEstat.value
@@ -1017,7 +1044,7 @@ const passaEstat = (u) => {
 }
 
 const filteredWorkers = computed(() => {
-  let list = workers.value.filter(u => passaAmbit(u) && passaEstat(u))
+  let list = workers.value.filter(u => passaAmbit(u) && passaEstat(u) && passaEntitat(u))
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()
     list = list.filter(u => 
@@ -1142,7 +1169,7 @@ watch(() => route.query.obre, obreDesDeRuta)
 const csvPreview = ref([])
 const importResults = ref([])
 
-const form = reactive({ name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: '', specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
+const form = reactive({ entitat: 'CRT', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: '', specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
 const scheduleForm = reactive({ id: 1, days: [] })
 const isNewSchedule = ref(false)
 const newScheduleName = ref('')
@@ -1264,7 +1291,7 @@ async function openEditModal(user) {
   if (user) carregaPractiques(user.id)
   if (user) {
     const sDate = user.seniority_date ? user.seniority_date.split('T')[0] : ''
-    Object.assign(form, { name: user.name, email: user.email, dni: user.dni || '', device_phone: user.device_phone || '', pacte_complementaries: !!user.pacte_complementaries,  work_type: user.work_type || 'DOMICILIARIA', job_profile: user.job_profile || 'Fisioterapeuta', postal_code_assigned: user.postal_code_assigned, work_schedule_id: user.work_schedule_id, seniority_date: sDate, specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
+    Object.assign(form, { entitat: user.entitat || 'CRT', name: user.name, email: user.email, dni: user.dni || '', device_phone: user.device_phone || '', pacte_complementaries: !!user.pacte_complementaries,  work_type: user.work_type || 'DOMICILIARIA', job_profile: user.job_profile || 'Fisioterapeuta', postal_code_assigned: user.postal_code_assigned, work_schedule_id: user.work_schedule_id, seniority_date: sDate, specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
     ratioActual.value = Number(user.complementary_ratio ?? 0.30)
     ratioPct.value = Math.round(ratioActual.value * 100)
     ratioPendent.value = user.complementary_ratio_pending != null ? Number(user.complementary_ratio_pending) : null
@@ -1284,7 +1311,7 @@ async function openEditModal(user) {
         form.departments = (full.departments || []).map(d => d.code)
       } catch (e) { /* es queda buit */ }
   } else {
-    Object.assign(form, { name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: new Date().toISOString().split('T')[0], specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
+    Object.assign(form, { entitat: 'CRT', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: new Date().toISOString().split('T')[0], specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
     showEditModal.value = true
   }
 }
@@ -1680,6 +1707,11 @@ async function saveMuniAssignment() {
 
 <style scoped>
 .tr-filtre { width: auto; min-width: 170px; }
+.ent-xip { font-size: .66rem; font-weight: 700; padding: 1px 7px; border-radius: 99px; letter-spacing: .02em; white-space: nowrap; }
+.ent-CRIL { background: #e3ecf7; color: #1a3c5e; }
+.ent-CRT { background: #ddf2ee; color: #00665a; }
+.ent-CRIL_CRT { background: #efe6f7; color: #5b2b86; }
+.ent-hosp { background: #fdecea; color: #a12a22; }
 .tr-check { width: 34px; text-align: center; }
 .tr-check input { width: 16px; height: 16px; cursor: pointer; }
 .tr-fila-sel { background: rgba(0, 128, 108, 0.06); }

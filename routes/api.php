@@ -290,6 +290,8 @@ Route::prefix('v1')->group(function () {
             Route::post('{workLog}/corregir-hora', [\App\Http\Controllers\Api\WorkLogCorreccioController::class, 'corregir'])->middleware('role:admin,hr');
             // Jornades sense sortida de dies anteriors: la persona declara l'hora (el registre no es toca)
             // i coordinació/RRHH en veuen la llista.
+            // Pendents per mes: el comptador del menú els suma tots; la pantalla diu en quins mesos són.
+            Route::get('pendents-per-mes', [WorkLogController::class, 'pendentsPerMes'])->middleware('role:admin,coordinator,hr');
             Route::get('sense-sortida', [\App\Http\Controllers\Api\WorkLogSenseSortidaController::class, 'meves']);
             Route::get('sense-sortida/equip', [\App\Http\Controllers\Api\WorkLogSenseSortidaController::class, 'equip'])->middleware('role:admin,coordinator,hr');
             Route::post('{workLog}/declara-sortida', [\App\Http\Controllers\Api\WorkLogSenseSortidaController::class, 'declara']);

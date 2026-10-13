@@ -38,6 +38,7 @@ class UpdateUserRequest extends FormRequest
             'device_phone' => 'nullable|string|max:20',
             'pacte_complementaries' => 'boolean',
             'relacio' => 'nullable|in:laboral,autonom',
+            'entitat' => 'nullable|in:CRIL,CRT,CRIL_CRT',
             'disponibilitat_setmanal' => 'nullable|numeric|min:0|max:99',
             'specialties' => 'sometimes|array',
             'specialties.*' => 'string|exists:specialties,code',

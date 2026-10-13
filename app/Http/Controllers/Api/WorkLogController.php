@@ -139,6 +139,22 @@ class WorkLogController extends Controller
         return response()->json($log, 201);
     }
 
+    /**
+     * GET /api/v1/work-logs/pendents-per-mes → [{ mes: 'AAAA-MM', n }]
+     * El comptador del menú suma els pendents de tots els mesos, però Registres en mostra un sol
+     * mes: així la pantalla pot dir on són sense haver d'anar obrint mes a mes. El mes es llegeix
+     * del text de la data (hora de Madrid sense zona) i es compta aquí per ser igual a MySQL i SQLite.
+     */
+    public function pendentsPerMes()
+    {
+        return response()->json(
+            WorkLog::where('status', 'pending')->get(['date'])
+                ->countBy(fn ($l) => substr((string) $l->getRawOriginal('date'), 0, 7))
+                ->map(fn ($n, $mes) => ['mes' => $mes, 'n' => $n])
+                ->sortKeysDesc()->values()
+        );
+    }
+
     public function byUser($userId)
     {
         // Limitar a los últimos 200 registros del usuario para evitar respuestas enormes.
