@@ -16,6 +16,7 @@ const db = {
   updateUser: (user) => api.put(`/v1/users/${user.id}`, user),
   getSpecialties: () => api.get('/v1/specialties'),
   getUsers: () => api.get('/v1/users'),
+  getContactesXat: () => api.get('/v1/chat/contactes'),
   // Aprovisionament de dispositiu corporatiu (Hexnode): clau → token HMAC
   deviceEnroll: (clau) => api.post('/v1/device/enroll', { clau }),
   // Informe empíric del pilot per a la validació del radi (EIPD §6.1.bis) — admin

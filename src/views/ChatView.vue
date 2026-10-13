@@ -283,7 +283,7 @@ async function dismissGeoAlert(id) {
 async function fetchData() {
   try {
     chatSettings.value = await db.getChatSettings().catch(() => ({}))
-    users.value = await db.getUsers().catch(() => [])
+    users.value = await db.getContactesXat().catch(() => [])
     const rawConversations = await db.getChatConversations(authStore.userId).catch(() => [])
     // Filter out any invalid conversations (null, undefined, or missing type)
     conversations.value = (rawConversations || []).filter(c => c && c.type && c.members)
