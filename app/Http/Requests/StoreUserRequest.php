@@ -29,6 +29,7 @@ class StoreUserRequest extends FormRequest
             // encara no envia el camp i posar-lo required trencaria TOTES les altes.
             // nullable fins que el frontend l'incorpori; NULL es tracta com a laboral.
             'relacio' => 'nullable|in:laboral,autonom',
+            'entitat' => 'nullable|in:CRIL,CRT,CRIL_CRT',
             'disponibilitat_setmanal' => 'nullable|numeric|min:0|max:99',
             'work_schedule_id' => 'nullable|exists:work_schedules,id',
             'active' => 'boolean',
@@ -58,6 +59,7 @@ class StoreUserRequest extends FormRequest
             'password.min' => 'La contrasenya ha de tenir com a mínim :min caràcters.',
             'role.in' => 'El rol no és vàlid.',
             'work_type.in' => 'L\'àmbit no és vàlid.',
+            'entitat.in' => 'L\'entitat no és vàlida (CRIL, CRT o totes dues).',
             'work_schedule_id.exists' => 'L\'horari triat no existeix.',
             'seniority_date.date' => 'La data d\'alta no és vàlida.',
         ];

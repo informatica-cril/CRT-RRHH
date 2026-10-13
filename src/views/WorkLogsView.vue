@@ -7,7 +7,7 @@
       </div>
       <div class="page-actions">
         <select class="form-select" v-model="selectedMonth">
-          <option v-for="m in months" :key="m.value" :value="m.value">{{ m.label }}</option>
+          <option v-for="m in months" :key="m.value" :value="m.value">{{ m.label }}{{ pendentsPerMes[m.value] ? ` · ${pendentsPerMes[m.value]} pendent${pendentsPerMes[m.value] > 1 ? 's' : ''}` : '' }}</option>
         </select>
         <SelectorPersona v-if="authStore.isStaff" v-model="selectedUser" :persones="workers" :buida="{ valor: 'all', text: `${t('total')} ${t('employees')}` }" style="width:240px;" />
         <button v-if="authStore.isStaff" type="button" class="btn btn-outline wl-excel" :disabled="exportant" @click="exportaExcel"
@@ -27,6 +27,14 @@
         @click="vista = f.clau">
         <span>{{ f.icona }}</span> {{ f.nom }}
         <span class="wl-n">{{ recomptes[f.clau] || 0 }}</span>
+      </button>
+    </div>
+
+    <!-- Pendents d'altres mesos: el comptador del menú els suma tots i aquí només es veu el mes triat -->
+    <div v-if="authStore.isStaff && altresMesosPendents.length" class="wl-altres-mesos">
+      <span>⏳ Hi ha fitxatges pendents en altres mesos:</span>
+      <button v-for="m in altresMesosPendents" :key="m.mes" type="button" class="wl-mes-xip" @click="anarAPendents(m.mes)">
+        {{ m.label }} <strong>{{ m.n }}</strong>
       </button>
     </div>
 
@@ -211,6 +219,31 @@ async function fetchData() {
 }
 
 onMounted(fetchData)
+
+// Pendents per mes (tots els mesos): per saber on són sense haver d'anar obrint mes a mes.
+const pendentsPerMes = ref({})
+async function carregaPendents() {
+  if (!authStore.isStaff) return
+  try {
+    const r = await api.get('/v1/work-logs/pendents-per-mes')
+    pendentsPerMes.value = Object.fromEntries((Array.isArray(r) ? r : []).map(x => [x.mes, Number(x.n) || 0]))
+  } catch (e) { pendentsPerMes.value = {} }
+}
+onMounted(carregaPendents)
+// Després d'aprovar o rebutjar, la llista es torna a carregar: els recomptes també.
+watch(() => workLogStore.logs, carregaPendents)
+const nomMes = (mes) => {
+  const [a, m] = String(mes).split('-').map(Number)
+  return new Date(a, m - 1, 1).toLocaleDateString(i18n.locale === 'ca' ? 'ca-ES' : 'es-ES', { month: 'long', year: 'numeric' })
+}
+const altresMesosPendents = computed(() => Object.entries(pendentsPerMes.value)
+  .filter(([mes, n]) => n > 0 && mes !== selectedMonth.value)
+  .sort((a, b) => b[0].localeCompare(a[0]))
+  .map(([mes, n]) => { const l = nomMes(mes); return { mes, n, label: l.charAt(0).toUpperCase() + l.slice(1) } }))
+function anarAPendents(mes) {
+  selectedMonth.value = mes
+  vista.value = 'pendents'
+}
 // Cada mes es demana sencer a l'API (abans es filtrava sobre els 500 últims i els mesos vells sortien buits).
 watch(selectedMonth, (m) => { workLogStore.mes = m; workLogStore.loadLogs() })
 onUnmounted(() => { workLogStore.mes = null })
@@ -224,7 +257,11 @@ const months = computed(() => {
       label: d.toLocaleDateString(i18n.locale === 'ca' ? 'ca-ES' : 'es-ES', { month: 'long', year: 'numeric' })
     })
   }
-  return result
+  // Mesos més antics amb pendents (o el que ve a la URL): també s'han de poder triar.
+  for (const mes of [...Object.keys(pendentsPerMes.value), selectedMonth.value]) {
+    if (/^\d{4}-\d{2}$/.test(mes) && !result.some(r => r.value === mes)) result.push({ value: mes, label: nomMes(mes) })
+  }
+  return result.sort((a, b) => b.value.localeCompare(a.value))
 })
 
 
@@ -419,6 +456,10 @@ function statusBadge(s) { return { 'badge-pending': s === 'pending', 'badge-succ
 <style scoped>
 /* Jornada tancada un altre dia (sortida oblidada): s'ha de veure d'un cop d'ull. */
 .sortida-altre-dia { margin-top: 3px; font-size: .74rem; font-weight: 700; color: var(--color-danger, #B3352F); white-space: nowrap; }
+.wl-altres-mesos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; padding: 10px 14px; border-radius: 12px; background: #fff7e0; border: 1px solid #f0d58a; color: #6b5100; font-size: .86rem; }
+.wl-mes-xip { border: 1px solid #e0c060; background: #fff; color: #6b5100; border-radius: 99px; padding: 3px 12px; cursor: pointer; font-size: .82rem; }
+.wl-mes-xip:hover { background: #ffefb8; }
+.wl-mes-xip strong { margin-left: 4px; background: #D9A400; color: #fff; border-radius: 99px; padding: 0 7px; font-size: .74rem; }
 .wl-seleccio { position: sticky; top: 8px; z-index: 5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 12px; border-radius: 12px; background: #E8F8F2; border: 1px solid #0DAF83; color: #0A5C46; font-size: .88rem; box-shadow: 0 4px 14px rgba(10, 92, 70, .12); }
 .wl-check { width: 34px; text-align: center; }
 .wl-check input { width: 17px; height: 17px; cursor: pointer; }

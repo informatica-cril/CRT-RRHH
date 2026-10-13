@@ -396,7 +396,8 @@ class UserController extends Controller
         $today = now()->toDateString();
 
         return response()->json([
-            'users' => User::with('workSchedule')->get()->makeHidden(['password']),
+            // Departaments: la llista de Treballadors marca qui és a l'hospital (modalitat HOSP).
+            'users' => User::with(['workSchedule', 'departments:id,code,name,modality'])->get()->makeHidden(['password']),
             'work_schedules' => WorkSchedule::all(),
             'zones' => Zone::where('active', true)->get(),
             'work_locations' => WorkLocation::where('active', true)->get(),
