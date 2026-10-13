@@ -47,6 +47,22 @@ class CredencialsEnsTest extends TestCase
         $this->assertFalse(Hash::check('Antiga2026!xx', $u->password), 'la contrasenya ha canviat');
     }
 
+    public function test_si_el_correu_no_surt_la_contrasenya_no_canvia(): void
+    {
+        $u = User::create(['name' => 'W', 'email' => 'w@test.local',
+            'password' => Hash::make('Antiga2026!xx'), 'role' => 'worker', 'active' => true]);
+        // El servidor de correu falla (p. ex. SMTP caigut o credencials del buzó).
+        \Illuminate\Support\Facades\Mail::shouldReceive('to')->andThrow(new \RuntimeException('SMTP no disponible'));
+
+        $this->postJson('/api/v1/auth/reset-password', ['email' => 'w@test.local'])
+            ->assertStatus(503)->assertJson(['success' => false])
+            ->assertJsonFragment(['message' => 'No s\'ha pogut enviar el correu. La contrasenya no ha canviat: torna-ho a provar més tard o escriu a rrhh@lirc.es.']);
+
+        $u->refresh();
+        $this->assertTrue(Hash::check('Antiga2026!xx', $u->password), 'sense correu, segueix la contrasenya de sempre');
+        $this->assertFalse((bool) $u->must_change_password);
+    }
+
     public function test_reset_password_anti_enumeracio(): void
     {
         // Email inexistent: mateixa resposta d'èxit (no revela que no existeix).
