@@ -1614,6 +1614,12 @@ async function checkLocation() {
     const assignment = await db.getActiveCpAssignment(authStore.userId)
     const result = await checkUserLocation(authStore.user, assignment, pos.lat, pos.lng)
     
+    // Sense centre ni zona assignats: es pot fitxar, però no és «ubicació vàlida» (no hi ha res a comparar).
+    if (result.senseZona) {
+      locationStatus.value = 'checking'
+      locationText.value = authStore.user?.work_type === 'DOMICILIARIA_VALLES' ? 'Sense municipis assignats — avisa RRHH' : 'Sense centre assignat — avisa RRHH'
+      return
+    }
     locationStatus.value = result.valid ? 'valid' : 'invalid'
     locationText.value = result.valid ? t('location_valid') : (result.message || t('location_invalid'))
   } catch (e) {
