@@ -1527,7 +1527,7 @@ async function importCsv() {
     await db.addUsers(newUsers)
   } catch (e) {
     // El servidor diu quina fila falla (correu repetit, sense nom...): no s'ha creat ningú.
-    alert(e?.message || 'No s'ha pogut importar el fitxer.')
+    alert(e?.message || "No s'ha pogut importar el fitxer.")
     return
   }
   auditLog(authStore.userId, 'IMPORT_CSV', 'user', null, `Importats ${newUsers.length} treballadors`)
