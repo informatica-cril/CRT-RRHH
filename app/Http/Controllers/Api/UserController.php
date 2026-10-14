@@ -383,18 +383,53 @@ class UserController extends Controller
         abort_if(! $request->user()->isAdmin()
             && collect($request->users)->contains(fn ($u) => ($u['role'] ?? null) === 'admin'), 403, self::NOMES_ADMIN);
 
-        $created = [];
-        foreach ($request->users as $userData) {
-            $password = $userData['password'] ?? 'changeme';
-            if (!str_starts_with($password, '$2y$')) {
-                $password = Hash::make($password);
+        // Tot es comprova abans de crear res: abans un correu repetit o un horari inexistent petava a la
+        // base de dades i la pantalla només deia «Server Error». Ara diu quina fila falla i per què.
+        $files = array_values($request->users);
+        $errors = [];
+        $vistos = [];
+        $horaris = WorkSchedule::pluck('id')->all();
+        foreach ($files as $i => &$u) {
+            $n = $i + 1;
+            $email = mb_strtolower(trim((string) ($u['email'] ?? '')));
+            $u['email'] = $email;
+            if (trim((string) ($u['name'] ?? '')) === '') $errors[] = "Fila {$n}: falta el nom.";
+            if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $errors[] = "Fila {$n}: el correu «{$email}» no és vàlid.";
+            } elseif (isset($vistos[$email])) {
+                $errors[] = "Fila {$n}: el correu {$email} està repetit al fitxer.";
+            } elseif (User::whereRaw('LOWER(email) = ?', [$email])->exists()) {
+                $errors[] = "Fila {$n}: ja hi ha una persona amb el correu {$email}.";
             }
-            $userData['password'] = $password;
-            // Igual que l'alta individual: qui dona d'alta coneix la contrasenya, així que s'ha
-            // de canviar en el primer accés (encara que la pantalla enviï el contrari).
-            $userData['must_change_password'] = true;
-            $created[] = User::create($userData)->makeHidden(['password']);
+            $vistos[$email] = true;
+            // «NULL» o buit al CSV vol dir sense DNI.
+            $dni = trim((string) ($u['dni'] ?? ''));
+            $u['dni'] = ($dni === '' || strtoupper($dni) === 'NULL') ? null : $dni;
+            // Un horari que no existeix no fa fallar l'alta: queda sense horari (la Safata ho avisa).
+            if (isset($u['work_schedule_id']) && ! in_array((int) $u['work_schedule_id'], $horaris, true)) {
+                $u['work_schedule_id'] = null;
+            }
         }
+        unset($u);
+        if ($errors) {
+            return response()->json(['message' => "No s'ha importat ningú. " . implode(' ', array_slice($errors, 0, 10))
+                . (count($errors) > 10 ? ' (i ' . (count($errors) - 10) . ' errors més)' : ''), 'files_amb_error' => $errors], 422);
+        }
+
+        $created = [];
+        DB::transaction(function () use ($files, &$created) {
+            foreach ($files as $userData) {
+                $password = $userData['password'] ?? 'changeme';
+                if (!str_starts_with($password, '$2y$')) {
+                    $password = Hash::make($password);
+                }
+                $userData['password'] = $password;
+                // Igual que l'alta individual: qui dona d'alta coneix la contrasenya, així que s'ha
+                // de canviar en el primer accés (encara que la pantalla enviï el contrari).
+                $userData['must_change_password'] = true;
+                $created[] = User::create($userData)->makeHidden(['password']);
+            }
+        });
 
         return response()->json($created, 201);
     }

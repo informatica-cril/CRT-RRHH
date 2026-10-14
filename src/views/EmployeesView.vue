@@ -1523,7 +1523,13 @@ async function importCsv() {
     results.push({ name: u.name, email: u.email, password: pw.startsWith('$2y$') ? '[OCULT / JA ENCRIPTAT]' : pw })
     return { ...u, password: pw, role: 'worker', active: true, privacy_consent: false, must_change_password: !u.password }
   })
-  await db.addUsers(newUsers)
+  try {
+    await db.addUsers(newUsers)
+  } catch (e) {
+    // El servidor diu quina fila falla (correu repetit, sense nom...): no s'ha creat ningú.
+    alert(e?.message || 'No s'ha pogut importar el fitxer.')
+    return
+  }
   auditLog(authStore.userId, 'IMPORT_CSV', 'user', null, `Importats ${newUsers.length} treballadors`)
   await fetchData()
   importResults.value = results
