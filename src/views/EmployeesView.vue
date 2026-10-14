@@ -540,6 +540,11 @@
             </div>
             <button class="btn btn-accent btn-sm" style="white-space:nowrap;margin-bottom:1px;" @click="startNewSchedule">+ Nova plantilla</button>
           </div>
+          <!-- Una plantilla compartida no es reescriu des de la fitxa d'una persona: tocava l'horari de tothom -->
+          <div v-if="altresAmbPlantilla > 0" class="text-small" style="margin-top:6px;padding:8px 10px;border-radius:8px;background:rgba(245,158,11,0.1);color:var(--color-text);">
+            ⚠️ Aquesta plantilla la fan servir <strong>{{ altresAmbPlantilla }} persones més</strong>. Si canvies els dies,
+            es crearà una plantilla nova només per a {{ scheduleUser?.name }} i la dels altres no es tocarà.
+          </div>
         </div>
 
         <!-- Mode: crear nova plantilla -->
@@ -1445,6 +1450,10 @@ function applyBulkSchedule(dayNumbers) {
 
 const totalWeeklyHours = computed(() => scheduleForm.days.filter(d => d.active).reduce((s, d) => s + parseFloat(calcHours(d)), 0).toFixed(1))
 
+// Altres persones actives amb la plantilla triada (sense comptar la de la fitxa).
+const altresAmbPlantilla = computed(() => workers.value.filter(w => w.active && w.id !== scheduleUser.value?.id
+  && w.work_schedule_id === scheduleForm.id).length)
+
 async function saveSchedule() {
   try {
     let scheduleId = scheduleForm.id
@@ -1460,10 +1469,22 @@ async function saveSchedule() {
       auditLog(authStore.userId, 'CREATE_SCHEDULE', 'work_schedule', created.id, `Nova plantilla "${created.name}" creada per ${scheduleUser.value.name}`)
     } else {
       const originalSched = await db.getWorkSchedule(scheduleForm.id)
-      const sched = { ...originalSched, days: scheduleForm.days, total_hours_weekly: parseFloat(totalWeeklyHours.value) }
-      const rSched = await db.updateWorkSchedule(sched)
-      recalculats += rSched?.trams_recalculats || 0
-      auditLog(authStore.userId, 'UPDATE_SCHEDULE', 'work_schedule', scheduleForm.id, `Horari actualitzat per ${scheduleUser.value.name}`)
+      const canviat = JSON.stringify(originalSched?.days || []) !== JSON.stringify(scheduleForm.days)
+      if (canviat && altresAmbPlantilla.value > 0) {
+        // Plantilla compartida: abans es reescrivia i canviava l'horari de tothom qui la tenia.
+        const created = await db.addWorkSchedule({
+          name: `${originalSched.name} · ${scheduleUser.value.name}`.slice(0, 250),
+          total_hours_weekly: parseFloat(totalWeeklyHours.value),
+          days: scheduleForm.days
+        })
+        scheduleId = created.id
+        auditLog(authStore.userId, 'CREATE_SCHEDULE', 'work_schedule', created.id, `Plantilla pròpia "${created.name}" (la compartida no es toca)`)
+      } else if (canviat) {
+        const sched = { ...originalSched, days: scheduleForm.days, total_hours_weekly: parseFloat(totalWeeklyHours.value) }
+        const rSched = await db.updateWorkSchedule(sched)
+        recalculats += rSched?.trams_recalculats || 0
+        auditLog(authStore.userId, 'UPDATE_SCHEDULE', 'work_schedule', scheduleForm.id, `Horari actualitzat per ${scheduleUser.value.name}`)
+      }
     }
     const rUser = await db.updateUser({ ...scheduleUser.value, work_schedule_id: scheduleId })
     recalculats += rUser?.trams_recalculats || 0
