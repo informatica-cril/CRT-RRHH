@@ -98,7 +98,7 @@
           <tbody>
             <tr v-for="user in filteredWorkers" :key="user.id" :class="{ 'tr-fila-sel': seleccionats.includes(user.id) }">
               <td class="tr-check"><input type="checkbox" :value="user.id" v-model="seleccionats" /></td>
-              <td><div style="display:flex;align-items:center;gap:8px;"><div class="header-avatar" style="width:28px;height:28px;font-size:0.7rem;">{{ initials(user.name) }}</div>{{ user.name }}<span class="ent-xip" :class="'ent-' + (user.entitat || 'CRT')" :title="'Entitat: ' + nomEntitat(user.entitat)">{{ nomEntitat(user.entitat) }}</span><span v-if="esHospital(user)" class="ent-xip ent-hosp" title="Treballa a l'Hospital de Barcelona">🏥 Hospital</span><span v-if="user.practiques" class="badge badge-info" style="font-size:.68rem;" title="Alumne/a en pràctiques">🎓 Pràctiques</span></div></td>
+              <td><div style="display:flex;align-items:center;gap:8px;"><div class="header-avatar" style="width:28px;height:28px;font-size:0.7rem;">{{ initials(user.name) }}</div>{{ user.name }}<span class="ent-xip" :class="'ent-' + (user.entitat || 'CRT')" :title="'Entitat: ' + nomEntitat(user.entitat)">{{ nomEntitat(user.entitat) }}</span><span v-if="esHospital(user)" class="ent-xip ent-hosp" title="Treballa a l'Hospital de Barcelona">🏥 Hospital</span><span v-if="user.practiques" class="badge badge-info" style="font-size:.68rem;" title="Alumne/a en pràctiques">🎓 Pràctiques</span><span v-if="user.role === 'hr' || user.role === 'admin' || user.role === 'coordinator'" class="ent-xip ent-rol" :title="'Rol: ' + nomRol(user.role)">{{ nomRol(user.role) }}</span></div></td>
               <td style="font-family:monospace;font-size:0.8rem;">{{ user.dni || '—' }}</td>
               <td>{{ user.email }}</td>
               <td>
@@ -1063,6 +1063,8 @@ const passaAmbit = (u) => {
   return u.work_type === a
 }
 // Entitat de la fitxa (CRIL, CRT o totes dues) i Hospital (departament de modalitat HOSP).
+const NOMS_ROL = { hr: 'RRHH', admin: 'Superior', coordinator: 'Coordinació' }
+function nomRol(r) { return NOMS_ROL[r] || r }
 const NOMS_ENTITAT = { CRIL: 'CRIL', CRT: 'CRT', CRIL_CRT: 'CRIL i CRT' }
 const nomEntitat = (e) => NOMS_ENTITAT[e] || 'CRT'
 const esHospital = (u) => (u.departments || []).some(d => d.modality === 'HOSP' || String(d.code || '').startsWith('HOSP'))
@@ -1159,7 +1161,9 @@ onUnmounted(() => document.removeEventListener('mousedown', tancaEines))
 async function fetchData() {
   try {
     const bulk = await db.getUsersBulk()
-    workers.value = bulk.users.filter(u => u.role === 'worker' || u.job_profile === 'Gerencia')
+    // Tothom menys els comptes de servei (pont amb domi): abans només treballadors i Gerència, i un
+    // compte RRHH o Superior no sortia enlloc (l'import deia «ja existeix» i no es podia trobar).
+    workers.value = bulk.users.filter(u => u.role !== 'service')
     schedules.value = bulk.work_schedules
     try { specialtiesCatalog.value = await db.getSpecialties() } catch (e) { specialtiesCatalog.value = [] }
   recomptaPendentsDomi()
@@ -1803,6 +1807,7 @@ async function saveMuniAssignment() {
 .ent-xip { font-size: .66rem; font-weight: 700; padding: 1px 7px; border-radius: 99px; letter-spacing: .02em; white-space: nowrap; }
 .ent-CRIL { background: #e3ecf7; color: #1a3c5e; }
 .ent-CRT { background: #ddf2ee; color: #00665a; }
+.ent-rol { background: #fff4e0; color: #8a5300; }
 .ent-CRIL_CRT { background: #efe6f7; color: #5b2b86; }
 .ent-hosp { background: #fdecea; color: #a12a22; }
 .tr-check { width: 34px; text-align: center; }
