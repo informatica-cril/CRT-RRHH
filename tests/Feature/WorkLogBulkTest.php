@@ -43,6 +43,32 @@ class WorkLogBulkTest extends TestCase
         $this->assertSame(2, DB::table('work_log_modifications')->where('action', 'approved')->count());
     }
 
+    public function test_aprovar_el_fitxatge_aprova_els_trams_pendents_i_compta_les_hores(): void
+    {
+        $t = $this->usuari('worker');
+        $id = $this->fitxatge($t, 'pending', ['start_time' => '2026-09-10 15:54:00', 'end_time' => '2026-09-10 19:48:00', 'segmented' => true]);
+        $tram = fn ($n, $ini, $fi, $min, $estat) => DB::table('work_log_segments')->insertGetId(['work_log_id' => $id, 'segment_number' => $n,
+            'start_time' => "2026-09-10 $ini", 'end_time' => "2026-09-10 $fi", 'duration_minutes' => $min, 'in_zone' => true,
+            'in_schedule' => false, 'status' => $estat, 'created_at' => now(), 'updated_at' => now()]);
+        $pendent = $tram(1, '15:54:00', '19:00:00', 186, 'pending');
+        $rebutjat = $tram(2, '19:00:00', '19:48:00', 48, 'rejected');
+
+        Sanctum::actingAs($this->usuari('hr'));
+        $this->postJson('/api/v1/work-logs/aprova-seleccionats', ['ids' => [$id]])->assertOk();
+
+        $this->assertSame('approved', DB::table('work_log_segments')->find($pendent)->status);
+        $this->assertSame('rejected', DB::table('work_log_segments')->find($rebutjat)->status);
+        $this->assertEquals(3.1, (float) DB::table('work_logs')->find($id)->effective_hours);   // 186 min, no 0
+
+        // Els ja aprovats abans d'aquest canvi: la migració fa el mateix i es pot desfer.
+        DB::table('work_log_segments')->where('id', $pendent)->update(['status' => 'pending']);
+        $m = require database_path('migrations/2026_10_14_000001_trams_pendents_de_fitxatges_aprovats.php');
+        $m->up();
+        $this->assertSame('approved', DB::table('work_log_segments')->find($pendent)->status);
+        $m->down();
+        $this->assertSame('pending', DB::table('work_log_segments')->find($pendent)->status);
+    }
+
     public function test_aprovar_fora_de_zona_no_duplica_les_hores(): void
     {
         // El servidor ja desa les brutes a total_hours_worked: 09:08 → 13:28 = 4h20.

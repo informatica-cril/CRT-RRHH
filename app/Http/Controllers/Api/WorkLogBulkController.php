@@ -35,6 +35,8 @@ class WorkLogBulkController extends Controller
                     $canvis += $l->canvisRestauraForaZona();
                 }
                 $l->forceFill($canvis)->save();
+                $trams = $l->aprovaTramsPendents($autor->id);
+                if ($trams) $canvis['trams_aprovats'] = $trams;
                 DB::table('work_log_modifications')->insert([
                     'work_log_id' => $l->id, 'user_id' => $autor->id, 'action' => 'approved',
                     'old_values' => json_encode(['status' => 'pending']), 'new_values' => json_encode($canvis),

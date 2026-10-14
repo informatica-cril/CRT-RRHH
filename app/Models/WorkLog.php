@@ -155,6 +155,21 @@ class WorkLog extends Model
         ];
     }
 
+    /**
+     * Aprovar un fitxatge sencer aprova també els seus trams pendents (els rebutjats no es toquen) i
+     * recalcula les hores efectives. Abans el fitxatge sortia «Aprovat» amb 0 min: les hores
+     * comptades només sumen trams aprovats i els de fora d'horari es quedaven pendents.
+     * Retorna quants trams s'han aprovat.
+     */
+    public function aprovaTramsPendents(?int $autorId): int
+    {
+        $n = $this->segments()->where('status', 'pending')
+            ->update(['status' => 'approved', 'modified_by' => $autorId, 'modified_at' => now()]);
+        if ($n > 0) $this->recalcularEfectivo();
+
+        return $n;
+    }
+
     /** Hi ha temps fora de zona encara per resoldre segons els trams? */
     public function teTramsForaZonaPendents(): bool
     {

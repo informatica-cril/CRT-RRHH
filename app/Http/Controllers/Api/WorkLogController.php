@@ -252,7 +252,12 @@ class WorkLogController extends Controller
                 && ! $this->workLogs->hasActiveAuthCode($workLog->user, $endNow);
         }
 
+        $aprovant = ($data['status'] ?? null) === 'approved' && $workLog->status !== 'approved';
         $workLog->update($data);
+        // Aprovar el fitxatge des de gestió aprova també els trams pendents (com l'aprovació conjunta).
+        if ($aprovant && $request->user()?->isStaff()) {
+            $workLog->aprovaTramsPendents($request->user()->id);
+        }
 
         if ($justificacio !== '') {
             try {
