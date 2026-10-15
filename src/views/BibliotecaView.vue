@@ -6,8 +6,8 @@
         <p class="page-subtitle">Formacions, protocols i informació per a tota la plantilla. Clica un document per obrir-lo.</p>
       </div>
       <div v-if="gestio" class="page-actions">
-        <button class="btn btn-outline" :disabled="ocupat" @click="$refs.zipInput.click()">📦 Importar ZIP</button>
-        <button class="btn btn-primary" :disabled="ocupat" @click="novaCarpeta">+ Carpeta</button>
+        <button class="btn btn-outline" :disabled="!!ocupat" @click="$refs.zipInput.click()">📦 Importar ZIP</button>
+        <button class="btn btn-primary" :disabled="!!ocupat" @click="novaCarpeta">+ Carpeta</button>
         <input ref="zipInput" type="file" accept=".zip,application/zip" style="display:none" @change="importaZip" />
       </div>
     </div>
