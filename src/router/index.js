@@ -288,6 +288,19 @@ const routes = [
     meta: { requiresAuth: true, requiresWorker: true }
   },
   {
+    // Incidències: el treballador n'envia (RRHH i Superior les reben a /incidencies)
+    path: '/worker/incidencia',
+    name: 'worker-incidencia',
+    component: () => import('../views/IncidenciaView.vue'),
+    meta: { requiresAuth: true, requiresWorker: true }
+  },
+  {
+    path: '/incidencies',
+    name: 'incidencies',
+    component: () => import('../views/IncidenciesView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
     path: '/worker/compliance',
     name: 'worker-compliance',
     component: () => import('../views/WorkerComplianceView.vue'),

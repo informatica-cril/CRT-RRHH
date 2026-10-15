@@ -58,6 +58,16 @@ const MAPES = {
  * Etiqueta llegible d'un codi. Si el codi no és al mapa, no s'inventa res: es mostra tal qual,
  * però sense guions baixos, perquè almenys es pugui llegir.
  */
+// Tipus d'incidència (taula incidencies.tipus), amb icona per als botons.
+export const TIPUS_INCIDENCIA = [
+  { codi: 'fitxatge', nom: 'Fitxatge', icona: '⏱' },
+  { codi: 'horari', nom: 'Horari', icona: '🗓️' },
+  { codi: 'nomina', nom: 'Nòmina', icona: '💶' },
+  { codi: 'permisos', nom: 'Permisos i absències', icona: '📋' },
+  { codi: 'app', nom: "L'aplicació", icona: '📱' },
+  { codi: 'altres', nom: 'Altres', icona: '💬' },
+]
+
 export function etiqueta(tipus, codi) {
   if (codi === null || codi === undefined || codi === '') return '—'
   return MAPES[tipus]?.[codi] ?? String(codi).replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase())
