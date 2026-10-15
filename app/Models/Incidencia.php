@@ -11,7 +11,11 @@ class Incidencia extends Model
 
     public const TIPUS = ['fitxatge', 'horari', 'nomina', 'permisos', 'app', 'altres'];
 
-    protected $fillable = ['user_id', 'tipus', 'assumpte', 'descripcio', 'estat', 'resolta_per', 'resolta_at', 'nota_resolucio', 'vist_treballador_at'];
+    /** Estats de gestió (només RRHH i Superior). Els dos últims tanquen la incidència. */
+    public const ESTATS_GESTIO = ['nova', 'en_curs', 'esperant', 'resolta', 'descartada'];
+    public const ESTATS_TANCATS = ['resolta', 'descartada'];
+
+    protected $fillable = ['user_id', 'tipus', 'assumpte', 'descripcio', 'estat', 'estat_gestio', 'resolta_per', 'resolta_at', 'nota_resolucio', 'vist_treballador_at'];
 
     protected $casts = ['resolta_at' => 'datetime', 'vist_treballador_at' => 'datetime'];
 
