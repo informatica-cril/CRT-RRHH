@@ -27,7 +27,7 @@
 <body>
   <div class="wrapper">
     <div class="header">
-      <img src="https://crilsalutrrhh.app.crilsl.org/assets/cril-logo.png" alt="CRIL" />
+      <img src="https://crtrrhh.crtbcn.cat/assets/crt-logo.png" alt="CRT" />
       <div class="badge">🛎️ Incidència nova</div>
     </div>
     <div class="body">
@@ -37,11 +37,11 @@
       <div class="text">{{ $incidencia->descripcio }}</div>
       <p class="text-small">Si respons aquest correu, la resposta arriba directament a {{ $u->name }}.</p>
       <div class="cta-box">
-        <a href="https://crilsalutrrhh.app.crilsl.org/#/incidencies" class="cta-btn">Veure les incidències →</a>
+        <a href="https://crtrrhh.crtbcn.cat/app/#/incidencies" class="cta-btn">Veure les incidències →</a>
       </div>
     </div>
     <div class="footer">
-      <strong>CRIL &mdash; Centre de Rehabilitació i Logopèdia</strong><br>
+      <strong>CRT &mdash; Centre de Rehabilitació Terapèutica</strong><br>
       Aquest missatge és automàtic.
     </div>
   </div>
