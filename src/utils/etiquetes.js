@@ -68,6 +68,15 @@ export const TIPUS_INCIDENCIA = [
   { codi: 'altres', nom: 'Altres', icona: '💬' },
 ]
 
+// Estats de gestió de les incidències (incidencies.estat_gestio). Només els veuen RRHH i Superior.
+export const ESTATS_INCIDENCIA = [
+  { codi: 'nova', nom: 'Nova', oberta: true },
+  { codi: 'en_curs', nom: 'En curs', oberta: true },
+  { codi: 'esperant', nom: 'Esperant el treballador', oberta: true },
+  { codi: 'resolta', nom: 'Resolta', oberta: false },
+  { codi: 'descartada', nom: 'Descartada', oberta: false },
+]
+
 export function etiqueta(tipus, codi) {
   if (codi === null || codi === undefined || codi === '') return '—'
   return MAPES[tipus]?.[codi] ?? String(codi).replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase())

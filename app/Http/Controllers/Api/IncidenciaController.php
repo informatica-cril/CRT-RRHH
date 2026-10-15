@@ -23,7 +23,7 @@ class IncidenciaController extends Controller
             'assumpte' => 'required|string|max:150',
             'descripcio' => 'required|string|min:10|max:5000',
         ]);
-        $inc = Incidencia::create($data + ['user_id' => $request->user()->id, 'estat' => 'oberta', 'vist_treballador_at' => now()]);
+        $inc = Incidencia::create($data + ['user_id' => $request->user()->id, 'estat' => 'oberta', 'estat_gestio' => 'nova', 'vist_treballador_at' => now()]);
 
         return response()->json(['id' => $inc->id, 'missatge' => "Incidència enviada. RRHH se n'encarregarà."], 201);
     }
@@ -41,7 +41,8 @@ class IncidenciaController extends Controller
     public function meves(Request $request)
     {
         $llista = Incidencia::with(self::RELACIONS)->where('user_id', $request->user()->id)->latest()->limit(100)->get();
-        $llista->each(fn ($i) => $i->setAttribute('resposta_nova', $this->respostaNova($i)));
+        // L'estat de gestió és intern de RRHH: el treballador només veu oberta / resolta.
+        $llista->each(fn ($i) => $i->makeHidden('estat_gestio')->setAttribute('resposta_nova', $this->respostaNova($i)));
 
         return response()->json($llista);
     }
@@ -74,18 +75,24 @@ class IncidenciaController extends Controller
         $canvis = ['updated_at' => now()];
         if ($incidencia->user_id === $jo->id) {
             $canvis['vist_treballador_at'] = now();
-            // Si contesta una incidència ja resolta, torna a estar oberta: hi ha alguna cosa per atendre.
+            // Si contesta una incidència tancada o que esperava la seva resposta, torna a ser cosa de RRHH.
             if ($incidencia->estat === 'resolta') $canvis += ['estat' => 'oberta', 'resolta_per' => null, 'resolta_at' => null];
+            if ($incidencia->estat === 'resolta' || $incidencia->estat_gestio === 'esperant') $canvis['estat_gestio'] = 'en_curs';
+        } elseif ($incidencia->estat_gestio === 'nova') {
+            $canvis['estat_gestio'] = 'en_curs';   // RRHH hi ha respost: ja s'hi està treballant
         }
         $incidencia->forceFill($canvis)->save();
 
-        return response()->json($incidencia->fresh(self::RELACIONS));
+        $fresca = $incidencia->fresh(self::RELACIONS);
+        if (! $gestio) $fresca->makeHidden('estat_gestio');
+
+        return response()->json($fresca);
     }
 
     public function resol(Request $request, Incidencia $incidencia)
     {
         $data = $request->validate(['nota' => 'nullable|string|max:2000']);
-        $incidencia->update(['estat' => 'resolta', 'resolta_per' => $request->user()->id, 'resolta_at' => now(),
+        $incidencia->update(['estat' => 'resolta', 'estat_gestio' => 'resolta', 'resolta_per' => $request->user()->id, 'resolta_at' => now(),
             'nota_resolucio' => $data['nota'] ?? null]);
 
         return response()->json($incidencia->fresh(self::RELACIONS));
@@ -93,7 +100,20 @@ class IncidenciaController extends Controller
 
     public function reobre(Incidencia $incidencia)
     {
-        $incidencia->update(['estat' => 'oberta', 'resolta_per' => null, 'resolta_at' => null]);
+        $incidencia->update(['estat' => 'oberta', 'estat_gestio' => 'en_curs', 'resolta_per' => null, 'resolta_at' => null]);
+
+        return response()->json($incidencia->fresh(self::RELACIONS));
+    }
+
+    /** Canvi d'estat de gestió. Resolta i descartada la tanquen (el treballador la veu «Resolta»). */
+    public function estat(Request $request, Incidencia $incidencia)
+    {
+        $data = $request->validate(['estat' => ['required', Rule::in(Incidencia::ESTATS_GESTIO)]]);
+        $tanca = in_array($data['estat'], Incidencia::ESTATS_TANCATS, true);
+        $incidencia->update($tanca
+            ? ['estat_gestio' => $data['estat'], 'estat' => 'resolta', 'resolta_per' => $incidencia->resolta_per ?? $request->user()->id,
+               'resolta_at' => $incidencia->resolta_at ?? now()]
+            : ['estat_gestio' => $data['estat'], 'estat' => 'oberta', 'resolta_per' => null, 'resolta_at' => null]);
 
         return response()->json($incidencia->fresh(self::RELACIONS));
     }

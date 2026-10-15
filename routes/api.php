@@ -451,6 +451,7 @@ Route::prefix('v1')->group(function () {
         Route::get('incidencies', [\App\Http\Controllers\Api\IncidenciaController::class, 'index'])->middleware('role:admin,hr');
         Route::post('incidencies/{incidencia}/resol', [\App\Http\Controllers\Api\IncidenciaController::class, 'resol'])->middleware('role:admin,hr');
         Route::post('incidencies/{incidencia}/reobre', [\App\Http\Controllers\Api\IncidenciaController::class, 'reobre'])->middleware('role:admin,hr');
+        Route::post('incidencies/{incidencia}/estat', [\App\Http\Controllers\Api\IncidenciaController::class, 'estat'])->middleware('role:admin,hr');
         Route::get('safata/resum', [\App\Http\Controllers\Api\SafataController::class, 'resum'])->middleware('role:admin,coordinator,hr');
 
         // ── Representació legal: crèdit horari (art. 68.e ET) ──

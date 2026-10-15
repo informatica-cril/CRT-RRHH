@@ -63,6 +63,34 @@ class IncidenciesTest extends TestCase
         $this->postJson("/api/v1/incidencies/{$id}/missatges", ['text' => 'Hola'])->assertForbidden();
     }
 
+    public function test_estats_de_gestio_nomes_per_a_rrhh_i_el_treballador_veu_oberta_o_resolta(): void
+    {
+        $t = $this->usuari('worker');
+        $hr = $this->usuari('hr');
+        Sanctum::actingAs($t);
+        $id = $this->postJson('/api/v1/incidencies', ['tipus' => 'app', 'assumpte' => 'Prova', 'descripcio' => 'Una prova qualsevol.'])->json('id');
+        $this->postJson("/api/v1/incidencies/{$id}/estat", ['estat' => 'resolta'])->assertForbidden();
+
+        Sanctum::actingAs($hr);
+        $this->assertSame('nova', $this->getJson('/api/v1/incidencies')->json('0.estat_gestio'));
+        $this->postJson("/api/v1/incidencies/{$id}/missatges", ['text' => 'Ho mirem.'])->assertJson(['estat_gestio' => 'en_curs']);
+        $this->postJson("/api/v1/incidencies/{$id}/estat", ['estat' => 'esperant'])->assertOk()->assertJson(['estat' => 'oberta']);
+
+        // El treballador contesta: torna a «en curs». No veu l'estat intern.
+        Sanctum::actingAs($t);
+        $r = $this->postJson("/api/v1/incidencies/{$id}/missatges", ['text' => 'Ja ho he provat.'])->assertOk();
+        $this->assertArrayNotHasKey('estat_gestio', $r->json());
+        $this->assertArrayNotHasKey('estat_gestio', $this->getJson('/api/v1/incidencies/meves')->json('0'));
+
+        Sanctum::actingAs($hr);
+        $this->assertSame('en_curs', $this->getJson('/api/v1/incidencies')->json('0.estat_gestio'));
+        $this->postJson("/api/v1/incidencies/{$id}/estat", ['estat' => 'descartada'])->assertJson(['estat' => 'resolta']);
+        $this->postJson("/api/v1/incidencies/{$id}/estat", ['estat' => 'inventat'])->assertStatus(422);
+
+        Sanctum::actingAs($t);
+        $this->assertSame('resolta', $this->getJson('/api/v1/incidencies/meves')->json('0.estat'));
+    }
+
     public function test_dades_obligatories(): void
     {
         Sanctum::actingAs($this->usuari('worker'));
