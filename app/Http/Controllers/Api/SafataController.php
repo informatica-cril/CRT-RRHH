@@ -52,6 +52,8 @@ class SafataController extends Controller
             // Sense horari no es poden calcular hores fora d'horari, extres ni la pausa obligatòria.
             $cues[] = ['clau' => 'sensehorari', 'titol' => 'Persones sense horari', 'icona' => '🗓️', 'urgencia' => 'alta', 'enllac' => '/safata',
                 'n' => UserController::senseHorari()->count()];
+            $cues[] = ['clau' => 'incidencies', 'titol' => 'Incidències per atendre', 'icona' => '🛎️', 'urgencia' => 'mitjana', 'enllac' => '/incidencies',
+                'n' => \App\Models\Incidencia::where('estat', 'oberta')->count()];
         }
 
         $cues = array_values(array_filter($cues, fn ($c) => $c['n'] > 0));

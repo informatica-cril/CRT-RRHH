@@ -82,6 +82,7 @@ onMounted(async () => {
   const foraZona = nCua('forazona')
   const senseSortida = nCua('sensesortida')
   const senseHorari = nCua('sensehorari')
+  const incidencies = nCua('incidencies')
   const [absencies, excedencies, suggeriments, conciliacio] = await Promise.all([
     n(db.getAbsences(), a => a.approved === null || a.approved === undefined),
     n(db.getExcedencias(), e => e.status === 'pending'),
@@ -106,6 +107,7 @@ onMounted(async () => {
     { clau: 'conciliacio', titol: 'Comptes domi per conciliar', sub: 'identitats domi ↔ RRHH sense vincular', icona: '🔗', n: conciliacio, urgencia: 'baixa', enllac: '/conciliacio' },
     { clau: 'drets', titol: 'Drets RGPD per respondre', sub: 'sol·licituds amb termini d\'un mes (art. 12.3)', icona: '🔐', n: drets, urgencia: 'alta', enllac: '/privacy' },
     { clau: 'sensehorari', titol: 'Persones sense horari', sub: "no se'ls poden calcular hores ni pauses: llista a sota", icona: '🗓️', n: senseHorari, urgencia: 'alta', enllac: '/safata#sense-horari', nomesGestio: true },
+    { clau: 'incidencies', titol: 'Incidències per atendre', sub: "el que han enviat els treballadors des de l'app", icona: '🛎️', n: incidencies, urgencia: 'mitjana', enllac: '/incidencies', nomesGestio: true },
     { clau: 'comite', titol: 'Hores de comitè per validar', sub: 'crèdit horari de la representació (art. 68 ET)', icona: '🤝', n: comite, urgencia: 'mitjana', enllac: '/comite' },
   ]
   carregant.value = false

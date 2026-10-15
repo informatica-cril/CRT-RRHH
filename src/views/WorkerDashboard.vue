@@ -479,6 +479,14 @@
             <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text);">Les meves apps</div>
           </router-link>
 
+          <!-- Informar d'una incidència a RRHH -->
+          <router-link to="/worker/incidencia" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
+            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(217, 119, 6, 0.12); color: #d97706; display: flex; align-items: center; justify-content: center;">
+              <svg style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text);">Informar d'una incidència</div>
+          </router-link>
+
           <!-- Informació i polítiques (acusos) -->
           <router-link to="/worker/compliance" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
             <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(217, 164, 0, 0.12); color: #b8860b; display: flex; align-items: center; justify-content: center;">
