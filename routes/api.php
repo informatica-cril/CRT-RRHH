@@ -431,6 +431,17 @@ Route::prefix('v1')->group(function () {
         Route::put('practiques/{user}', [\App\Http\Controllers\Api\PractiquesController::class, 'update'])->middleware('role:admin,hr');
 
         // Recompte de la Safata per a la campana de la capçalera (només COUNTs).
+        // Documentacio (biblioteca de consulta): tothom la veu; RRHH i Superior la gestionen.
+        Route::get('biblioteca', [\App\Http\Controllers\Api\BibliotecaController::class, 'index']);
+        Route::get('biblioteca/fitxers/{fitxer}', [\App\Http\Controllers\Api\BibliotecaController::class, 'descarrega']);
+        Route::middleware('role:admin,hr')->group(function () {
+            Route::post('biblioteca/carpetes', [\App\Http\Controllers\Api\BibliotecaController::class, 'creaCarpeta']);
+            Route::put('biblioteca/carpetes/{carpeta}', [\App\Http\Controllers\Api\BibliotecaController::class, 'reanomenaCarpeta']);
+            Route::delete('biblioteca/carpetes/{carpeta}', [\App\Http\Controllers\Api\BibliotecaController::class, 'esborraCarpeta']);
+            Route::post('biblioteca/carpetes/{carpeta}/fitxers', [\App\Http\Controllers\Api\BibliotecaController::class, 'pujaFitxers']);
+            Route::delete('biblioteca/fitxers/{fitxer}', [\App\Http\Controllers\Api\BibliotecaController::class, 'esborraFitxer']);
+            Route::post('biblioteca/importa-zip', [\App\Http\Controllers\Api\BibliotecaController::class, 'importaZip']);
+        });
         // Incidencies: tothom en pot enviar (amb limit) i seguir-ne la conversa; RRHH i Superior les gestionen.
         Route::get('incidencies/meves', [\App\Http\Controllers\Api\IncidenciaController::class, 'meves']);
         Route::get('incidencies/meves/no-llegides', [\App\Http\Controllers\Api\IncidenciaController::class, 'noLlegides']);

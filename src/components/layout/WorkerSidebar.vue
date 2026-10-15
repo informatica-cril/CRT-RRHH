@@ -68,6 +68,12 @@
         </router-link>
       </li>
       <li>
+        <router-link to="/worker/biblioteca" :class="{ active: $route.name === 'worker-biblioteca' }">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span>Biblioteca</span>
+        </router-link>
+      </li>
+      <li>
         <router-link to="/worker/payrolls" :class="{ active: $route.name === 'worker-payrolls' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           <span>{{ t('payrolls') }}</span>
