@@ -2,15 +2,15 @@
   <div class="inc">
     <div class="page-header">
       <div>
-        <h1 class="page-title">🛎️ Informar d'una incidència</h1>
-        <p class="page-subtitle">Explica què passa i RRHH se n'encarregarà. Si cal, et respondran per correu.</p>
+        <h1 class="page-title">🛎️ Incidències</h1>
+        <p class="page-subtitle">Explica què passa i RRHH se n'encarregarà. La resposta la veuràs aquí mateix.</p>
       </div>
     </div>
 
     <div v-if="enviada" class="card inc-ok">
       <div class="inc-ok-ico">✅</div>
       <h3>Incidència enviada</h3>
-      <p class="text-muted">RRHH ja l'ha rebuda. Si necessiten més informació, et contactaran.</p>
+      <p class="text-muted">RRHH ja l'ha rebuda. Quan et responguin, ho veuràs a «Les meves incidències».</p>
       <button class="btn btn-outline" @click="novaIncidencia">Enviar-ne una altra</button>
     </div>
 
@@ -42,19 +42,58 @@
         </button>
       </div>
     </form>
+
+    <h2 v-if="meves.length" class="inc-titol">Les meves incidències</h2>
+    <div class="inc-meves">
+      <div v-for="i in meves" :key="i.id" class="card inc-item" :class="{ resolta: i.estat === 'resolta', nova: i.resposta_nova }">
+        <div class="inc-cap">
+          <span class="inc-estat" :class="i.estat">{{ i.estat === 'resolta' ? 'Resolta' : 'Oberta' }}</span>
+          <span v-if="i.resposta_nova" class="inc-nova">Resposta nova</span>
+          <span class="text-small text-muted inc-data">{{ data(i.created_at) }}</span>
+        </div>
+        <div class="inc-assumpte">{{ i.assumpte }}</div>
+        <div class="inc-desc">{{ i.descripcio }}</div>
+        <div v-if="i.estat === 'resolta'" class="text-small inc-resolta">
+          ✓ Resolta per RRHH<span v-if="i.nota_resolucio">: «{{ i.nota_resolucio }}»</span>
+        </div>
+        <IncidenciaConversa :incidencia="i" placeholder="Afegeix més informació o contesta…" @actualitzada="substitueix" />
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { reactive, ref, computed } from 'vue'
+import { reactive, ref, computed, onMounted } from 'vue'
 import api from '../services/apiClient'
 import { TIPUS_INCIDENCIA as TIPUS } from '../utils/etiquetes'
+import IncidenciaConversa from '../components/IncidenciaConversa.vue'
 
 const form = reactive({ tipus: '', assumpte: '', descripcio: '' })
 const enviant = ref(false)
 const enviada = ref(false)
 const error = ref('')
+const meves = ref([])
 const potEnviar = computed(() => form.tipus && form.assumpte.trim() && form.descripcio.trim().length >= 10)
+
+function data(d) {
+  return d ? new Date(d).toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''
+}
+
+async function carrega() {
+  try {
+    meves.value = await api.get('/v1/incidencies/meves')
+    // Obrir la pantalla és haver-les vist: el comptador del menú es posa a zero (la marca «Resposta nova» es queda fins que surts).
+    if (meves.value.some(i => i.resposta_nova)) {
+      await api.post('/v1/incidencies/meves/vistes')
+      window.dispatchEvent(new Event('incidencies-vistes'))
+    }
+  } catch (e) { /* sense llista: el formulari segueix funcionant */ }
+}
+
+function substitueix(nova) {
+  const k = meves.value.findIndex(x => x.id === nova.id)
+  if (k >= 0) meves.value[k] = { ...nova, resposta_nova: false }
+}
 
 async function envia() {
   if (!potEnviar.value) return
@@ -63,6 +102,7 @@ async function envia() {
   try {
     await api.post('/v1/incidencies', { tipus: form.tipus, assumpte: form.assumpte.trim(), descripcio: form.descripcio.trim() })
     enviada.value = true
+    carrega()
   } catch (e) {
     error.value = e?.status === 429
       ? "Has enviat moltes incidències en poca estona. Torna-ho a provar d'aquí a una mica."
@@ -76,6 +116,8 @@ function novaIncidencia() {
   Object.assign(form, { tipus: '', assumpte: '', descripcio: '' })
   enviada.value = false
 }
+
+onMounted(carrega)
 </script>
 
 <style scoped>
@@ -92,4 +134,18 @@ function novaIncidencia() {
 .inc-ok-ico { font-size: 2.4rem; margin-bottom: 8px; }
 .inc-ok h3 { margin: 0 0 6px; }
 .inc-ok p { margin: 0 0 18px; }
+.inc-titol { font-size: 1.1rem; margin: 28px 0 12px; }
+.inc-meves { display: flex; flex-direction: column; gap: 12px; max-width: 720px; }
+.inc-item { padding: 16px 18px; border-left: 4px solid #d97706; }
+.inc-item.resolta { border-left-color: var(--color-success, #16a34a); }
+.inc-item.nova { box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.35); }
+.inc-cap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.inc-estat { font-size: 0.75rem; font-weight: 700; border-radius: 999px; padding: 3px 10px; }
+.inc-estat.oberta { background: rgba(217, 119, 6, 0.12); color: #b45309; }
+.inc-estat.resolta { background: rgba(22, 163, 74, 0.12); color: #15803d; }
+.inc-nova { font-size: 0.75rem; font-weight: 700; background: #d97706; color: #fff; border-radius: 999px; padding: 3px 10px; }
+.inc-data { margin-left: auto; }
+.inc-assumpte { font-weight: 700; }
+.inc-desc { white-space: pre-wrap; font-size: 0.9rem; color: var(--color-text-secondary); margin-top: 4px; }
+.inc-resolta { color: #15803d; margin-top: 8px; }
 </style>
