@@ -257,6 +257,8 @@ const db = {
   getOvertimeRequests: (status) => api.get('/v1/overtime-requests' + (status ? ('?status=' + status) : '')),
   authorizeOvertime: (id) => api.post(`/v1/overtime-requests/${id}/authorize`),
   denyOvertime: (id, reason) => api.post(`/v1/overtime-requests/${id}/deny`, { reason }),
+  getMyOvertimeRequests: () => api.get('/v1/overtime-requests/meves'),
+  requestMyOvertime: (data) => api.post('/v1/overtime-requests/meves', data),
   // Audiència prèvia (EIPD C6): al·legació del titular sobre un tram pendent
   sendSegmentAllegation: (workLogId, segmentId, text) => api.post(`/v1/work-logs/${workLogId}/segments/${segmentId}/allegation`, { allegation: text }),
   approveWorkLogSegment: (workLogId, segmentId) => api.post(`/v1/work-logs/${workLogId}/segments/${segmentId}/approve`),

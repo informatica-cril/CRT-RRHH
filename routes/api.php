@@ -348,6 +348,9 @@ Route::prefix('v1')->group(function () {
             Route::post('validate', [AuthCodeController::class, 'validateCode']);
             Route::post('use', [AuthCodeController::class, 'useCode']);
         });
+        // El treballador demana autorització quan passa de l'hora de sortida (des del comptador).
+        Route::get('overtime-requests/meves', [AuthCodeController::class, 'myOvertimeRequests']);
+        Route::post('overtime-requests/meves', [AuthCodeController::class, 'requestMyOvertime'])->middleware('throttle:10,60');
         // Autorització d'hores extraordinàries forçades des de domi (compromís de pagament).
         Route::prefix('overtime-requests')->middleware('role:admin,hr')->group(function () {
             Route::get('/', [AuthCodeController::class, 'overtimeRequests']);

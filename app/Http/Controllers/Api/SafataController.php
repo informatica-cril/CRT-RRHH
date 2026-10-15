@@ -54,6 +54,8 @@ class SafataController extends Controller
                 'n' => UserController::senseHorari()->count()];
             $cues[] = ['clau' => 'incidencies', 'titol' => 'Incidències per atendre', 'icona' => '🛎️', 'urgencia' => 'mitjana', 'enllac' => '/incidencies',
                 'n' => \App\Models\Incidencia::where('estat', 'oberta')->count()];
+            $cues[] = ['clau' => 'horesextra', 'titol' => "Hores fora d'horari per autoritzar", 'icona' => '⏰', 'urgencia' => 'mitjana', 'enllac' => '/hours-control',
+                'n' => \App\Models\OvertimeRequest::where('status', 'pending')->count()];
         }
 
         $cues = array_values(array_filter($cues, fn ($c) => $c['n'] > 0));

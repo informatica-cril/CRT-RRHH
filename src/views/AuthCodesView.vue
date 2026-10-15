@@ -115,7 +115,7 @@
           <label class="form-label">Tipus d'hora *</label>
           <select class="form-select" v-model="form.type">
             <option value="complementaria">✋ Complementàries (només contractes a temps parcial, art. 12.5 ET)</option>
-            <option value="extraordinaria">⚡ Extraordinàries (màxim 80 h/any, art. 20.1 del conveni)</option>
+            <option value="extraordinaria">⚡ Extraordinàries (màxim 80 h/any, art. 20.2 del conveni)</option>
           </select>
         </div>
 
@@ -131,7 +131,7 @@
             Canvia el tipus a hores EXTRAORDINÀRIES (màxim 80 h/any).
           </template>
           <template v-else-if="capInfo && form.type === 'extraordinaria'">
-            <strong>Hores extraordinàries: topall de 80 h l'any</strong> (art. 20.1 del conveni XII),
+            <strong>Hores extraordinàries: topall de 80 h l'any</strong> (art. 20.2 del conveni XII),
             retribuïdes a 1,25×. El topall del 30% de complementàries no hi aplica.
           </template>
           <template v-else-if="capInfo">

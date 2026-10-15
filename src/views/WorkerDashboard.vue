@@ -39,7 +39,18 @@
           <div class="time-tracker" id="worker-clock">
             <div class="tracker-label">{{ t('time_tracker') }}</div>
             <div class="tracker-time">{{ workLogStore.formattedElapsed }}</div>
-            <div v-if="workLogStore.isWorking && workLogStore.horaEntrada" class="tracker-entrada">Entrada a les <strong>{{ workLogStore.horaEntrada }}</strong></div>
+            <div v-if="workLogStore.isWorking && workLogStore.horaEntrada" class="tracker-entrada">
+              Entrada a les <strong>{{ workLogStore.horaEntrada }}</strong>
+              <template v-if="sortidaPrevista"> · sortida prevista a les <strong>{{ sortidaPrevista }}</strong></template>
+            </div>
+            <!-- Temps fora d'horari: es veu en directe i diu si està autoritzat o no -->
+            <div v-if="workLogStore.isWorking && segonsFora > 0" class="tracker-extra" :class="'tracker-extra--' + estatExtra.to">
+              <div class="tracker-extra-cap">⏰ Fora d'horari <strong>+{{ fmtHMS(segonsFora) }}</strong></div>
+              <div class="tracker-extra-text">{{ estatExtra.text }}</div>
+              <button v-if="estatExtra.to === 'cap' || estatExtra.to === 'denegada'" class="tracker-extra-btn" @click="obreAvisExtra">
+                Demanar autorització o posar codi
+              </button>
+            </div>
             <div class="location-status mb-md" :class="locationClass" style="display:inline-flex;margin:8px auto;">
               <span class="location-dot" :class="locationClass"></span>
               {{ locationText }}
@@ -828,22 +839,59 @@
         <div style="padding:20px;">
           <div style="background:rgba(249,115,22,0.06);border-radius:12px;padding:16px;margin-bottom:16px;border-left:3px solid #f97316;">
             <p style="font-size:0.9rem;margin-bottom:8px;">
-              <strong>⚠️ El vostre horari de treball ha finalitzat fa {{ overtimeMinutes }} minuts.</strong>
+              <strong>⚠️ El teu horari d'avui ha acabat fa {{ overtimeMinutes }} minuts.</strong>
             </p>
-            <p style="font-size:0.85rem;color:var(--color-text-secondary);">
-              Per continuar treballant necessiteu un <strong>codi d'autorització</strong>. Si no disposeu d'un codi, les hores extra es comptaran com a <strong>no autoritzades</strong> i seran descomptades del registre.
+            <p style="font-size:0.85rem;color:var(--color-text-secondary);margin:0;">
+              Si continues treballant, aquest temps necessita <strong>autorització</strong>. Si no en té, comptarà com a <strong>no autoritzat</strong> i no se sumarà a les teves hores.
             </p>
           </div>
-          <div class="form-group">
-            <label class="form-label">Codi d'autorització</label>
-            <input class="form-input" v-model="overtimeAuthCode" placeholder="Introduïu el codi..." style="font-family:monospace;font-size:1rem;text-align:center;letter-spacing:2px;" />
+
+          <div class="extra-opcions">
+            <button class="extra-opcio" :class="{ actiu: modeExtra === 'codi' }" @click="modeExtra = 'codi'">
+              <span>🔑</span><b>Tinc un codi</b><small>Me l'ha donat RRHH o el responsable</small>
+            </button>
+            <button class="extra-opcio" :class="{ actiu: modeExtra === 'demanar' }" @click="modeExtra = 'demanar'">
+              <span>✋</span><b>Demanar autorització</b><small>S'envia a RRHH i pots continuar</small>
+            </button>
           </div>
-          <div style="display:flex;gap:12px;">
-            <button class="btn btn-primary" style="flex:1;" @click="submitOvertimeAuth" :disabled="!overtimeAuthCode.trim()">
+
+          <div v-if="modeExtra === 'codi'" class="extra-panell">
+            <div v-if="myAuthCodes.length" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+              <button v-for="c in myAuthCodes" :key="c.id" class="extra-xip" @click="overtimeAuthCode = c.code">
+                {{ c.code }} · {{ formatHM(c.authorized_hours) }}
+              </button>
+            </div>
+            <input class="form-input" v-model="overtimeAuthCode" placeholder="Introdueix el codi..." style="font-family:monospace;font-size:1rem;text-align:center;letter-spacing:2px;" @input="overtimeAuthCode = overtimeAuthCode.toUpperCase()" />
+            <button class="btn btn-primary" style="width:100%;margin-top:10px;" @click="submitOvertimeAuth" :disabled="!overtimeAuthCode.trim() || enviantExtra">
               ✅ Validar codi i continuar
             </button>
-            <button class="btn btn-danger" style="flex:1;" @click="dismissOvertimeNoAuth">
-              ❌ No tinc codi — finalitzar
+          </div>
+
+          <div v-if="modeExtra === 'demanar'" class="extra-panell">
+            <label class="form-label">Quant temps més calcules?</label>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+              <button v-for="h in [0.5, 1, 1.5, 2, 3, 4]" :key="h" class="extra-xip" :class="{ actiu: horesDemanades === h }" @click="horesDemanades = h">
+                {{ formatHM(h) }}
+              </button>
+            </div>
+            <label class="form-label">Motiu</label>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+              <button v-for="m in MOTIUS_EXTRA" :key="m" class="extra-xip" @click="motiuExtra = m">{{ m }}</button>
+            </div>
+            <textarea class="form-input" v-model="motiuExtra" rows="2" maxlength="500" placeholder="Per què has de continuar treballant?"></textarea>
+            <button class="btn btn-primary" style="width:100%;margin-top:10px;" @click="demanaAutoritzacioExtra" :disabled="motiuExtra.trim().length < 5 || enviantExtra">
+              📨 Enviar sol·licitud a RRHH
+            </button>
+          </div>
+
+          <div v-if="errorExtra" style="color:var(--color-danger);font-size:0.85rem;margin-top:10px;">{{ errorExtra }}</div>
+
+          <div style="display:flex;gap:12px;margin-top:16px;padding-top:14px;border-top:1px solid var(--color-border);">
+            <button class="btn btn-outline" style="flex:1;" @click="dismissOvertimeNoAuth">
+              Continuar sense codi
+            </button>
+            <button class="btn btn-danger" style="flex:1;" @click="finalitzaDesDeAvis" :disabled="isFinishing">
+              ⏹ Finalitzar jornada ara
             </button>
           </div>
         </div>
@@ -1425,6 +1473,7 @@ async function endWorkday() {
   }
   
   isFinishing.value = true
+  const logId = workLogStore.currentLog?.id
   try {
     // Posició sense fer esperar: la que el dispositiu ja té (fins a 2 min) o una de nova, la primera
     // que arribi i com a màxim 4 s. Abans s'esperava una posició nova d'alta precisió fins a 6 s i
@@ -1445,6 +1494,8 @@ async function endWorkday() {
     isFinishing.value = false
     stopBreakCheckTimer()
   }
+  overtimeAlertDismissed.value = false
+  if (!workLogStore.isWorking) await aplicaCodiExtra(logId)
 }
 
 async function submitPermission() {
@@ -1687,12 +1738,88 @@ onMounted(async () => {
   }
 })
 
-// ── End-of-shift overtime alert ─────────────────────────────
+// ── Fi d'horari: avís, temps fora d'horari i autorització ─────────────
 const showOvertimeAlert = ref(false)
 const overtimeMinutes = ref(0)
 const overtimeAuthCode = ref('')
 const overtimeAlertDismissed = ref(false)
 let overtimeCheckInterval = null
+
+const modeExtra = ref('')
+const horesDemanades = ref(1)
+const motiuExtra = ref('')
+const errorExtra = ref('')
+const enviantExtra = ref(false)
+const MOTIUS_EXTRA = ['Formació', 'Atenció a un usuari', 'Reunió', 'Acabar feina urgent']
+// Codi vàlid per a la jornada en curs (validat aquí o arribat per una sol·licitud autoritzada).
+// No es gasta fins a fitxar la sortida: llavors s'aplica al fitxatge.
+const codiExtra = ref(null)
+// La darrera sol·licitud d'avui (pendent, autoritzada o denegada).
+const sollicitudAvui = ref(null)
+
+// Hores previstes avui segons l'horari assignat (null si no n'hi ha).
+const horesPrevistesAvui = computed(() => {
+  const avui = new Date().getDay()
+  const dia = workerSchedule.value?.days?.find(d => (d.day === avui || d.day_num === avui) && d.active)
+  if (!dia?.start || !dia?.end) return null
+  const [sh, sm] = dia.start.split(':').map(Number)
+  const [eh, em] = dia.end.split(':').map(Number)
+  const h = (eh * 60 + em - sh * 60 - sm) / 60
+  return h > 0 ? h : null
+})
+const sortidaPrevista = computed(() => {
+  if (!horesPrevistesAvui.value || !workLogStore.horaEntrada) return ''
+  const [h, m] = workLogStore.horaEntrada.split(':').map(Number)
+  const t = h * 60 + m + Math.round(horesPrevistesAvui.value * 60)
+  return `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`
+})
+const segonsFora = computed(() => {
+  if (!workLogStore.isWorking || !horesPrevistesAvui.value) return 0
+  return Math.max(0, Math.floor(workLogStore.elapsed - horesPrevistesAvui.value * 3600))
+})
+function fmtHMS(s) {
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}`
+}
+const estatExtra = computed(() => {
+  if (codiExtra.value) {
+    const max = Number(codiExtra.value.hours) || 0
+    const tipus = codiExtra.value.type === 'extraordinaria' ? 'extraordinàries' : 'complementàries'
+    if (max && segonsFora.value > max * 3600) {
+      return { to: 'passat', text: `Autoritzades ${formatHM(max)} ${tipus}. El que passi d'aquí no està autoritzat.` }
+    }
+    return { to: 'ok', text: `✔ Autoritzat fins a ${formatHM(max)} (${tipus}) · codi ${codiExtra.value.code}` }
+  }
+  const s = sollicitudAvui.value
+  if (s?.status === 'pending') return { to: 'pendent', text: `Sol·licitud de ${formatHM(s.hours)} enviada a RRHH · pendent de resposta` }
+  if (s?.status === 'denied') return { to: 'denegada', text: `RRHH ha denegat la sol·licitud${s.denial_reason ? ': ' + s.denial_reason : ''}` }
+  return { to: 'cap', text: "Sense autorització: aquest temps no comptarà fins que s'autoritzi." }
+})
+
+const clauCodi = () => workLogStore.currentLog?.id ? `cril_codi_extra_${workLogStore.currentLog.id}` : null
+function desaCodiExtra(c) {
+  codiExtra.value = c
+  const k = clauCodi()
+  try { if (k) c ? localStorage.setItem(k, JSON.stringify(c)) : localStorage.removeItem(k) } catch (e) {}
+}
+function recuperaCodiExtra() {
+  const k = clauCodi()
+  try { const v = k && localStorage.getItem(k); if (v) codiExtra.value = JSON.parse(v) } catch (e) {}
+}
+
+// Sol·licitud d'avui: si RRHH l'ha autoritzada mentre la jornada és oberta, el codi passa a la jornada.
+async function carregaSollicitudAvui() {
+  try {
+    const r = await db.getMyOvertimeRequests()
+    const llista = Array.isArray(r) ? r : (r?.data ?? [])
+    const avui = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' })
+    const s = llista.find(x => x.period_from === avui && x.origen === 'treballador') || null
+    sollicitudAvui.value = s
+    if (s?.status === 'authorized' && s.code && !s.code_used && !codiExtra.value && workLogStore.isWorking) {
+      desaCodiExtra({ code: s.code, hours: s.hours, type: s.type })
+    }
+  } catch (e) { /* sense xarxa: es torna a provar al minut següent */ }
+}
 
 async function getScheduledHours() {
   // Sense horari assignat no hi ha hores previstes: abans es demanava /work-schedules/null
@@ -1709,10 +1836,20 @@ async function getScheduledHours() {
   return (eh * 60 + em - sh * 60 - sm) / 60 // scheduled hours as decimal
 }
 
+function obreAvisExtra() {
+  errorExtra.value = ''
+  modeExtra.value = ''
+  showOvertimeAlert.value = true
+}
+
 function startOvertimeMonitor() {
   if (overtimeCheckInterval) clearInterval(overtimeCheckInterval)
+  recuperaCodiExtra()
+  carregaSollicitudAvui()
   overtimeCheckInterval = setInterval(async () => {
-    if (!workLogStore.isWorking || overtimeAlertDismissed.value) return
+    if (!workLogStore.isWorking) return
+    if (sollicitudAvui.value?.status === 'pending') await carregaSollicitudAvui()
+    if (overtimeAlertDismissed.value || codiExtra.value || sollicitudAvui.value?.status === 'pending') return
     if (!workLogStore.currentLog?.start_time) return
     const scheduledHours = await getScheduledHours()
     if (!scheduledHours) return
@@ -1722,36 +1859,89 @@ function startOvertimeMonitor() {
       const mins = Math.round((workedHours - scheduledHours) * 60)
       overtimeMinutes.value = mins
       if (mins >= 1 && !showOvertimeAlert.value) {
+        horesDemanades.value = 1
+        modeExtra.value = ''
         showOvertimeAlert.value = true
       }
     }
   }, 60000) // check every 60s
 }
 
+// El codi es VALIDA ara però no es gasta: s'aplica al fitxatge en fitxar la sortida.
+// Abans es marcava com a usat aquí i el fitxatge quedava igualment amb les hores no autoritzades.
 async function submitOvertimeAuth() {
-  if (!overtimeAuthCode.value.trim()) return
+  const codi = overtimeAuthCode.value.trim()
+  if (!codi) return
+  errorExtra.value = ''
+  enviantExtra.value = true
   try {
-    const result = await db.validateAuthCode(overtimeAuthCode.value.trim())
-    if (result.valid) {
-      await db.useAuthCode(overtimeAuthCode.value.trim())
-      auditLog(authStore.userId, 'AUTHORIZE_OVERTIME', 'work_log', workLogStore.currentLog?.id, `Hores extra autoritzades amb codi`)
-    } else {
-      alert(result.reason || 'Codi invàlid o caducat')
+    const result = await db.validateAuthCode(codi)
+    if (!result.valid) {
+      const motius = { code_invalid: 'Aquest codi no existeix.', code_used: "Aquest codi ja s'ha fet servir.", code_expired: 'Aquest codi no és vàlid avui.' }
+      errorExtra.value = motius[result.reason] || result.reason || 'Codi invàlid o caducat'
       return
     }
+    if (result.code?.user_id && result.code.user_id !== authStore.userId) {
+      errorExtra.value = "Aquest codi és d'una altra persona."
+      return
+    }
+    desaCodiExtra({ code: codi, hours: Number(result.code?.authorized_hours) || 0, type: result.code?.type })
+    auditLog(authStore.userId, 'AUTHORIZE_OVERTIME', 'work_log', workLogStore.currentLog?.id, `Codi ${codi} validat per a la jornada en curs`)
+    tancaAvisExtra()
   } catch (e) {
-    alert('Error en validar el codi. Torneu-ho a provar.')
-    return
+    errorExtra.value = 'Error en validar el codi. Torna-ho a provar.'
+  } finally {
+    enviantExtra.value = false
   }
+}
+
+async function demanaAutoritzacioExtra() {
+  errorExtra.value = ''
+  enviantExtra.value = true
+  try {
+    await db.requestMyOvertime({ hours: horesDemanades.value, reason: motiuExtra.value.trim(), work_log_id: workLogStore.currentLog?.id || null })
+    auditLog(authStore.userId, 'REQUEST_OVERTIME', 'work_log', workLogStore.currentLog?.id, `Sol·licitud de ${horesDemanades.value} h fora d'horari`)
+    await carregaSollicitudAvui()
+    tancaAvisExtra()
+  } catch (e) {
+    errorExtra.value = e?.message || "No s'ha pogut enviar la sol·licitud. Torna-ho a provar."
+  } finally {
+    enviantExtra.value = false
+  }
+}
+
+function tancaAvisExtra() {
   showOvertimeAlert.value = false
   overtimeAlertDismissed.value = true
   overtimeAuthCode.value = ''
+  motiuExtra.value = ''
+  modeExtra.value = ''
 }
 
 function dismissOvertimeNoAuth() {
-  showOvertimeAlert.value = false
-  overtimeAlertDismissed.value = true
-  overtimeAuthCode.value = ''
+  tancaAvisExtra()
+}
+
+async function finalitzaDesDeAvis() {
+  tancaAvisExtra()
+  await endWorkday()
+}
+
+// Després de fitxar la sortida: el codi validat durant la jornada s'aplica al fitxatge.
+async function aplicaCodiExtra(logId) {
+  const c = codiExtra.value
+  codiExtra.value = null
+  try { localStorage.removeItem(`cril_codi_extra_${logId}`) } catch (e) {}
+  if (!c || !logId) return
+  try {
+    workLogStore.logs = await db.getWorkLogsByUser(authStore.userId)
+    const log = workLogStore.logs.find(l => l.id === logId)
+    if (!log || !(Number(log.extra_hours_unauthorized) > 0)) return
+    const r = await workLogStore.authorizeExtraHours(logId, c.code)
+    alert(r.message)
+  } catch (e) {
+    console.error("[Extra] No s'ha pogut aplicar el codi:", e)
+  }
 }
 
 function getAbsenceTypeName(id) { return absenceTypes.value.find(a => a.id === id)?.name || '—' }
@@ -1882,4 +2072,30 @@ watch(() => activeTab.value, async (tab) => {
   border-radius: 12px; background: #fff4d6; border: 1px solid #f0d58a; border-left: 5px solid #D9A400; color: #5c4400; font-size: .9rem; line-height: 1.4; }
 .avis-sense-horari strong { display: block; margin-bottom: 2px; }
 .ash-ico { font-size: 1.4rem; line-height: 1; }
+
+/* Temps fora d'horari dins del comptador (fons fosc) */
+.tracker-extra { margin: 10px auto 4px; max-width: 420px; padding: 10px 14px; border-radius: 12px;
+  background: rgba(249, 115, 22, 0.16); border: 1px solid rgba(249, 115, 22, 0.55); color: #fff; text-align: center; }
+.tracker-extra-cap { font-size: 1rem; }
+.tracker-extra-cap strong { font-variant-numeric: tabular-nums; font-size: 1.15rem; margin-left: 4px; }
+.tracker-extra-text { font-size: .8rem; opacity: .9; margin-top: 2px; }
+.tracker-extra--ok { background: rgba(76, 175, 80, 0.16); border-color: rgba(76, 175, 80, 0.6); }
+.tracker-extra--pendent { background: rgba(250, 204, 21, 0.14); border-color: rgba(250, 204, 21, 0.55); }
+.tracker-extra--denegada, .tracker-extra--passat { background: rgba(239, 68, 68, 0.16); border-color: rgba(239, 68, 68, 0.6); }
+.tracker-extra-btn { margin-top: 8px; padding: 7px 14px; min-height: 36px; border-radius: 999px; border: 1px solid rgba(255,255,255,.6);
+  background: transparent; color: #fff; font-weight: 600; font-size: .82rem; cursor: pointer; }
+.tracker-extra-btn:hover { background: rgba(255,255,255,.12); }
+
+/* Avís de fi d'horari: opcions */
+.extra-opcions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.extra-opcio { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px; border-radius: 12px; text-align: left;
+  border: 1.5px solid var(--color-border); background: var(--color-surface); color: inherit; cursor: pointer; min-height: 44px; }
+.extra-opcio span { font-size: 1.3rem; }
+.extra-opcio small { color: var(--color-text-secondary); font-size: .75rem; }
+.extra-opcio.actiu { border-color: var(--color-accent); box-shadow: 0 0 0 3px rgba(59, 130, 246, .12); }
+.extra-panell { margin-top: 12px; }
+.extra-xip { padding: 6px 12px; min-height: 34px; border-radius: 999px; border: 1px solid var(--color-border); background: var(--color-surface);
+  color: inherit; font-size: .8rem; cursor: pointer; }
+.extra-xip.actiu { border-color: var(--color-accent); background: rgba(59, 130, 246, .1); font-weight: 600; }
+@media (max-width: 480px) { .extra-opcions { grid-template-columns: 1fr; } }
 </style>
