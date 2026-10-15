@@ -535,6 +535,14 @@
             <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text);">Documents</div>
           </router-link>
 
+          <!-- Biblioteca de documents (formacions, protocols...) -->
+          <router-link to="/worker/biblioteca" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
+            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(9, 78, 140, 0.1); color: #094E8C; display: flex; align-items: center; justify-content: center;">
+              <svg style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            </div>
+            <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text);">Biblioteca</div>
+          </router-link>
+
           <!-- Settings -->
           <router-link to="/worker/settings" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
             <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(107, 114, 128, 0.1); color: #6b7280; display: flex; align-items: center; justify-content: center;">

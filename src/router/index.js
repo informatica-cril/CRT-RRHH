@@ -288,6 +288,19 @@ const routes = [
     meta: { requiresAuth: true, requiresWorker: true }
   },
   {
+    // Biblioteca de documents (formacions, protocols...): tothom la consulta; RRHH i Superior la gestionen
+    path: '/worker/biblioteca',
+    name: 'worker-biblioteca',
+    component: () => import('../views/BibliotecaView.vue'),
+    meta: { requiresAuth: true, requiresWorker: true }
+  },
+  {
+    path: '/biblioteca',
+    name: 'biblioteca',
+    component: () => import('../views/BibliotecaView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
     // Incidències: el treballador n'envia (RRHH i Superior les reben a /incidencies)
     path: '/worker/incidencia',
     name: 'worker-incidencia',
