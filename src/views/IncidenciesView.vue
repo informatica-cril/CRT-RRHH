@@ -3,7 +3,7 @@
     <div class="page-header">
       <div>
         <h1 class="page-title">🛎️ Incidències</h1>
-        <p class="page-subtitle">El que envien els treballadors des de l'app. També arriben per correu a {{ correuRrhh }}.</p>
+        <p class="page-subtitle">El que envien els treballadors des de l'app. Respon aquí mateix: ho veuran a la seva pantalla d'incidències.</p>
       </div>
       <div class="page-actions">
         <div class="incs-filtre">
@@ -28,14 +28,14 @@
         </div>
         <div class="incs-assumpte">{{ i.assumpte }}</div>
         <div class="text-small text-muted">
-          {{ i.user?.name }} · <a :href="`mailto:${i.user?.email}?subject=${encodeURIComponent('Re: ' + i.assumpte)}`">{{ i.user?.email }}</a>
+          {{ i.user?.name }}
         </div>
         <div class="incs-text">{{ i.descripcio }}</div>
         <div v-if="i.estat === 'resolta'" class="text-small incs-resolta">
           ✓ Resolta per {{ i.resolutor?.name || '—' }} el {{ dataHora(i.resolta_at) }}<span v-if="i.nota_resolucio"> · «{{ i.nota_resolucio }}»</span>
         </div>
+        <IncidenciaConversa :incidencia="i" :placeholder="`Respon a ${i.user?.name || 'la persona'}…`" @actualitzada="substitueix" />
         <div class="incs-accions">
-          <a class="btn btn-outline btn-sm" :href="`mailto:${i.user?.email}?subject=${encodeURIComponent('Re: ' + i.assumpte)}`">✉️ Respondre per correu</a>
           <button v-if="i.estat === 'oberta'" class="btn btn-primary btn-sm" :disabled="desant === i.id" @click="resol(i)">✓ Marcar com a resolta</button>
           <button v-else class="btn btn-outline btn-sm" :disabled="desant === i.id" @click="reobre(i)">↺ Tornar a obrir</button>
         </div>
@@ -51,9 +51,9 @@ import { demana } from '../utils/dialegs'
 import { avisa } from '../utils/avisos'
 import { TIPUS_INCIDENCIA } from '../utils/etiquetes'
 import { useEstatUrl } from '../composables/useEstatUrl'
+import IncidenciaConversa from '../components/IncidenciaConversa.vue'
 
 const FILTRES = [{ codi: 'oberta', nom: 'Obertes' }, { codi: 'resolta', nom: 'Resoltes' }, { codi: '', nom: 'Totes' }]
-const correuRrhh = 'rrhh@lirc.es'
 const incidencies = ref([])
 const carregant = ref(true)
 const desant = ref(null)
@@ -119,5 +119,5 @@ onMounted(carrega)
 .incs-assumpte { font-weight: 700; font-size: 1rem; margin-bottom: 2px; }
 .incs-text { white-space: pre-wrap; margin: 10px 0; padding: 10px 12px; background: var(--color-bg); border-radius: 8px; font-size: 0.92rem; line-height: 1.5; }
 .incs-resolta { color: #15803d; margin-bottom: 8px; }
-.incs-accions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.incs-accions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; margin-top: 10px; }
 </style>

@@ -431,7 +431,11 @@ Route::prefix('v1')->group(function () {
         Route::put('practiques/{user}', [\App\Http\Controllers\Api\PractiquesController::class, 'update'])->middleware('role:admin,hr');
 
         // Recompte de la Safata per a la campana de la capçalera (només COUNTs).
-        // Incidencies: tothom en pot enviar (amb limit); RRHH i Superior les gestionen.
+        // Incidencies: tothom en pot enviar (amb limit) i seguir-ne la conversa; RRHH i Superior les gestionen.
+        Route::get('incidencies/meves', [\App\Http\Controllers\Api\IncidenciaController::class, 'meves']);
+        Route::get('incidencies/meves/no-llegides', [\App\Http\Controllers\Api\IncidenciaController::class, 'noLlegides']);
+        Route::post('incidencies/meves/vistes', [\App\Http\Controllers\Api\IncidenciaController::class, 'marcaVistes']);
+        Route::post('incidencies/{incidencia}/missatges', [\App\Http\Controllers\Api\IncidenciaController::class, 'missatge'])->middleware('throttle:30,60');
         Route::post('incidencies', [\App\Http\Controllers\Api\IncidenciaController::class, 'store'])->middleware('throttle:10,60');
         Route::get('incidencies', [\App\Http\Controllers\Api\IncidenciaController::class, 'index'])->middleware('role:admin,hr');
         Route::post('incidencies/{incidencia}/resol', [\App\Http\Controllers\Api\IncidenciaController::class, 'resol'])->middleware('role:admin,hr');

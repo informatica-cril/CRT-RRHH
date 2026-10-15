@@ -97,6 +97,7 @@
         <router-link to="/worker/incidencia" :class="{ active: $route.name === 'worker-incidencia' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <span>Incidències</span>
+          <span v-if="incidenciesNoves > 0" class="nav-badge" title="Respostes noves de RRHH">{{ incidenciesNoves }}</span>
         </router-link>
       </li>
       <li>
@@ -152,6 +153,8 @@ const pendingDocsCount = ref(0)
 const newPayrollsCount = ref(0)
 const unreadChatCount = ref(0)
 const safataPendingCount = ref(0)
+const incidenciesNoves = ref(0)
+const zeroIncidencies = () => { incidenciesNoves.value = 0 }
 const esRepresentant = ref(false)
 const teApps = ref(false)
 
@@ -170,6 +173,8 @@ async function fetchCounts() {
     unreadChatCount.value = unreadCount
     // Coincide con lo que agrupa La meva safata: audiencia previa + rebuig de tram.
     safataPendingCount.value = (alerts || []).filter(a => ['audiencia', 'segment_rejected'].includes(a.type)).length
+    // Respostes de RRHH a les incidències que encara no ha obert.
+    api.get('/v1/incidencies/meves/no-llegides').then(r => { incidenciesNoves.value = r?.n || 0 }).catch(() => {})
   } catch (e) {
     console.error('[WorkerSidebar] Error fetching counts:', e)
   }
@@ -183,6 +188,7 @@ onMounted(() => {
   api.get('/v1/portal/apps').then(r => { teApps.value = (r?.apps || []).length > 0 }).catch(() => {})
   // Refresh counts every 30 seconds
   const interval = setInterval(fetchCounts, 30000)
-  onUnmounted(() => clearInterval(interval))
+  window.addEventListener('incidencies-vistes', zeroIncidencies)
+  onUnmounted(() => { clearInterval(interval); window.removeEventListener('incidencies-vistes', zeroIncidencies) })
 })
 </script>
