@@ -163,7 +163,10 @@ class JornadaContracteTest extends TestCase
           ->assertJsonPath('mesos.0.complementaries_min', 30)
           ->assertJsonPath('mesos.0.pendents_validar_min', 180)
           ->assertJsonPath('mesos.0.diferencia_min', 390 - 18 * 228)
-          ->assertJsonPath('mesos.0.acumulat_min', 390 - 18 * 228);
+          ->assertJsonPath('mesos.0.acumulat_min', 390 - 18 * 228)
+          // 20 dies laborables al gener (sense l'1 i el 6), dels quals 2 de vacances
+          ->assertJsonPath('mesos.0.dies_laborables', 20)
+          ->assertJsonPath('mesos.0.dies_comptats', 18);
         // El març encara no ha arribat: no surt en negatiu
         $r->assertJsonPath('mesos.2.esperat_min', 0)->assertJsonPath('mesos.2.diferencia_min', null);
         // El febrer compta fins avui (dia 15) i s'acumula amb el gener
@@ -205,6 +208,8 @@ class JornadaContracteTest extends TestCase
         $this->assertSame(240, $r->json('trams.0.mesos.2.ordinari_min'));
         // 8 dies laborables de l'1 al 12 de juliol (l'1 és dimecres) × mòdul del 53,33%
         $this->assertSame(8 * $r->json('trams.0.modul_diari_min'), $r->json('trams.0.mesos.2.esperat_min'));
+        $this->assertSame(8, $r->json('trams.0.mesos.2.dies_laborables'));
+        $this->assertSame(8, $r->json('trams.0.mesos.2.dies_comptats'));
         // Tram 2: juliol (del 13 al 20: 6 dies) a desembre; el juliol només té el fitxatge del 14.
         $this->assertSame(480, $r->json('trams.1.mesos.0.ordinari_min'));
         $this->assertSame(6 * 456, $r->json('trams.1.mesos.0.esperat_min'));

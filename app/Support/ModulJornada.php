@@ -100,7 +100,7 @@ final class ModulJornada
             return null;
         };
 
-        $buit = fn () => ['esperat' => 0, 'total' => 0, 'compl' => 0, 'extra' => 0, 'pendent' => 0];
+        $buit = fn () => ['esperat' => 0, 'total' => 0, 'compl' => 0, 'extra' => 0, 'pendent' => 0, 'laborables' => 0, 'comptats' => 0];
         // [tram][mes] acumuladors
         $acc = [];
         foreach ($trams as $i => $t) {
@@ -112,8 +112,14 @@ final class ModulJornada
                 $acc[$i][$m] = $buit();
             }
             foreach ($diesTram as $d) {
-                if ($d > $avui || ($absents[$d] ?? null) === true) continue;
-                $acc[$i][(int) substr($d, 5, 2)]['esperat'] += max(0, $trams[$i]['modul_diari_min'] - (int) ($absents[$d] ?? 0));
+                if ($d > $avui) continue;
+                $m = (int) substr($d, 5, 2);
+                // Dies laborables fins avui i quants compten (els d'absència de dia sencer, no):
+                // la fitxa avisa quan no quadren, perquè RRHH revisi les absències.
+                $acc[$i][$m]['laborables']++;
+                if (($absents[$d] ?? null) === true) continue;
+                $acc[$i][$m]['comptats']++;
+                $acc[$i][$m]['esperat'] += max(0, $trams[$i]['modul_diari_min'] - (int) ($absents[$d] ?? 0));
             }
         }
 
@@ -148,6 +154,8 @@ final class ModulJornada
                 'complementaries_min' => $a['compl'],
                 'extres_min' => $a['extra'],
                 'pendents_validar_min' => $a['pendent'],
+                'dies_laborables' => $a['laborables'],
+                'dies_comptats' => $a['comptats'],
             ];
         };
         foreach ($trams as $i => $t) {

@@ -326,6 +326,8 @@
         </div>
 
         <div v-show="pestanyaFitxa === 'jornada'">
+          <!-- Saldo de l'any a la vista: avisos, diferència per mes i detall per trams -->
+          <ResumJornada v-if="editingUser && (jornadaAny?.trams?.length || jornadaAny?.sense_contracte)" :jornada="jornadaAny" />
           <!-- % de jornada del CONTRACTE amb historial: mana la jornada màxima anual del conveni
                (1726 h × %). Cada ampliació o reducció es guarda amb la seva data d'efecte. -->
           <div class="fitxa-bloc">
@@ -397,48 +399,6 @@
                 </table>
               </div>
 
-              <!-- Un bloc per tram (cada % amb els seus mesos i el seu saldo) i el total de l'any -->
-              <div v-if="jornadaAny?.sense_contracte" class="text-small" style="color:#92400e;margin-top:10px;">
-                ⚠️ Hi ha {{ fmtMin(jornadaAny.sense_contracte.ordinari_min) }} fitxades entre el {{ fmtData(jornadaAny.sense_contracte.des) }}
-                i el {{ fmtData(jornadaAny.sense_contracte.fins) }} sense % de contracte: no compten al saldo.
-                Afegiu el tram d'aquelles dates a «Canviar el %».
-              </div>
-              <div v-for="(t, ti) in (jornadaAny?.trams || [])" :key="ti" class="tram-jornada">
-                <div class="tram-titol">
-                  Tram {{ ti + 1 }} · {{ fmtHores(t.hores_setmanals) }}/setmana ({{ fmtPct(t.pct) }}%) ·
-                  del {{ fmtData(t.des) }} al {{ fmtData(t.fins) }}
-                  <span v-if="t.motiu" class="text-muted" style="font-weight:400;">· {{ t.motiu }}</span>
-                </div>
-                <div class="text-small" style="margin:2px 0 6px;">
-                  Màxim del tram: <strong>{{ fmtMin(t.maxim_min) }}</strong> · Mòdul diari: <strong>{{ fmtMin(t.modul_diari_min) }}</strong> ·
-                  Saldo del tram: <strong :class="classeSaldo(t.totals.saldo_min)">{{ fmtSaldo(t.totals.saldo_min) }}</strong>
-                </div>
-                <table class="taula-jornada">
-                  <thead><tr><th>Mes</th><th>Tocava</th><th>Fet (ordinari)</th><th>Diferència</th><th>Acumulat</th><th>Complem.</th><th>Extres</th></tr></thead>
-                  <tbody>
-                    <tr v-for="m in t.mesos" :key="m.mes">
-                      <td>{{ NOMS_MES[m.mes - 1] }}</td>
-                      <td>{{ fmtMinCurt(m.esperat_min) }}</td>
-                      <td>{{ fmtMinCurt(m.ordinari_min) }}<span v-if="m.pendents_validar_min" class="text-muted" title="Inclou fitxatges pendents de validar"> *</span></td>
-                      <td :class="classeSaldo(m.diferencia_min)">{{ m.diferencia_min == null ? '' : fmtSaldo(m.diferencia_min) }}</td>
-                      <td :class="classeSaldo(m.acumulat_min)">{{ m.acumulat_min == null ? '' : fmtSaldo(m.acumulat_min) }}</td>
-                      <td>{{ m.complementaries_min ? fmtMinCurt(m.complementaries_min) : '' }}</td>
-                      <td>{{ m.extres_min ? fmtMinCurt(m.extres_min) : '' }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <div v-if="jornadaAny?.trams?.length" class="tram-total">
-                Total {{ jornadaAny.any }}: màxim <strong>{{ fmtMin(jornadaAny.maxim_anual_min) }}</strong> ·
-                tocava fins avui {{ fmtMin(jornadaAny.totals.esperat_min) }} · fet {{ fmtMin(jornadaAny.totals.ordinari_min) }} ·
-                saldo <strong :class="classeSaldo(jornadaAny.totals.acumulat_min)">{{ fmtSaldo(jornadaAny.totals.acumulat_min) }}</strong>
-                <span v-if="jornadaAny.totals.complementaries_min"> · complementàries {{ fmtMin(jornadaAny.totals.complementaries_min) }}</span>
-                <span v-if="jornadaAny.totals.extres_min"> · extres {{ fmtMin(jornadaAny.totals.extres_min) }}</span>
-                <div class="text-small text-muted" style="margin-top:4px;">
-                  «Tocava» = mòdul diari × dies laborables sense absències aprovades, fins avui. La diferència s'acumula: el còmput és a final d'any.
-                  Complementàries i extres autoritzades van a part. * inclou fitxatges pendents de validar.
-                </div>
-              </div>
             </template>
           </div>
 
@@ -1040,6 +1000,7 @@ import { reavaluaZonaPersona, textReavaluats } from '../utils/reavaluaZona'
 import CalendarPdfViewer from '../components/CalendarPdfViewer.vue'
 import RevisarNomsModal from '../components/RevisarNomsModal.vue'
 import CpEnBlocModal from '../components/CpEnBlocModal.vue'
+import ResumJornada from '../components/ResumJornada.vue'
 import { formatHM } from '../utils/formatHours'
 
 const authStore = useAuthStore()
@@ -1059,7 +1020,6 @@ const esJornadaCompleta = computed(() => {
 })
 // ── % de jornada del contracte (historial, trams i saldo mensual; ho calcula el servidor) ──
 const PCTS_JORNADA = Array.from({ length: 21 }, (_, i) => 50 + i * 2.5)
-const NOMS_MES = ['Gener', 'Febrer', 'Març', 'Abril', 'Maig', 'Juny', 'Juliol', 'Agost', 'Setembre', 'Octubre', 'Novembre', 'Desembre']
 const jornadaAny = ref(null), modulPrevi = ref(null), modulError = ref('')
 const nouPct = ref(''), nouDesDe = ref(''), nouMotiu = ref(''), desantJornada = ref(false)
 // Es pot escriure en hores setmanals: 20 h ÷ 37,5 h = 53,33%.
@@ -1073,9 +1033,6 @@ const fmtHores = (h) => `${Number(h).toLocaleString('ca-ES', { maximumFractionDi
 const modulJornada = computed(() => (nouPct.value ? modulPrevi.value : null) || jornadaAny.value?.modul || null)
 const fmtPct = (p) => Number(p).toLocaleString('ca-ES', { maximumFractionDigits: 2 })
 const fmtMin = (m) => `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')} min`
-const fmtMinCurt = (m) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`
-const fmtSaldo = (m) => (m > 0 ? '+' : m < 0 ? '−' : '') + fmtMinCurt(Math.abs(m))
-const classeSaldo = (m) => (m == null || m === 0 ? '' : m > 0 ? 'saldo-mes' : 'saldo-menys')
 const fmtData = (d) => (d ? d.split('-').reverse().join('/') : '')
 const avuiMadrid = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Madrid' })
 // El % que es dedueix de l'horari assignat (hores setmanals ÷ 37,5), com fins ara.
@@ -2085,11 +2042,6 @@ async function saveMuniAssignment() {
 .canvi-jornada { margin-top: 8px; padding: 8px 10px; border: 1px dashed var(--color-border-light, #e5e7eb); border-radius: 8px; }
 .taula-jornada { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
 .taula-jornada th, .taula-jornada td { padding: 3px 6px; border-bottom: 1px solid var(--color-border-light, #e5e7eb); text-align: left; white-space: nowrap; }
-.saldo-mes { color: #065f46; font-weight: 600; }
-.tram-jornada { margin-top: 12px; padding: 8px 10px; border: 1px solid var(--color-border-light, #e5e7eb); border-radius: 8px; }
-.tram-titol { font-weight: 700; font-size: 0.9rem; }
-.tram-total { margin-top: 12px; padding: 8px 10px; border-radius: 8px; background: var(--color-bg, #f8fafc); font-size: 0.85rem; }
-.saldo-menys { color: #be123c; font-weight: 600; }
 .camp-error { border-color: #be123c !important; }
 .eines { position: relative; }
 .eines-fletxa { display: inline-block; margin-left: 4px; transition: transform 0.15s; }
