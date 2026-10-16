@@ -2,7 +2,7 @@
   <div class="break-settings">
     <div class="header">
       <button @click="$router.back()" class="back-btn">← Tornar</button>
-      <h2>Configuració de Pausa Obligatòria</h2>
+      <h2>Pausa obligatòria</h2><p class="page-subtitle">Quan ha de parar cada persona durant la jornada i quanta estona.</p>
     </div>
 
     <!-- ═══ Configuració Global ═══ -->

@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="page-header">
-      <div><h1 class="page-title">{{ t('reports') }}</h1><p class="page-subtitle">Informes configurables i dades de nòmines per treballador i període</p></div>
+      <div><h1 class="page-title">Informes</h1><p class="page-subtitle">Treu llistats i dades per persona i per període (per a nòmines, inspecció…).</p></div>
       <div class="page-actions" style="flex-wrap:wrap;">
         <select class="form-select" v-model="selectedMonth" style="width:180px;">
           <option v-for="m in months" :key="m.value" :value="m.value">{{ m.label }}</option>

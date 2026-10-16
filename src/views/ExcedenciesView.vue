@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="page-header">
-      <div><h1 class="page-title">Excedències</h1><p class="page-subtitle">Sol·licitud i gestió de permisos especials</p></div>
+      <div><h1 class="page-title">Excedències</h1><p class="page-subtitle">Les sol·licituds per deixar de treballar una temporada. Les aproves o les denegues aquí.</p></div>
       <div class="page-actions">
         <button class="btn btn-primary" @click="showCreateModal = true">+ Sol·licitar excedència</button>
       </div>

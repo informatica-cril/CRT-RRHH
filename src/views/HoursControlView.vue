@@ -2,8 +2,8 @@
   <div class="hc">
     <div class="hc-head">
       <div>
-        <h1 class="page-title">⏱ Control d'hores · complementàries i extraordinàries</h1>
-        <p class="page-subtitle">Els dos comptadors per treballador. Les complementàries són pactades (parcials); les extraordinàries (jornada completa) computen a {{ fmtFactor }}× amb un topall de {{ params.extra_cap_h }} h/any (art. 20.2 del conveni; recàrrec del 25 %, art. 20.1). Cada hora és un compromís de pagament autoritzat.</p>
+        <h1 class="page-title">⏱ Control d'hores</h1>
+        <p class="page-subtitle">Quantes hores de més fa cada persona: les complementàries (pactades amb qui treballa a temps parcial) i les extres (per sobre de la jornada). Cada hora extra compta {{ fmtFactor }} vegades i se'n poden fer com a màxim {{ params.extra_cap_h }} h l'any (conveni, art. 20).</p>
       </div>
       <select v-model="year" @change="load" class="hc-year">
         <option v-for="y in years" :key="y" :value="y">{{ y }}</option>

@@ -2,8 +2,8 @@
   <div>
     <div class="page-header">
       <div>
-        <h1 class="page-title">💰 Gestió de Nòmines</h1>
-        <p class="page-subtitle">Pujar PDF conjunt de nòmines i assignar automàticament per DNI</p>
+        <h1 class="page-title">💰 Nòmines</h1>
+        <p class="page-subtitle">Puja el PDF amb les nòmines de tothom: l'app reparteix sola la de cada persona pel DNI.</p>
       </div>
       <div class="page-actions" style="display:flex;gap:8px;">
         <button class="btn btn-primary" @click="showBulkModal = true">📄 Pujar PDF Conjunt</button>

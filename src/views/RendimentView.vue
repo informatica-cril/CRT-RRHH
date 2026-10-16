@@ -2,11 +2,8 @@
   <div>
     <div class="page-header">
       <div>
-        <h1 class="page-title">Rendiment assistencial</h1>
-        <p class="page-subtitle">
-          Compliment de les obligacions laborals contractades (art. 20.3 ET). Les xifres les calcula la
-          Domiciliària i arriben tancades per període.
-        </p>
+        <h1 class="page-title">Rendiment</h1>
+        <p class="page-subtitle">Com compleix cada persona la feina que té contractada, amb les xifres de la Domiciliària.</p>
       </div>
       <div class="page-actions">
         <select v-if="periodes.length" v-model="periodeSel" class="input" @change="load">

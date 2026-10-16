@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="page-header">
-      <div><h1 class="page-title">{{ t('employees') }}</h1></div>
+      <div><h1 class="page-title">Treballadors</h1><p class="page-subtitle">La fitxa de cada persona: dades, horari, zona, jornada i accés a l'app.</p></div>
       <div class="page-actions">
         <!-- Eines poc freqüents, agrupades en un desplegable -->
         <div class="eines" ref="einesRef" @keydown.esc="einesObertes = false">

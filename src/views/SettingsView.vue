@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="page-header">
-      <div><h1 class="page-title">{{ t('settings') }}</h1></div>
+      <div><h1 class="page-title">Configuració</h1><p class="page-subtitle">La teva contrasenya i les teves preferències.</p></div>
     </div>
 
     <div class="settings-grid">

@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="page-header">
-      <div><h1 class="page-title">{{ t('auth_codes') }}</h1><p class="page-subtitle">Gestió completa de codis d'autorització d'hores extres</p></div>
+      <div><h1 class="page-title">Codis d'hores extra</h1><p class="page-subtitle">Crea un codi perquè una persona pugui fer hores de més i li comptin. Ella el posa al seu fitxatge.</p></div>
       <div class="page-actions" v-if="authStore.isStaff">
         <button class="btn btn-primary" @click="openCreateModal">+ {{ t('generate_code') }}</button>
       </div>

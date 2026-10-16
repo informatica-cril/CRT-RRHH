@@ -2,8 +2,8 @@
   <div>
     <div class="page-header" v-if="activeTab !== 'menu'">
       <div>
-        <h1 class="page-title">{{ t('dashboard_title') }}</h1>
-        <p class="page-subtitle">{{ t('dashboard_subtitle') }}</p>
+        <h1 class="page-title">Inici</h1>
+        <p class="page-subtitle">El resum del dia: què cal revisar avui i com va la plantilla.</p>
       </div>
       <div class="page-actions" v-if="authStore.isAdmin">
         <button class="btn btn-primary" @click="$router.push('/reports')">

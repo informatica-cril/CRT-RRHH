@@ -2,11 +2,8 @@
   <div>
     <div class="page-header">
       <div>
-        <h1 class="page-title">Observatori de millores</h1>
-        <p class="page-subtitle">
-          Propostes de millora de totes les aplicacions —RRHH, domiciliària, logopèdia i ambulatori— a partir
-          d'indicadors reals. La IA proposa i tu decideixes; el codi el segueix escrivint una persona.
-        </p>
+        <h1 class="page-title">Propostes de millora</h1>
+        <p class="page-subtitle">Idees per millorar les aplicacions de l'empresa a partir de dades reals. Tu decideixes quines es fan.</p>
       </div>
       <div class="page-actions">
         <span v-if="totalCua > 0" class="text-small" style="align-self:center;margin-right:10px;color:var(--color-text-muted);">

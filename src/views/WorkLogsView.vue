@@ -2,8 +2,8 @@
   <div>
     <div class="page-header">
       <div>
-        <h1 class="page-title">{{ t('work_logs_title') }}</h1>
-        <p class="page-subtitle">{{ t('rdl_notice') }}</p>
+        <h1 class="page-title">Fitxatges</h1>
+        <p class="page-subtitle">Les entrades i sortides de tothom. Els fitxatges correctes s'aproven sols; aquí revises la resta.</p>
       </div>
       <div class="page-actions">
         <select class="form-select" v-model="selectedMonth">

@@ -2,8 +2,8 @@
   <div>
     <div class="page-header">
       <div>
-        <h1 class="page-title">Procediment disciplinari</h1>
-        <p class="page-subtitle">El sistema acredita i proposa; la qualificació i la sanció les decideix i signa una persona (RGPD art. 22)</p>
+        <h1 class="page-title">Procediments disciplinaris</h1>
+        <p class="page-subtitle">Obre i segueix un expedient disciplinari pas a pas. L'app ordena les proves; qui decideix i signa és una persona.</p>
       </div>
       <div class="page-actions">
         <button class="btn btn-primary" @click="obrintCas = !obrintCas">+ Obrir cas</button>

@@ -2,8 +2,8 @@
   <div>
     <div class="page-header">
       <div>
-        <h1 class="page-title">📄 Gestió documental</h1>
-        <p class="page-subtitle">Distribució, control de lectura i firma electrònica</p>
+        <h1 class="page-title">📄 Documents</h1>
+        <p class="page-subtitle">Envia documents a la plantilla i mira qui els ha llegit i qui els ha signat.</p>
       </div>
       <div class="page-actions">
         <button class="btn btn-primary" @click="openCreateModal">+ Nou document</button>

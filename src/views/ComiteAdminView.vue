@@ -3,9 +3,7 @@
     <div class="page-header">
       <div>
         <h1 class="page-title">Comitè d'empresa</h1>
-        <p class="page-subtitle">
-          Representants, crèdit horari (art. 68.e ET) i validació de les hores que registren.
-        </p>
+        <p class="page-subtitle">Qui són els representants, quantes hores sindicals tenen cada mes i validar les que registren.</p>
       </div>
       <div class="page-actions">
         <input v-if="pestanya !== 'membres'" v-model="mes" type="month" class="form-input" @change="carrega" />

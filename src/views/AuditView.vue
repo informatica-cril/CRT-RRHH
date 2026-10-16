@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="page-header">
-      <div><h1 class="page-title">{{ t('audit_logs') }}</h1></div>
+      <div><h1 class="page-title">Auditoria</h1><p class="page-subtitle">Qui ha fet què a l'app i quan. Serveix per comprovar qualsevol canvi.</p></div>
       <div class="page-actions">
         <input class="form-input" style="width:200px;" v-model="searchQuery" :placeholder="t('search')" />
       </div>

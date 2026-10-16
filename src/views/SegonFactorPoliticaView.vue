@@ -1,8 +1,8 @@
 <template>
   <div class="politica">
     <div class="page-head">
-      <h1>Segon factor d'autenticació</h1>
-      <p class="sub">Qui està obligat a entrar amb un segon factor. Ho decideix Direcció.</p>
+      <h1>Segon factor</h1>
+      <p class="sub">Qui ha d'entrar a l'app amb un codi al mòbil a més de la contrasenya. Ho decideix Direcció.</p>
     </div>
 
     <div v-if="carregant" class="buit">Carregant…</div>
