@@ -284,6 +284,8 @@ Route::prefix('v1')->group(function () {
             Route::get('export', [\App\Http\Controllers\Api\WorkLogExportController::class, 'export'])->middleware('role:admin,coordinator,hr');
             // Aprovar una selecció de fitxatges d'una sola vegada.
             Route::post('aprova-seleccionats', [\App\Http\Controllers\Api\WorkLogBulkController::class, 'aprova'])->middleware('role:admin,coordinator,hr');
+            // «Aprovar tots els correctes»: els pendents que compleixen la regla d'aprovació automàtica.
+            Route::post('aprova-correctes', [\App\Http\Controllers\Api\AprovacioAutomaticaController::class, 'aprovaCorrectes'])->middleware('role:admin,coordinator,hr');
             // «Revisar de nou»: RRHH i admin tornen a pendent un fitxatge ja resolt (p. ex. per coordinació).
             Route::post('{workLog}/reobrir', [\App\Http\Controllers\Api\WorkLogReobrirController::class, 'fitxatge'])->middleware('role:admin,hr');
             // «Corregir hora»: RRHH i admin corregeixen l'entrada o la sortida d'un fitxatge (amb motiu).
@@ -607,6 +609,9 @@ Route::prefix('v1')->group(function () {
         // La llista de TOTA la plantilla amb els seus overrides és pura gestió: no s'obre.
         Route::get('break-settings/workers', [BreakSettingController::class, 'workers'])->middleware('role:admin,coordinator,hr');
         Route::put('break-settings/workers/{user}', [BreakSettingController::class, 'updateWorker'])->middleware('role:admin,hr');
+        // Aprovació automàtica dels fitxatges correctes: interruptor i marge de minuts.
+        Route::get('aprovacio-automatica', [\App\Http\Controllers\Api\AprovacioAutomaticaController::class, 'show'])->middleware('role:admin,coordinator,hr');
+        Route::put('aprovacio-automatica', [\App\Http\Controllers\Api\AprovacioAutomaticaController::class, 'update'])->middleware('role:admin,hr');
 
         // Configuració de correu (admin) + enviament de prova
         Route::middleware('role:admin')->group(function () {

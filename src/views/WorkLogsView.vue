@@ -30,6 +30,32 @@
       </button>
     </div>
 
+    <!-- Aprovació automàtica: els fitxatges correctes s'aproven sols en fitxar la sortida; aquest botó
+         fa el mateix amb els pendents que ja hi havia (del mes i la persona triats). -->
+    <div v-if="authStore.isStaff && confAuto" class="wl-auto-barra" :class="{ apagada: !confAuto.enabled }">
+      <span v-if="confAuto.enabled">
+        🤖 <strong>Aprovació automàtica activada.</strong> Un fitxatge s'aprova sol en fitxar la sortida si l'entrada i la sortida
+        quadren amb l'horari (± {{ confAuto.marge_minuts }} min), és dins de zona i no té hores extra ni cap incidència.
+        La resta es queda aquí per revisar.
+      </span>
+      <span v-else>⏸ <strong>Aprovació automàtica desactivada:</strong> tots els fitxatges s'han d'aprovar a mà.</span>
+      <span class="wl-auto-accions">
+        <button v-if="pendentsTancats.length" type="button" class="btn btn-success btn-sm" :disabled="aprovantCorrectes" @click="aprovaCorrectes"
+          title="Aprova els pendents d'aquest mes que tenen l'horari, la zona i les hores bé. La resta es queden per revisar.">
+          {{ aprovantCorrectes ? 'Revisant…' : `✅ Aprovar els correctes (${pendentsTancats.length} pendents)` }}
+        </button>
+        <button v-if="potConfigurarAuto && !editantAuto" type="button" class="btn btn-outline btn-sm" @click="configuraAuto">⚙️ Canviar</button>
+      </span>
+      <div v-if="editantAuto" class="wl-auto-form">
+        <label><input type="checkbox" v-model="editantAuto.enabled" /> Aprovar sols els fitxatges correctes</label>
+        <label>Marge sobre l'horari:
+          <input class="form-input" type="number" min="0" max="60" v-model="editantAuto.marge_minuts" style="width:70px;" :disabled="!editantAuto.enabled" /> min
+        </label>
+        <button type="button" class="btn btn-primary btn-sm" @click="desaAuto">Desa</button>
+        <button type="button" class="btn btn-outline btn-sm" @click="editantAuto = null">Cancel·la</button>
+      </div>
+    </div>
+
     <!-- Pendents d'altres mesos: el comptador del menú els suma tots i aquí només es veu el mes triat -->
     <div v-if="authStore.isStaff && altresMesosPendents.length" class="wl-altres-mesos">
       <span>⏳ Hi ha fitxatges pendents en altres mesos:</span>
@@ -109,6 +135,8 @@
                     <span v-else-if="log.status === 'rejected'">❌</span>
                     {{ t(log.status) }}
                   </span>
+                  <span v-if="log.status === 'approved' && log.auto_approved_at" class="wl-auto"
+                        title="L'app l'ha aprovat sola: horari, zona i hores correctes">🤖 Automàtic</span>
                   <span v-if="log.hour_status && log.hour_status !== 'ok'"
                         class="badge"
                         style="font-size:0.75rem; display:flex; align-items:center; gap:4px;"
@@ -293,10 +321,12 @@ function esLlarg(l) {
   return l.start_time && l.end_time && (new Date(l.end_time) - new Date(l.start_time)) > 14 * 3600 * 1000
 }
 
-const vista = ref('tots')
+// Gestió entra directament al que cal revisar: pendents ja tancats (els «En curs» encara no es poden aprovar).
+const vista = ref(authStore.isStaff ? 'perrevisar' : 'tots')
 useEstatUrl('vista', vista)
 const filtres = [
   { clau: 'tots', nom: 'Tots', icona: '📋', to: 'neutre', fn: () => true },
+  { clau: 'perrevisar', nom: 'Per revisar', icona: '👀', to: 'groc', fn: l => l.status === 'pending' && !!l.end_time },
   { clau: 'pendents', nom: "Pendents d'aprovar", icona: '⏳', to: 'groc', fn: l => l.status === 'pending' },
   { clau: 'forazona', nom: 'Fora de zona', icona: '📍', to: 'vermell', fn: esForaZona },
   { clau: 'extra', nom: 'Hores extra no autoritzades', icona: '⏱', to: 'taronja', fn: l => Number(l.extra_hours_unauthorized || 0) > 0 },
@@ -342,6 +372,43 @@ async function aprovaSeleccionats() {
     alert(e?.message || "No s'han pogut aprovar.")
   } finally {
     aprovant.value = false
+  }
+}
+
+// ── «Aprovar tots els correctes» (la regla és la de l'aprovació automàtica, al servidor) ──
+const pendentsTancats = computed(() => logsDelMes.value.filter(l => l.status === 'pending' && l.end_time).map(l => l.id))
+const aprovantCorrectes = ref(false)
+const confAuto = ref(null)
+const potConfigurarAuto = computed(() => authStore.canManageStaff)
+onMounted(async () => {
+  if (!authStore.isStaff) return
+  try { confAuto.value = await api.get('/v1/aprovacio-automatica') } catch (e) { /* sense la ruta (servidor antic): no es mostra */ }
+})
+const editantAuto = ref(null)
+function configuraAuto() {
+  editantAuto.value = { enabled: confAuto.value.enabled, marge_minuts: confAuto.value.marge_minuts }
+}
+async function desaAuto() {
+  try {
+    confAuto.value = await api.put('/v1/aprovacio-automatica', { enabled: !!editantAuto.value.enabled, marge_minuts: Number(editantAuto.value.marge_minuts) || 0 })
+    editantAuto.value = null
+  } catch (e) {
+    alert(e?.message || "No s'ha pogut desar.")
+  }
+}
+async function aprovaCorrectes() {
+  const n = pendentsTancats.value.length
+  if (!await confirma(`Revisar ${n} fitxatge${n === 1 ? '' : 's'} pendent${n === 1 ? '' : 's'} i aprovar els que estiguin bé? Els que tinguin alguna cosa a mirar es quedaran pendents.`)) return
+  aprovantCorrectes.value = true
+  try {
+    const r = await api.post('/v1/work-logs/aprova-correctes', { ids: pendentsTancats.value })
+    await workLogStore.loadLogs()
+    const motius = Object.entries(r?.motius || {}).map(([m, k]) => `· ${m}: ${k}`).join('\n')
+    alert(`${r.aprovats} aprovats.` + (r.pendents ? `\n${r.pendents} es queden per revisar:\n${motius}` : ''))
+  } catch (e) {
+    alert(e?.message || "No s'han pogut aprovar.")
+  } finally {
+    aprovantCorrectes.value = false
   }
 }
 
@@ -461,6 +528,12 @@ function statusBadge(s) { return { 'badge-pending': s === 'pending', 'badge-succ
 .wl-mes-xip:hover { background: #ffefb8; }
 .wl-mes-xip strong { margin-left: 4px; background: #D9A400; color: #fff; border-radius: 99px; padding: 0 7px; font-size: .74rem; }
 .wl-seleccio { position: sticky; top: 8px; z-index: 5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 12px; border-radius: 12px; background: #E8F8F2; border: 1px solid #0DAF83; color: #0A5C46; font-size: .88rem; box-shadow: 0 4px 14px rgba(10, 92, 70, .12); }
+.wl-auto-barra.apagada { background: #f4f5f7; border-color: #d5d9e0; color: #3b4252; }
+.wl-auto-form { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,.08); }
+.wl-auto-form label { display: flex; align-items: center; gap: 6px; }
+.wl-auto-accions { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+.wl-auto-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; padding: 10px 14px; border-radius: 12px; background: #E8F8F2; border: 1px solid #9fdcc8; color: #0A5C46; font-size: .86rem; }
+.wl-auto { font-size: .7rem; padding: 2px 8px; border-radius: 99px; background: #eef2ff; color: #3730a3; }
 .wl-check { width: 34px; text-align: center; }
 .wl-check input { width: 17px; height: 17px; cursor: pointer; }
 .wl-fila-sel td { background: rgba(13, 175, 131, .07); }

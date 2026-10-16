@@ -39,12 +39,14 @@ class WorkLog extends Model
         'home_verification',
         'out_of_schedule',
         'coords_purged_at',
+        'auto_approved_at',
     ];
 
     protected $casts = [
         'date' => 'date',
         'start_time' => 'datetime',
         'end_time' => 'datetime',
+        'auto_approved_at' => 'datetime',
         // Coordenades crues xifrades AES en repòs (es desxifren de forma transparent al llegir).
         // El geovallat i el mapa segueixen funcionant: els booleans i distàncies estan en clar.
         'start_location_lat' => 'encrypted',
