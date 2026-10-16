@@ -361,8 +361,12 @@
               <div class="canvi-jornada">
                 <div class="text-small" style="font-weight:600;">Canviar el % (ampliació o reducció)</div>
                 <div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;margin-top:4px;">
+                  <label class="text-small">Hores/setmana<br>
+                    <input class="form-input" type="number" min="0.5" max="37.5" step="0.01" :value="nouHores" @input="posaHores($event.target.value)" placeholder="p. ex. 20" style="width:100px;" :disabled="desantJornada" />
+                  </label>
+                  <span class="text-small text-muted" style="padding-bottom:9px;">o bé</span>
                   <label class="text-small">Nou %<br>
-                    <input class="form-input" type="number" min="1" max="100" step="0.5" list="pcts-jornada" v-model="nouPct" placeholder="p. ex. 75" style="width:100px;" :disabled="desantJornada" />
+                    <input class="form-input" type="number" min="1" max="100" step="0.01" list="pcts-jornada" v-model="nouPct" placeholder="p. ex. 75" style="width:100px;" :disabled="desantJornada" />
                   </label>
                   <datalist id="pcts-jornada"><option v-for="p in PCTS_JORNADA" :key="p" :value="p" /></datalist>
                   <label class="text-small">Des del<br>
@@ -384,7 +388,7 @@
                 <div class="text-small" style="font-weight:600;">Historial</div>
                 <table class="taula-jornada">
                   <tr v-for="h in [...jornadaAny.historial].reverse()" :key="h.id">
-                    <td><strong>{{ fmtPct(h.pct) }}%</strong></td>
+                    <td><strong>{{ fmtPct(h.pct) }}%</strong> <span class="text-muted">({{ fmtHores(Math.round(h.pct * 37.5) / 100) }})</span></td>
                     <td>des del {{ fmtData(h.valid_from) }}<span v-if="h.futur" class="text-muted"> (pendent)</span></td>
                     <td class="text-muted">{{ h.motiu || '' }}</td>
                     <td class="text-muted">{{ h.autor || '' }}</td>
@@ -393,16 +397,26 @@
                 </table>
               </div>
 
-              <!-- L'any a trams i el saldo de cada mes -->
-              <div v-if="jornadaAny?.trams?.length" style="margin-top:12px;">
-                <div class="text-small" style="font-weight:600;">Any {{ jornadaAny.any }}: màxim {{ fmtMin(jornadaAny.maxim_anual_min) }}</div>
-                <div v-if="jornadaAny.trams.length > 1" class="text-small text-muted">
-                  <span v-for="(t, i) in jornadaAny.trams" :key="i">{{ i ? ' · ' : '' }}{{ fmtPct(t.pct) }}% del {{ fmtData(t.des) }} al {{ fmtData(t.fins) }} ({{ fmtMin(t.maxim_min) }})</span>
+              <!-- Un bloc per tram (cada % amb els seus mesos i el seu saldo) i el total de l'any -->
+              <div v-if="jornadaAny?.sense_contracte" class="text-small" style="color:#92400e;margin-top:10px;">
+                ⚠️ Hi ha {{ fmtMin(jornadaAny.sense_contracte.ordinari_min) }} fitxades entre el {{ fmtData(jornadaAny.sense_contracte.des) }}
+                i el {{ fmtData(jornadaAny.sense_contracte.fins) }} sense % de contracte: no compten al saldo.
+                Afegiu el tram d'aquelles dates a «Canviar el %».
+              </div>
+              <div v-for="(t, ti) in (jornadaAny?.trams || [])" :key="ti" class="tram-jornada">
+                <div class="tram-titol">
+                  Tram {{ ti + 1 }} · {{ fmtHores(t.hores_setmanals) }}/setmana ({{ fmtPct(t.pct) }}%) ·
+                  del {{ fmtData(t.des) }} al {{ fmtData(t.fins) }}
+                  <span v-if="t.motiu" class="text-muted" style="font-weight:400;">· {{ t.motiu }}</span>
                 </div>
-                <table class="taula-jornada" style="margin-top:6px;">
+                <div class="text-small" style="margin:2px 0 6px;">
+                  Màxim del tram: <strong>{{ fmtMin(t.maxim_min) }}</strong> · Mòdul diari: <strong>{{ fmtMin(t.modul_diari_min) }}</strong> ·
+                  Saldo del tram: <strong :class="classeSaldo(t.totals.saldo_min)">{{ fmtSaldo(t.totals.saldo_min) }}</strong>
+                </div>
+                <table class="taula-jornada">
                   <thead><tr><th>Mes</th><th>Tocava</th><th>Fet (ordinari)</th><th>Diferència</th><th>Acumulat</th><th>Complem.</th><th>Extres</th></tr></thead>
                   <tbody>
-                    <tr v-for="m in jornadaAny.mesos" :key="m.mes">
+                    <tr v-for="m in t.mesos" :key="m.mes">
                       <td>{{ NOMS_MES[m.mes - 1] }}</td>
                       <td>{{ fmtMinCurt(m.esperat_min) }}</td>
                       <td>{{ fmtMinCurt(m.ordinari_min) }}<span v-if="m.pendents_validar_min" class="text-muted" title="Inclou fitxatges pendents de validar"> *</span></td>
@@ -413,6 +427,13 @@
                     </tr>
                   </tbody>
                 </table>
+              </div>
+              <div v-if="jornadaAny?.trams?.length" class="tram-total">
+                Total {{ jornadaAny.any }}: màxim <strong>{{ fmtMin(jornadaAny.maxim_anual_min) }}</strong> ·
+                tocava fins avui {{ fmtMin(jornadaAny.totals.esperat_min) }} · fet {{ fmtMin(jornadaAny.totals.ordinari_min) }} ·
+                saldo <strong :class="classeSaldo(jornadaAny.totals.acumulat_min)">{{ fmtSaldo(jornadaAny.totals.acumulat_min) }}</strong>
+                <span v-if="jornadaAny.totals.complementaries_min"> · complementàries {{ fmtMin(jornadaAny.totals.complementaries_min) }}</span>
+                <span v-if="jornadaAny.totals.extres_min"> · extres {{ fmtMin(jornadaAny.totals.extres_min) }}</span>
                 <div class="text-small text-muted" style="margin-top:4px;">
                   «Tocava» = mòdul diari × dies laborables sense absències aprovades, fins avui. La diferència s'acumula: el còmput és a final d'any.
                   Complementàries i extres autoritzades van a part. * inclou fitxatges pendents de validar.
@@ -1041,6 +1062,13 @@ const PCTS_JORNADA = Array.from({ length: 21 }, (_, i) => 50 + i * 2.5)
 const NOMS_MES = ['Gener', 'Febrer', 'Març', 'Abril', 'Maig', 'Juny', 'Juliol', 'Agost', 'Setembre', 'Octubre', 'Novembre', 'Desembre']
 const jornadaAny = ref(null), modulPrevi = ref(null), modulError = ref('')
 const nouPct = ref(''), nouDesDe = ref(''), nouMotiu = ref(''), desantJornada = ref(false)
+// Es pot escriure en hores setmanals: 20 h ÷ 37,5 h = 53,33%.
+const nouHores = computed(() => (nouPct.value === '' || nouPct.value == null ? '' : Math.round(Number(nouPct.value) * 37.5) / 100))
+function posaHores(h) {
+  const n = Number(h)
+  nouPct.value = h === '' || !(n > 0) ? '' : Math.round(n / 37.5 * 10000) / 100
+}
+const fmtHores = (h) => `${Number(h).toLocaleString('ca-ES', { maximumFractionDigits: 2 })} h`
 // El recuadre ensenya el % que s'està escrivint; si no, el vigent.
 const modulJornada = computed(() => (nouPct.value ? modulPrevi.value : null) || jornadaAny.value?.modul || null)
 const fmtPct = (p) => Number(p).toLocaleString('ca-ES', { maximumFractionDigits: 2 })
@@ -2058,6 +2086,9 @@ async function saveMuniAssignment() {
 .taula-jornada { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
 .taula-jornada th, .taula-jornada td { padding: 3px 6px; border-bottom: 1px solid var(--color-border-light, #e5e7eb); text-align: left; white-space: nowrap; }
 .saldo-mes { color: #065f46; font-weight: 600; }
+.tram-jornada { margin-top: 12px; padding: 8px 10px; border: 1px solid var(--color-border-light, #e5e7eb); border-radius: 8px; }
+.tram-titol { font-weight: 700; font-size: 0.9rem; }
+.tram-total { margin-top: 12px; padding: 8px 10px; border-radius: 8px; background: var(--color-bg, #f8fafc); font-size: 0.85rem; }
 .saldo-menys { color: #be123c; font-weight: 600; }
 .camp-error { border-color: #be123c !important; }
 .eines { position: relative; }

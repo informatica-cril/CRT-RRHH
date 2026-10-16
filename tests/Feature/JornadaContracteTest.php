@@ -170,6 +170,49 @@ class JornadaContracteTest extends TestCase
         $this->assertSame($r->json('mesos.0.acumulat_min') + $r->json('mesos.1.diferencia_min'), $r->json('mesos.1.acumulat_min'));
     }
 
+    /**
+     * 20 h (53,33%) des del 4 de maig i 100% des del 13 de juliol: cada tram amb els seus mesos
+     * i el seu saldo, el juliol partit, i el fitxat abans del primer % fora del saldo.
+     */
+    public function test_cada_tram_te_els_seus_mesos_i_el_fitxat_sense_pct_no_compta(): void
+    {
+        $this->travelTo(\Carbon\Carbon::parse('2026-07-20 10:00', 'Europe/Madrid'));
+        Sanctum::actingAs($this->admin('hr'));
+        $this->festius2026();
+        $w = $this->treballadora();
+        $this->postJson("/api/v1/users/{$w->id}/jornada", ['pct' => 53.33, 'valid_from' => '2026-05-04', 'motiu' => 'Jornada 20 h'])->assertCreated();
+        $this->postJson("/api/v1/users/{$w->id}/jornada", ['pct' => 100, 'valid_from' => '2026-07-13'])->assertCreated();
+
+        $log = fn ($d, $h) => ['user_id' => $w->id, 'date' => $d, 'start_time' => "$d 08:00:00", 'end_time' => "$d 16:00:00",
+            'total_hours_worked' => $h, 'status' => 'approved', 'authorized_extra_code' => null, 'extra_hours_authorized' => 0];
+        \Illuminate\Support\Facades\DB::table('work_logs')->insert([
+            $log('2026-04-30', 5),   // abans del primer %: fora del saldo
+            $log('2026-07-10', 4),   // tram de 20 h
+            $log('2026-07-14', 8),   // tram del 100%
+        ]);
+
+        $r = $this->getJson("/api/v1/users/{$w->id}/jornada?any=2026")->assertOk();
+        $r->assertJsonCount(2, 'trams')
+          ->assertJsonPath('trams.0.des', '2026-05-04')->assertJsonPath('trams.0.fins', '2026-07-12')
+          ->assertJsonPath('trams.0.hores_setmanals', 20)
+          ->assertJsonPath('trams.0.motiu', 'Jornada 20 h')
+          ->assertJsonPath('trams.1.des', '2026-07-13')->assertJsonPath('trams.1.hores_setmanals', 37.5)
+          ->assertJsonPath('sense_contracte.ordinari_min', 300)
+          ->assertJsonPath('sense_contracte.des', '2026-04-30');
+
+        // Tram 1: maig, juny i juliol (fins al 12); el juliol d'aquest tram només té el fitxatge del 10.
+        $this->assertSame([5, 6, 7], array_column($r->json('trams.0.mesos'), 'mes'));
+        $this->assertSame(240, $r->json('trams.0.mesos.2.ordinari_min'));
+        // 8 dies laborables de l'1 al 12 de juliol (l'1 és dimecres) × mòdul del 53,33%
+        $this->assertSame(8 * $r->json('trams.0.modul_diari_min'), $r->json('trams.0.mesos.2.esperat_min'));
+        // Tram 2: juliol (del 13 al 20: 6 dies) a desembre; el juliol només té el fitxatge del 14.
+        $this->assertSame(480, $r->json('trams.1.mesos.0.ordinari_min'));
+        $this->assertSame(6 * 456, $r->json('trams.1.mesos.0.esperat_min'));
+        // L'any suma els dos trams i no el fitxat sense %
+        $this->assertSame(720, $r->json('totals.ordinari_min'));
+        $this->assertSame($r->json('trams.0.totals.saldo_min') + $r->json('trams.1.totals.saldo_min'), $r->json('totals.acumulat_min'));
+    }
+
     public function test_el_canvi_de_jornada_es_valida_i_nomes_el_fa_gestio(): void
     {
         $w = $this->treballadora();

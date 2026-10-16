@@ -58,77 +58,130 @@ final class ModulJornada
     /**
      * L'any d'una persona amb el seu historial de %.
      *
-     * TRAMS: si el % canvia a mig any (ampliació o reducció), el màxim anual es reparteix pels
-     * dies laborables de cada tram: 75% fins al juny i 100% des del juliol ≈ la meitat de cada.
+     * TRAMS: cada registre de l'historial és un tram (des de la seva data fins al dia abans del
+     * següent). El màxim anual es reparteix pels dies laborables de cada tram: 20 h fins al
+     * juliol i 100% des del 13-07 ≈ cada % per la part de l'any que li toca.
      *
-     * SALDO MENSUAL: per a cada mes, el que tocava (mòdul diari del % de cada dia × dies
-     * laborables sense absències aprovades) contra el que s'ha fet de jornada ordinària. Les
+     * SALDO: per a cada tram i cada mes, el que tocava (mòdul diari del tram × dies laborables
+     * sense absències aprovades) contra el que s'ha fet de jornada ordinària. Les
      * complementàries i extraordinàries autoritzades van a part (RRHH vol veure el minutatge
      * de més de cada mes sense barrejar-lo amb el que ja s'ha acceptat). La diferència
-     * s'acumula: uns mesos se'n fa de més i uns altres de menys, i el còmput és anual.
+     * s'acumula dins del tram i a l'any: el còmput és anual.
      * El que toca només es compta fins avui: un mes que encara no ha passat no surt en negatiu.
+     *
+     * Els dies SENSE % de contracte (abans del primer registre) no compten enlloc: sense saber
+     * què li tocava, tot el que s'hi ha fitxat sortia com a hores de més. Surten en un avís.
      */
     public static function perUsuari(User $user, int $any): array
     {
         $historial = JornadaContracte::where('user_id', $user->id)->orderBy('valid_from')->get();
         $dies = self::diesLaborables($any);
         $avui = now('Europe/Madrid')->toDateString();
-
-        // % vigent de cada dia laborable (null = encara no hi havia % de contracte)
-        $pctDia = [];
-        foreach ($dies as $d) {
-            $vigent = $historial->filter(fn ($h) => $h->valid_from->toDateString() <= $d)->last();
-            $pctDia[$d] = $vigent ? self::centessimes($vigent->pct) : null;
-        }
-
         $moduls = self::moduls(count($dies));
         $anualMin = (int) round(Jornada::ANUAL_COMPLETA_H * 60);
+        $absents = self::diesAmbAbsencia($user->id, $any);
+        $fetDia = self::minutsFetsPerDia($user->id, $any);
+
+        // Trams de l'any segons l'historial
         $trams = [];
-        foreach ($pctDia as $d => $c) {
-            if ($c === null) continue;
-            $ultim = count($trams) - 1;
-            if ($ultim >= 0 && $trams[$ultim]['c'] === $c) {
-                $trams[$ultim]['fins'] = $d;
-                $trams[$ultim]['dies'] ++;
-            } else {
-                $trams[] = ['c' => $c, 'des' => $d, 'fins' => $d, 'dies' => 1];
+        foreach ($historial as $i => $h) {
+            $des = max($h->valid_from->toDateString(), "{$any}-01-01");
+            $seguent = $historial[$i + 1] ?? null;
+            $fins = $seguent ? $seguent->valid_from->copy()->subDay()->toDateString() : "{$any}-12-31";
+            $fins = min($fins, "{$any}-12-31");
+            if ($des > $fins) continue;
+            $trams[] = ['c' => self::centessimes($h->pct), 'des' => $des, 'fins' => $fins, 'motiu' => $h->motiu];
+        }
+        $tramDe = function (string $d) use (&$trams): ?int {
+            foreach ($trams as $i => $t) {
+                if ($d >= $t['des'] && $d <= $t['fins']) return $i;
+            }
+
+            return null;
+        };
+
+        $buit = fn () => ['esperat' => 0, 'total' => 0, 'compl' => 0, 'extra' => 0, 'pendent' => 0];
+        // [tram][mes] acumuladors
+        $acc = [];
+        foreach ($trams as $i => $t) {
+            $diesTram = array_values(array_filter($dies, fn ($d) => $d >= $t['des'] && $d <= $t['fins']));
+            $trams[$i]['dies_laborables'] = count($diesTram);
+            $trams[$i]['modul_diari_min'] = intdiv(self::maximAnualMin($t['c']), $moduls);
+            $trams[$i]['maxim_min'] = intdiv($anualMin * $t['c'] * count($diesTram), 10000 * count($dies));
+            for ($m = (int) substr($t['des'], 5, 2); $m <= (int) substr($t['fins'], 5, 2); $m++) {
+                $acc[$i][$m] = $buit();
+            }
+            foreach ($diesTram as $d) {
+                if ($d > $avui || isset($absents[$d])) continue;
+                $acc[$i][(int) substr($d, 5, 2)]['esperat'] += $trams[$i]['modul_diari_min'];
             }
         }
-        $trams = array_map(fn ($t) => [
-            'pct' => $t['c'] / 100,
-            'des' => $t['des'],
-            'fins' => $t['fins'],
-            'dies_laborables' => $t['dies'],
-            'maxim_min' => intdiv($anualMin * $t['c'] * $t['dies'], 10000 * count($dies)),
-            'modul_diari_min' => intdiv(self::maximAnualMin($t['c']), $moduls),
-        ], $trams);
 
-        $absents = self::diesAmbAbsencia($user->id, $any);
-        $fet = self::minutsFets($user->id, $any);
-
-        $mesos = [];
-        $acumulat = 0;
-        for ($m = 1; $m <= 12; $m++) {
-            $esperat = 0;
-            foreach ($pctDia as $d => $c) {
-                if ($c === null || (int) substr($d, 5, 2) !== $m || $d > $avui || isset($absents[$d])) continue;
-                $esperat += intdiv(self::maximAnualMin($c), $moduls);
+        $senseContracte = ['ordinari_min' => 0, 'des' => null, 'fins' => null];
+        foreach ($fetDia as $d => $f) {
+            $i = $tramDe($d);
+            if ($i === null) {
+                $senseContracte['ordinari_min'] += max(0, $f['total'] - $f['compl'] - $f['extra']);
+                $senseContracte['des'] = $senseContracte['des'] ? min($senseContracte['des'], $d) : $d;
+                $senseContracte['fins'] = $senseContracte['fins'] ? max($senseContracte['fins'], $d) : $d;
+                continue;
             }
-            $f = $fet[$m] ?? ['total' => 0, 'compl' => 0, 'extra' => 0, 'pendent' => 0];
-            $ordinari = max(0, $f['total'] - $f['compl'] - $f['extra']);
-            $diferencia = $ordinari - $esperat;
-            $passat = sprintf('%04d-%02d-01', $any, $m) <= $avui;
+            $m = (int) substr($d, 5, 2);
+            foreach (['total', 'compl', 'extra', 'pendent'] as $k) $acc[$i][$m][$k] += $f[$k];
+        }
+
+        // Files per tram i per mes, i l'any sencer sumant els trams
+        $any12 = array_fill(1, 12, null);
+        $acumulatAny = 0;
+        $filaMes = function (array $a, int $m, string $iniciMes, int &$acumulat) use ($avui) {
+            $ordinari = max(0, $a['total'] - $a['compl'] - $a['extra']);
+            $passat = $iniciMes <= $avui;
+            $diferencia = $ordinari - $a['esperat'];
             if ($passat) $acumulat += $diferencia;
-            $mesos[] = [
+
+            return [
                 'mes' => $m,
-                'esperat_min' => $esperat,
+                'esperat_min' => $a['esperat'],
                 'ordinari_min' => $ordinari,
                 'diferencia_min' => $passat ? $diferencia : null,
                 'acumulat_min' => $passat ? $acumulat : null,
-                'complementaries_min' => $f['compl'],
-                'extres_min' => $f['extra'],
-                'pendents_validar_min' => $f['pendent'],
+                'complementaries_min' => $a['compl'],
+                'extres_min' => $a['extra'],
+                'pendents_validar_min' => $a['pendent'],
             ];
+        };
+        foreach ($trams as $i => $t) {
+            $acumulat = 0;
+            $files = [];
+            foreach ($acc[$i] as $m => $a) {
+                $iniciMes = max($t['des'], sprintf('%04d-%02d-01', $any, $m));
+                $files[] = $filaMes($a, $m, $iniciMes, $acumulat);
+                $any12[$m] = $any12[$m] ? array_map(fn ($x, $y) => $x + $y, $any12[$m], $a) : $a;
+                $any12[$m] = array_combine(array_keys($a), array_values($any12[$m]));
+            }
+            $trams[$i] = [
+                'pct' => $t['c'] / 100,
+                'hores_setmanals' => round($t['c'] / 100 * Jornada::SETMANA_COMPLETA_H / 100, 2),
+                'des' => $t['des'],
+                'fins' => $t['fins'],
+                'motiu' => $t['motiu'],
+                'dies_laborables' => $trams[$i]['dies_laborables'],
+                'modul_diari_min' => $trams[$i]['modul_diari_min'],
+                'maxim_min' => $trams[$i]['maxim_min'],
+                'mesos' => $files,
+                'totals' => [
+                    'esperat_min' => array_sum(array_column($files, 'esperat_min')),
+                    'ordinari_min' => array_sum(array_column($files, 'ordinari_min')),
+                    'saldo_min' => $acumulat,
+                    'complementaries_min' => array_sum(array_column($files, 'complementaries_min')),
+                    'extres_min' => array_sum(array_column($files, 'extres_min')),
+                ],
+            ];
+        }
+
+        $mesos = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $mesos[] = $filaMes($any12[$m] ?? $buit(), $m, sprintf('%04d-%02d-01', $any, $m), $acumulatAny);
         }
 
         $vigent = $historial->filter(fn ($h) => $h->valid_from->toDateString() <= $avui)->last();
@@ -148,10 +201,12 @@ final class ModulJornada
             'totals' => [
                 'esperat_min' => array_sum(array_column($mesos, 'esperat_min')),
                 'ordinari_min' => array_sum(array_column($mesos, 'ordinari_min')),
-                'acumulat_min' => $acumulat,
+                'acumulat_min' => $acumulatAny,
                 'complementaries_min' => array_sum(array_column($mesos, 'complementaries_min')),
                 'extres_min' => array_sum(array_column($mesos, 'extres_min')),
             ],
+            // Fitxatges en dies sense % de contracte: no compten al saldo.
+            'sense_contracte' => $senseContracte['ordinari_min'] > 0 ? $senseContracte : null,
         ];
     }
 
@@ -206,10 +261,10 @@ final class ModulJornada
     }
 
     /**
-     * Minuts fets per mes (fitxatges tancats i no rebutjats). Les complementàries i
+     * Minuts fets per dia (fitxatges tancats i no rebutjats). Les complementàries i
      * extraordinàries són les hores imputades a codis d'autorització, com a Codis.
      */
-    private static function minutsFets(int $userId, int $any): array
+    private static function minutsFetsPerDia(int $userId, int $any): array
     {
         $files = DB::table('work_logs')
             ->leftJoin('authorization_codes as ac', 'ac.code', '=', 'work_logs.authorized_extra_code')
@@ -221,19 +276,19 @@ final class ModulJornada
                 'work_logs.extra_hours_authorized', 'work_logs.complementary_minutes', 'ac.type as tipus_codi')
             ->get();
 
-        $mesos = [];
+        $dies = [];
         foreach ($files as $f) {
-            $m = (int) substr((string) $f->date, 5, 2);
-            $mesos[$m] ??= ['total' => 0, 'compl' => 0, 'extra' => 0, 'pendent' => 0];
+            $d = substr((string) $f->date, 0, 10);
+            $dies[$d] ??= ['total' => 0, 'compl' => 0, 'extra' => 0, 'pendent' => 0];
             $total = (int) round(((float) $f->total_hours_worked) * 60);
-            $mesos[$m]['total'] += $total;
-            if ($f->status === 'pending') $mesos[$m]['pendent'] += $total;
+            $dies[$d]['total'] += $total;
+            if ($f->status === 'pending') $dies[$d]['pendent'] += $total;
             if ($f->tipus_codi !== null) {
                 $hores = (float) $f->extra_hours_authorized ?: ((float) $f->complementary_minutes) / 60;
-                $mesos[$m][$f->tipus_codi === 'extraordinaria' ? 'extra' : 'compl'] += (int) round($hores * 60);
+                $dies[$d][$f->tipus_codi === 'extraordinaria' ? 'extra' : 'compl'] += (int) round($hores * 60);
             }
         }
 
-        return $mesos;
+        return $dies;
     }
 }
