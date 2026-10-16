@@ -70,7 +70,7 @@ onMounted(async () => {
   const nDiscip = discip.filter(d => !d.acknowledged_at && !d.acknowledged).length
 
   cues.value = [
-    { clau: 'audiencia', titol: 'Audiència prèvia oberta', sub: 'un tram del teu fitxatge; pots presentar la teva explicació', icona: '🗣️', n: nAudi, urgencia: 'alta', enllac: audienciaLink.value },
+    { clau: 'audiencia', titol: 'Pots explicar què va passar', sub: 'una part del teu fitxatge està en revisió; envia la teva explicació', icona: '🗣️', n: nAudi, urgencia: 'alta', enllac: audienciaLink.value },
     { clau: 'disciplinari', titol: 'Notificació a acusar', sub: 'comunicació que has de donar per rebuda', icona: '⚖️', n: nDiscip, urgencia: 'alta', enllac: '/worker/compliance' },
     { clau: 'resolucions', titol: 'Sol·licituds resoltes', sub: 'absències, permisos o hores que RRHH ha resolt', icona: '📬', n: nResolucions, urgencia: 'mitjana', enllac: '/absences' },
     { clau: 'firmes', titol: 'Documents per signar', sub: 'documents pendents de la teva firma', icona: '✍️', n: nDocs, urgencia: 'mitjana', enllac: '/worker/documents' },

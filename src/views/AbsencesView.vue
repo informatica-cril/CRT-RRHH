@@ -124,7 +124,7 @@
         <div v-if="isVacation && newAbsence.start_date && newAbsence.end_date" class="text-small"
           style="margin:-4px 0 8px;padding:8px 12px;border-radius:8px;"
           :style="vacationExceeded ? 'background:rgba(239,68,68,0.08);color:var(--color-danger);' : 'background:var(--color-bg);color:var(--color-text-secondary);'">
-          <strong>Aquest tram: {{ tramoDays }} dies</strong>
+          <strong>Dies que demanes: {{ tramoDays }}</strong>
           <span v-if="vacationBalance"> · ja demanats {{ vacationBalance.used_days }} · disponibles {{ vacationBalance.remaining }} de {{ vacationBalance.max_days }}</span>
           <div v-if="vacationExceeded" style="font-weight:700;margin-top:4px;">⚠️ Superes el màxim de {{ vacationBalance?.max_days || 30 }} dies. Redueix el tram.</div>
         </div>

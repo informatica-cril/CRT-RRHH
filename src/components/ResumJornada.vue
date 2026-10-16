@@ -6,7 +6,7 @@
       <div class="text-small text-muted">Dades a {{ fmtData(avui) }} · el còmput es tanca el 31/12</div>
       <div v-if="trams.length" class="rj-xips">
         <span v-for="(t, ti) in trams" :key="ti" class="rj-xip" :class="{ vigent: t.des <= avui && avui <= t.fins }">
-          Tram {{ ti + 1 }} · {{ fmtPct(t.pct) }} % · {{ curt(t.des) }}–{{ curt(t.fins) }}
+          Període {{ ti + 1 }} · {{ fmtPct(t.pct) }} % · {{ curt(t.des) }}–{{ curt(t.fins) }}
         </span>
       </div>
     </div>
@@ -94,7 +94,7 @@
       </div>
 
       <div class="rj-bloc">
-        <h3>Detall per trams</h3>
+        <h3>Detall per períodes de contracte</h3>
         <div class="rj-desplaca">
           <table class="rj-taula">
             <thead>
@@ -107,7 +107,7 @@
               <tr class="rj-fila-tram">
                 <td :colspan="columnes">
                   <span class="rj-tram-nom">
-                    Tram {{ ti + 1 }} · {{ fmtPct(t.pct) }} % · {{ fmtHores(t.hores_setmanals) }}/setmana<template v-if="t.motiu"> · {{ t.motiu }}</template>
+                    Període {{ ti + 1 }} · {{ fmtPct(t.pct) }} % · {{ fmtHores(t.hores_setmanals) }}/setmana<template v-if="t.motiu"> · {{ t.motiu }}</template>
                     · {{ curt(t.des) }}–{{ curt(t.fins) }}
                   </span>
                   <span class="text-small text-muted">
@@ -225,7 +225,7 @@ const avisos = computed(() => {
   const dies = []
   ;(j.trams || []).forEach((t, ti) => t.mesos.forEach(m => {
     if (m.dies_laborables == null || m.dies_comptats >= m.dies_laborables) return
-    dies.push(`${NOMS_MES[m.mes - 1].toLowerCase()}${varisTrams ? ` (tram ${ti + 1})` : ''}: ${m.dies_laborables} laborables, se'n compten ${m.dies_comptats}`)
+    dies.push(`${NOMS_MES[m.mes - 1].toLowerCase()}${varisTrams ? ` (període ${ti + 1})` : ''}: ${m.dies_laborables} laborables, se'n compten ${m.dies_comptats}`)
   }))
   if (dies.length) {
     llista.push({ titol: 'Dies que no compten per absències aprovades.',
@@ -234,7 +234,7 @@ const avisos = computed(() => {
 
   if (j.sense_contracte) {
     llista.push({ titol: `${fmtHm(j.sense_contracte.ordinari_min)} fitxades sense % de contracte`,
-      text: `entre el ${fmtData(j.sense_contracte.des)} i el ${fmtData(j.sense_contracte.fins)}: no compten al saldo. Afegiu el tram d'aquelles dates a «Canviar el %».` })
+      text: `entre el ${fmtData(j.sense_contracte.des)} i el ${fmtData(j.sense_contracte.fins)}: no compten al saldo. Afegiu el període d'aquelles dates a «Canviar el %».` })
   }
   return llista
 })

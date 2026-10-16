@@ -396,8 +396,8 @@ function printFisioReport() {
     @media print { body { margin: 0; } @page { margin: 14mm; size: A4 landscape; } }
   </style></head><body>
     <h1>Informe mensual de jornada — Fisioterapeutes</h1>
-    <div class="sub">${selectedMonthLabel.value} · CRT · Generat el ${new Date().toLocaleDateString('ca-ES')}</div>
-    <div class="legend">Temps efectiu = només trams aprovats · Autoritzat = bàsic (conveni pels dies treballats, exclou festius) + complementàries amb codi · Desviació = efectiu − autoritzat (<b class="over">▲ excés</b> / <b class="under">▼ dèficit</b>)</div>
+    <div class="sub">${selectedMonthLabel.value} · CRIL SL · Generat el ${new Date().toLocaleDateString('ca-ES')}</div>
+    <div class="legend">Temps que compta = només les parts del fitxatge aprovades · Autoritzat = bàsic (conveni pels dies treballats, exclou festius) + complementàries amb codi · Desviació = efectiu − autoritzat (<b class="over">▲ excés</b> / <b class="under">▼ dèficit</b>)</div>
     <table>
       <thead><tr>
         <th>Fisioterapeuta</th><th>Dies</th><th>Bàsic</th><th>Compl. (codi)</th><th>Autoritzat</th><th>Efectiu</th><th>No autoritzat</th><th>Fora zona</th><th>Desviació</th>

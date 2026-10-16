@@ -224,7 +224,7 @@ function missatgeAlerta(type) {
     no_clock_out: 'Tens un fitxatge sense tancar.',
     break_required: 'Has de fer la pausa obligatòria.',
     audiencia: 'Tens un marcatge pendent de revisió: pots presentar la teva explicació.',
-    segment_rejected: 'Un tram del teu fitxatge ha estat rebutjat.',
+    segment_rejected: 'Una part del teu fitxatge ha estat rebutjada.',
     out_of_zone: "S'ha detectat fitxatge fora de zona.",
     resolucio_rrhh: 'Tens una sol·licitud resolta.',
   }[type] || 'Tens un avís nou.'

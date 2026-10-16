@@ -53,8 +53,8 @@ function defaultMessage(type) {
     no_clock_in: 'No has fitxat l\'entrada avui.',
     no_clock_out: 'Tens un fitxatge sense tancar.',
     break_required: 'Has de fer la pausa obligatòria.',
-    audiencia: 'Tens un marcatge pendent de revisió: pots presentar la teva explicació des del detall del fichatge.',
-    segment_rejected: 'Un tram del teu fitxatge ha estat rebutjat.',
+    audiencia: 'Tens un marcatge pendent de revisió: pots presentar la teva explicació des del detall del fitxatge.',
+    segment_rejected: 'Una part del teu fitxatge ha estat rebutjada.',
     out_of_zone: 'S\'ha detectat fitxatge fora de zona.',
     resolucio_rrhh: 'Tens una sol·licitud resolta.'
   }

@@ -32,7 +32,7 @@
                 @click="provisionaTanda">
           {{ provisionantTanda ? 'Creant comptes…' : `🔗 Crear ${pendentsDomi} compte(s) a domi` }}
         </button>
-        <button class="btn btn-primary" @click="openEditModal(null)">+ {{ t('create') }}</button>
+        <button class="btn btn-primary" @click="openEditModal(null)">+ Nou treballador</button>
       </div>
     </div>
 
@@ -156,12 +156,12 @@
               </td>
               <td>
                 <div style="display:flex;gap:4px;flex-wrap:wrap;">
-                  <button class="btn btn-outline btn-sm" @click="openEditModal(user)">✎</button>
-                  <button v-if="user.work_type === 'DOMICILIARIA'" class="btn btn-outline btn-sm" @click="openCpModal(user)">📍 CP</button>
-                  <button v-if="user.work_type === 'DOMICILIARIA_VALLES'" class="btn btn-outline btn-sm" @click="openMuniModal(user)" style="color:rgba(147,51,234,1);">🏘️ Munis</button>
-                  <button v-if="user.work_type === 'AMBULATORIA'" class="btn btn-outline btn-sm" @click="openPointsModal(user)" style="color:var(--color-primary);">📍 Punts</button>
-                  <button class="btn btn-outline btn-sm" @click="openScheduleModal(user)">📅</button>
-                  <button class="btn btn-outline btn-sm" @click="openCalendarModal(user)" title="Calendari laboral">📆</button>
+                  <button class="btn btn-outline btn-sm" @click="openEditModal(user)" title="Obrir la fitxa: dades, jornada i accés">✎ Fitxa</button>
+                  <button v-if="user.work_type === 'DOMICILIARIA'" class="btn btn-outline btn-sm" @click="openCpModal(user)" title="Codis postals on treballa">📍 Zona</button>
+                  <button v-if="user.work_type === 'DOMICILIARIA_VALLES'" class="btn btn-outline btn-sm" @click="openMuniModal(user)" style="color:rgba(147,51,234,1);" title="Municipis on treballa">🏘️ Municipis</button>
+                  <button v-if="user.work_type === 'AMBULATORIA'" class="btn btn-outline btn-sm" @click="openPointsModal(user)" style="color:var(--color-primary);" title="Centres i punts on pot fitxar">📍 Centres</button>
+                  <button class="btn btn-outline btn-sm" @click="openScheduleModal(user)" title="Horari de cada dia de la setmana">📅 Horari</button>
+                  <button class="btn btn-outline btn-sm" @click="openCalendarModal(user)" title="Calendari laboral: festius, vacances i dies treballats">📆 Calendari</button>
                 </div>
               </td>
             </tr>
@@ -205,7 +205,7 @@
             <div v-if="errorsCamp.device_phone" class="text-small error-camp">{{ errorsCamp.device_phone }}</div>
           </div>
           <div class="form-group">
-            <label class="form-label">Data alta (antiguitat)</label>
+            <label class="form-label">Data d'alta (compta per a l'antiguitat)</label>
             <input class="form-input" type="date" v-model="form.seniority_date" :disabled="isSaving" />
           </div>
           <div class="form-group">
@@ -244,7 +244,7 @@
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label">Perfil / Lloc</label>
+            <label class="form-label">Lloc de treball</label>
             <select class="form-select" v-model="form.job_profile" :disabled="isSaving">
               <option value="Fisioterapeuta">Fisioterapeuta</option>
               <option value="Logopeda">Logopeda</option>
@@ -320,7 +320,7 @@
           ℹ️ <strong>Ambulatori:</strong> Podeu configurar punts geolocalitzats específics per aquest treballador después de crear-lo (botó 📍 Punts).
         </div>
         <div v-if="form.work_type === 'DOMICILIARIA_VALLES'" style="background:rgba(147,51,234,0.06);border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.82rem;">
-          ℹ️ <strong>Domiciliari Vallès:</strong> El fichatge geolocalitzat és vàlid en qualsevol punt dels termes municipals assignats. Configureu-los amb el botó 🏘️ Munis.
+          ℹ️ <strong>Domiciliari Vallès:</strong> El fitxatge amb GPS és vàlid en qualsevol punt dels termes municipals assignats. Configureu-los amb el botó 🏘️ Munis.
         </div>
 
         </div>
@@ -381,7 +381,7 @@
                     {{ desantJornada ? 'Desant…' : 'Desa el canvi' }}
                   </button>
                 </div>
-                <div class="text-small text-muted" style="margin-top:4px;">Es guarda a l'historial: l'any es calcula a trams amb cada %.</div>
+                <div class="text-small text-muted" style="margin-top:4px;">Es guarda a l'historial: l'any es calcula per períodes, cadascun amb el seu %.</div>
                 <div v-if="modulError" class="text-small error-camp">{{ modulError }}</div>
               </div>
 
@@ -684,8 +684,8 @@
           <input v-if="d.active" class="form-input" type="time" v-model="d.end" style="width:115px;" />
           <span v-if="d.active" class="text-small text-muted">{{ formatHM(calcHours(d)) }}</span>
           <span v-else class="text-small text-muted">Descans</span>
-          <button v-if="d.active" type="button" class="btn btn-outline btn-sm" title="Afegir un altre tram a aquest dia (jornada partida)" @click="addTramo(index)">+ tram</button>
-          <button v-if="isExtraTramo(index)" type="button" class="btn btn-outline btn-sm" style="color:var(--color-danger);" title="Treure aquest tram" @click="removeTramo(index)">✕</button>
+          <button v-if="d.active" type="button" class="btn btn-outline btn-sm" title="Afegir una altra franja horària a aquest dia (jornada partida)" @click="addTramo(index)">+ franja</button>
+          <button v-if="isExtraTramo(index)" type="button" class="btn btn-outline btn-sm" style="color:var(--color-danger);" title="Treure aquesta franja" @click="removeTramo(index)">✕</button>
         </div>
 
         <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
@@ -842,7 +842,7 @@
       <div class="modal" style="max-width:650px;">
         <div class="modal-header" style="background:linear-gradient(135deg,rgba(59,130,246,0.06),rgba(16,185,129,0.04));border-radius:12px 12px 0 0;">
           <div>
-            <h3 class="modal-title">📍 Ubicacions de Fichatge — {{ pointsUser?.name }}</h3>
+            <h3 class="modal-title">📍 On pot fitxar — {{ pointsUser?.name }}</h3>
             <div class="text-small text-muted">Treballador ambulatori · {{ pointsUser?.job_profile }}</div>
           </div>
           <button class="icon-btn" @click="showPointsModal = false">✕</button>
@@ -850,51 +850,51 @@
 
         <!-- Current Centers -->
         <div v-if="userCenters.length" style="padding:16px 16px 0;">
-          <h4 style="font-size:0.85rem;margin-bottom:8px;">🏢 Centros Asignados ({{ userCenters.length }})</h4>
+          <h4 style="font-size:0.85rem;margin-bottom:8px;">🏢 Centres assignats ({{ userCenters.length }})</h4>
           <div v-for="center in userCenters" :key="center.id" style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--color-border-light);border-radius:8px;margin-bottom:8px;background:rgba(59,130,246,0.04);">
             <div style="font-size:1.2rem;">🏢</div>
             <div style="flex:1;">
               <div style="font-weight:600;font-size:0.85rem;">{{ center.name }}</div>
-              <div class="text-small text-muted">{{ center.work_locations?.length || 0 }} puntos válidos dentro del centro</div>
+              <div class="text-small text-muted">{{ center.work_locations?.length || 0 }} punts on pot fitxar dins del centre</div>
             </div>
-            <button class="btn btn-danger btn-sm" @click="removeCenter(center.id)" title="Quitar centro">✕</button>
+            <button class="btn btn-danger btn-sm" @click="removeCenter(center.id)" title="Treure aquest centre">✕</button>
           </div>
         </div>
 
         <!-- Current Points -->
         <div v-if="userPoints.length" style="padding:16px 16px 0;">
-          <h4 style="font-size:0.85rem;margin-bottom:8px;">📍 Puntos Manuales Aislados ({{ userPoints.length }})</h4>
+          <h4 style="font-size:0.85rem;margin-bottom:8px;">📍 Altres punts on pot fitxar ({{ userPoints.length }})</h4>
           <div v-for="pt in userPoints" :key="pt.id" style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--color-border-light);border-radius:8px;margin-bottom:8px;background:rgba(76,175,80,0.03);">
             <div style="font-size:1.2rem;">📍</div>
             <div style="flex:1;">
               <div style="font-weight:600;font-size:0.85rem;">{{ pt.name }}</div>
               <div class="text-small text-muted" style="font-family:monospace;">{{ Number(pt.lat).toFixed(6) }}, {{ Number(pt.lng).toFixed(6) }} · ⊘ {{ pt.radius }}m</div>
             </div>
-            <button class="btn btn-danger btn-sm" @click="removePoint(pt.id)" title="Desactivar">✕</button>
+            <button class="btn btn-danger btn-sm" @click="removePoint(pt.id)" title="Treure aquest punt">✕</button>
           </div>
         </div>
         
         <div v-if="!userPoints.length && !userCenters.length" style="padding:16px;text-align:center;" class="text-muted">
-          No hay ninguna ubicación configurada. Añada un centro o punto manual a continuación.
+          Encara no hi ha cap lloc on pugui fitxar. Afegeix-hi un centre o un punt aquí sota.
         </div>
 
         <div style="padding:0 16px; margin-top:16px;">
           <div style="display:flex;flex-wrap:wrap;gap:12px;border-bottom:2px solid var(--color-border-light);margin-bottom:12px;">
-            <button :style="{padding:'8px 12px', background:'none', border:'none', cursor:'pointer', fontWeight:'600', color: pointsTab === 'center' ? 'var(--color-primary)' : 'var(--color-muted)', borderBottom: pointsTab === 'center' ? '3px solid var(--color-primary)' : 'none', marginBottom:'-2px'}" @click="pointsTab = 'center'">🏢 Centro Existente</button>
-            <button :style="{padding:'8px 12px', background:'none', border:'none', cursor:'pointer', fontWeight:'600', color: pointsTab === 'manual' ? 'var(--color-primary)' : 'var(--color-muted)', borderBottom: pointsTab === 'manual' ? '3px solid var(--color-primary)' : 'none', marginBottom:'-2px'}" @click="pointsTab = 'manual'">📍 Punto Manual</button>
+            <button :style="{padding:'8px 12px', background:'none', border:'none', cursor:'pointer', fontWeight:'600', color: pointsTab === 'center' ? 'var(--color-primary)' : 'var(--color-muted)', borderBottom: pointsTab === 'center' ? '3px solid var(--color-primary)' : 'none', marginBottom:'-2px'}" @click="pointsTab = 'center'">🏢 Un centre de la llista</button>
+            <button :style="{padding:'8px 12px', background:'none', border:'none', cursor:'pointer', fontWeight:'600', color: pointsTab === 'manual' ? 'var(--color-primary)' : 'var(--color-muted)', borderBottom: pointsTab === 'manual' ? '3px solid var(--color-primary)' : 'none', marginBottom:'-2px'}" @click="pointsTab = 'manual'">📍 Un altre punt</button>
           </div>
         </div>
 
         <!-- Add Center Tab -->
         <div v-if="pointsTab === 'center'" style="padding:0 16px 16px;">
           <div class="form-group">
-            <label class="form-label">Seleccione un Centro Ambulatorio</label>
+            <label class="form-label">Tria un centre ambulatori</label>
             <select class="form-select" v-model="newCenterId">
-              <option value="">-- Seleccionar Centro --</option>
+              <option value="">— Tria un centre —</option>
               <option v-for="c in ambulatoryCentersList" :key="c.id" :value="c.id">{{ c.name }} ({{ c.work_locations?.length || 0 }} coords)</option>
             </select>
           </div>
-          <button class="btn btn-primary" @click="addCenter" :disabled="!newCenterId">+ Asignar Centro</button>
+          <button class="btn btn-primary" @click="addCenter" :disabled="!newCenterId">+ Assignar el centre</button>
         </div>
 
         <!-- Add Manual Point Tab -->
@@ -913,14 +913,14 @@
               <input class="form-input" type="number" step="0.000001" v-model.number="newPoint.lng" />
             </div>
             <div class="form-group" style="flex:1 1 80px;">
-              <label class="form-label">Radi (m)</label>
+              <label class="form-label">Distància permesa (metres)</label>
               <input class="form-input" type="number" v-model.number="newPoint.radius" min="50" max="1000" />
             </div>
           </div>
           <div class="text-small text-muted" style="margin-bottom:12px;">
             💡 Podeu obtenir coordenades des de Google Maps (clic dret → coordenades). Radi recomanat: 50-200m.
           </div>
-          <button class="btn btn-primary" @click="addPoint" :disabled="!newPoint.name || !newPoint.lat || !newPoint.lng">+ Afegir Punt Manual</button>
+          <button class="btn btn-primary" @click="addPoint" :disabled="!newPoint.name || !newPoint.lat || !newPoint.lng">+ Afegir el punt</button>
         </div>
       </div>
     </div>
@@ -931,7 +931,7 @@
         <div class="modal-header" style="background:linear-gradient(135deg,rgba(147,51,234,0.06),rgba(59,130,246,0.04));border-radius:12px 12px 0 0;">
           <div>
             <h3 class="modal-title">🏘️ Termes Municipals — {{ muniUser?.name }}</h3>
-            <div class="text-small text-muted">Domiciliari del Vallès · El fichatge és vàlid en qualsevol punt del terme municipal</div>
+            <div class="text-small text-muted">Domiciliari del Vallès · El fitxatge és vàlid en qualsevol punt del terme municipal</div>
           </div>
           <button class="icon-btn" @click="showMuniModal = false">✕</button>
         </div>
@@ -1736,7 +1736,7 @@ async function saveSchedule() {
     showScheduleModal.value = false
     isNewSchedule.value = false
     // El servidor torna a calcular els trams dels fitxatges pendents amb l'horari nou.
-    if (recalculats > 0) alert(`Horari desat. S'han tornat a calcular els trams de ${recalculats} fitxatge${recalculats === 1 ? '' : 's'} pendent${recalculats === 1 ? '' : 's'} amb l'horari nou (les hores d'entrada i sortida no canvien).`)
+    if (recalculats > 0) alert(`Horari desat. S'han tornat a calcular les parts de ${recalculats} fitxatge${recalculats === 1 ? '' : 's'} pendent${recalculats === 1 ? '' : 's'} amb l'horari nou (les hores d'entrada i sortida no canvien).`)
   } catch (e) {
     // Abans només console.error: el modal es quedava obert i no se sabia que no s'havia desat.
     console.error(e)

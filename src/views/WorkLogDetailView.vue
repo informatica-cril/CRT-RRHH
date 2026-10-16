@@ -2,30 +2,30 @@
   <div class="work-log-detail">
     <div class="header">
       <button @click="$router.back()" class="back-btn">← Tornar</button>
-      <h2>Detall de Fichatge</h2>
+      <h2>Detall del fitxatge</h2>
     </div>
 
     <div v-if="loading" class="loading">Carregant...</div>
-    <div v-else-if="!workLog" class="error">No s'ha trobat el fichatge</div>
+    <div v-else-if="!workLog" class="error">No s'ha trobat aquest fitxatge</div>
     <div v-else class="content">
       <!-- Info general del fichaje -->
       <div class="card info-card">
-        <h3>Informació General</h3>
+        <h3>Resum</h3>
         <div class="info-grid">
-          <div><strong>Treballador:</strong> {{ workLog.user?.name }}</div>
-          <div><strong>Data:</strong> {{ formatDate(workLog.date) }}</div>
-          <div><strong>Inici:</strong> {{ formatDateTime(workLog.start_time) }}</div>
-          <div><strong>Fi:</strong> {{ workLog.end_time ? formatDateTime(workLog.end_time) : 'En curs' }}</div>
-          <div><strong>Hores totals (brutes):</strong> {{ formatHM(workLog.total_hours_worked) }}</div>
-          <div><strong>Minuts complementaris:</strong> {{ workLog.complementary_minutes || 0 }} min</div>
+          <div><strong>Persona:</strong> {{ workLog.user?.name }}</div>
+          <div><strong>Dia:</strong> {{ formatDate(workLog.date) }}</div>
+          <div><strong>Entrada:</strong> {{ formatDateTime(workLog.start_time) }}</div>
+          <div><strong>Sortida:</strong> {{ workLog.end_time ? formatDateTime(workLog.end_time) : 'Encara treballant' }}</div>
+          <div><strong>Temps total entre entrada i sortida:</strong> {{ formatHM(workLog.total_hours_worked) }}</div>
+          <div><strong>Minuts per sobre de 8 h:</strong> {{ workLog.complementary_minutes || 0 }} min</div>
           <div><strong>Estat:</strong> {{ etiqueta('fitxatge', workLog.status) }}</div>
-          <div><strong>Segmentat:</strong> {{ workLog.segmented ? 'Sí' : 'No' }}</div>
+          
         </div>
         <div class="effective-banner">
-          <span class="effective-label">Temps de treball EFECTIU (només trams aprovats):</span>
+          <span class="effective-label">Temps que compta (només les parts aprovades):</span>
           <span class="effective-value">{{ effectiveHoursLabel }}</span>
           <span v-if="workLog.segmented && pendingCount > 0" class="effective-note">
-            · {{ pendingCount }} tram(s) pendent(s) de revisió no compten encara
+            · {{ pendingCount }} {{ pendingCount === 1 ? 'part està' : 'parts estan' }} per revisar i encara no {{ pendingCount === 1 ? 'compta' : 'compten' }}
           </span>
         </div>
 
@@ -41,7 +41,7 @@
             <textarea v-model="correccio.motiu" rows="2" class="form-input"
               placeholder="Motiu de la correcció (mínim 10 caràcters). Quedarà registrat a la traçabilitat."></textarea>
             <div v-if="correccio.error" class="correccio-error">{{ correccio.error }}</div>
-            <div class="text-small text-muted">Les hores i els trams es tornen a calcular, i el fitxatge torna a pendent per validar-lo.</div>
+            <div class="text-small text-muted">Es tornen a calcular les hores i el fitxatge torna a «Pendent» perquè es revisi.</div>
             <div class="correccio-botons">
               <button class="btn btn-primary btn-sm" :disabled="correccio.desant || correccio.motiu.trim().length < 10" @click="desaCorreccio">
                 {{ correccio.desant ? 'Desant…' : 'Desar correcció' }}
@@ -71,7 +71,7 @@
             <textarea v-model="zona.motiu" rows="2" class="form-input"
               placeholder="Motiu (mínim 10 caràcters). P. ex.: era a Viladomat, centre que encara no tenia assignat."></textarea>
             <div v-if="zona.error" class="correccio-error">{{ zona.error }}</div>
-            <div class="text-small text-muted">Les marques triades passen a dins de zona i es recalculen els trams, les hores fora de zona i el temps efectiu.</div>
+            <div class="text-small text-muted">Les marques triades passen a «dins de zona» i es tornen a calcular les hores que compten.</div>
             <div class="correccio-botons">
               <button class="btn btn-primary btn-sm" :disabled="zona.desant || !zona.marques.length || zona.motiu.trim().length < 10" @click="desaZona">
                 {{ zona.desant ? 'Desant…' : 'Desar correcció' }}
@@ -104,25 +104,29 @@
 
       <!-- Tramos segmentados -->
       <div class="card segments-card">
-        <h3>Trams Segmentats ({{ segments.length }})</h3>
-        <div v-if="segments.length === 0" class="empty">No hi ha trams segmentats</div>
+        <h3>Parts del fitxatge ({{ segments.length }})</h3>
+        <p class="text-small text-muted" style="margin:-4px 0 10px;">
+          L'app divideix la jornada en parts segons si eren dins o fora de l'horari i de la zona de la persona.
+          Les parts correctes s'aproven soles; les altres les revisa RRHH.
+        </p>
+        <div v-if="segments.length === 0" class="empty">Aquest fitxatge encara no està dividit en parts (es fa en fitxar la sortida).</div>
         <div v-else class="segments-list">
           <div v-for="seg in segments" :key="seg.id" class="segment-item" :class="segmentClass(seg)">
             <div class="segment-header">
-              <span class="segment-number">Tram {{ seg.segment_number }}</span>
+              <span class="segment-number">Part {{ seg.segment_number }}</span>
               <span class="segment-status" :class="'status-' + seg.status">{{ etiqueta('tram', seg.status) }}</span>
             </div>
             <div class="segment-details">
-              <div><strong>Inici:</strong> {{ formatDateTime(seg.start_time) }}</div>
-              <div><strong>Fi:</strong> {{ formatDateTime(seg.end_time) }}</div>
-              <div><strong>Duració:</strong> {{ seg.duration_minutes }} min</div>
+              <div><strong>Des de:</strong> {{ formatDateTime(seg.start_time) }}</div>
+              <div><strong>Fins a:</strong> {{ formatDateTime(seg.end_time) }}</div>
+              <div><strong>Durada:</strong> {{ seg.duration_minutes }} min</div>
               <div>
                 <strong>Zona:</strong>
-                <span :class="seg.in_zone ? 'tag-ok' : 'tag-ko'">{{ seg.in_zone ? 'Dins zona' : 'Fora zona' }}</span>
+                <span :class="seg.in_zone ? 'tag-ok' : 'tag-ko'">{{ seg.in_zone ? 'Dins de la zona' : 'Fora de la zona' }}</span>
               </div>
               <div>
                 <strong>Horari:</strong>
-                <span :class="seg.in_schedule ? 'tag-ok' : 'tag-ko'">{{ seg.in_schedule ? 'Dins horari' : 'Fora horari' }}</span>
+                <span :class="seg.in_schedule ? 'tag-ok' : 'tag-ko'">{{ seg.in_schedule ? "Dins de l'horari" : "Fora de l'horari" }}</span>
               </div>
               <!-- Transparència simètrica (C5 EIPD): el treballador veu la distància
                    mesurada i el radi aplicat en cada marcatge -->
@@ -137,29 +141,29 @@
                 <div>
                   <strong>Posició inici:</strong>
                   <span v-if="posicio(seg, 'inici')" :title="posicio(seg, 'inici').join(', ')">📍 {{ zonaDePosicio(...posicio(seg, 'inici'))?.text || '—' }}</span>
-                  <span v-else class="text-muted">Sense marca GPS (canvi de tram)</span>
+                  <span v-else class="text-muted">Sense GPS (aquí comença una part nova)</span>
                 </div>
                 <div>
                   <strong>Posició fi:</strong>
                   <span v-if="posicio(seg, 'fi')" :title="posicio(seg, 'fi').join(', ')">📍 {{ zonaDePosicio(...posicio(seg, 'fi'))?.text || '—' }}</span>
-                  <span v-else class="text-muted">Sense marca GPS (canvi de tram)</span>
+                  <span v-else class="text-muted">Sense GPS (aquí comença una part nova)</span>
                 </div>
               </template>
               <div v-if="seg.rejection_reason" class="rejection">
-                <strong>Motiu rebuig:</strong> {{ seg.rejection_reason }}
+                <strong>Per què es va rebutjar:</strong> {{ seg.rejection_reason }}
               </div>
             </div>
             <!-- Audiència prèvia (EIPD C6) -->
             <div v-if="seg.audiencia_requested_at" class="audiencia-box">
               <div class="text-small">
-                🗣️ <strong>Audiència prèvia</strong> oberta el {{ formatDateTime(seg.audiencia_requested_at) }}
-                · termini d'al·legacions: <strong>{{ formatDate(seg.audiencia_deadline) }}</strong>
+                🗣️ <strong>La persona pot donar la seva explicació</strong> des del {{ formatDateTime(seg.audiencia_requested_at) }}
+                · té temps fins al <strong>{{ formatDate(seg.audiencia_deadline) }}</strong>
               </div>
               <div v-if="seg.allegation" class="text-small" style="margin-top:6px;">
-                <strong>Al·legació del treballador</strong> ({{ formatDateTime(seg.allegation_at) }}):
+                <strong>Explicació de la persona</strong> ({{ formatDateTime(seg.allegation_at) }}):
                 <em>«{{ seg.allegation }}»</em>
               </div>
-              <div v-else class="text-small text-muted" style="margin-top:4px;">Sense al·legació presentada encara.</div>
+              <div v-else class="text-small text-muted" style="margin-top:4px;">Encara no ha donat cap explicació.</div>
             </div>
             <!-- Al·legació del TITULAR (treballador) sobre tram pendent -->
             <div v-if="esTitular && seg.status === 'pending'" class="allegation-form">
@@ -167,28 +171,28 @@
               <textarea v-model="allegationText[seg.id]" rows="4" class="form-input allegation-text"
                 placeholder="La teva explicació (p. ex. error del GPS a l'interior, canvi de domicili del pacient...)"></textarea>
               <button class="btn-approve" @click="sendAllegation(seg)"
-                :disabled="(allegationText[seg.id] || '').trim().length < 20">Presentar al·legació (mín. 20 caràcters)</button>
+                :disabled="(allegationText[seg.id] || '').trim().length < 20">Enviar la meva explicació (mínim 20 lletres)</button>
             </div>
             <!-- «Revisar de nou»: RRHH i admin tornen a pendent un tram ja resolt -->
             <div v-if="potReobrir && seg.status !== 'pending'" class="segment-actions">
-              <button @click="reobrirTram(seg)" class="btn btn-outline btn-sm" title="Torna el tram a pendent per validar-lo de nou">↺ Revisar de nou</button>
+              <button @click="reobrirTram(seg)" class="btn btn-outline btn-sm" title="Torna aquesta part a «Pendent» per revisar-la una altra vegada">↺ Tornar a revisar</button>
             </div>
             <!-- Acciones para coordinator/admin -->
             <div v-if="canManage && seg.status === 'pending'" class="segment-actions">
               <button @click="approveSegment(seg)" class="btn-approve">Aprovar</button>
               <div class="reject-form">
                 <select v-model="rejectFault[seg.id]" class="form-input">
-                  <option value="">— Qualificar el fet segons el conveni (art. 64) —</option>
+                  <option value="">— Quin tipus de falta és? (segons el conveni) —</option>
                   <optgroup v-for="g in faultsByGrau" :key="g.grau" :label="g.label">
                     <option v-for="ft in g.items" :key="ft.clau" :value="ft.clau">{{ ft.base_conveni }} · {{ ft.descripcio }}</option>
                   </optgroup>
                 </select>
                 <FrasesRapides clau="rebuig_tram" v-model="rejectReason[seg.id]" />
-                <textarea v-model="rejectReason[seg.id]" rows="2" class="form-input" placeholder="Motiu del rebuig (mínim 5 caràcters)"></textarea>
+                <textarea v-model="rejectReason[seg.id]" rows="2" class="form-input" placeholder="Per què la rebutges? (mínim 5 lletres)"></textarea>
                 <div v-if="(rejectReason[seg.id] || '').trim().length > 0 && (rejectReason[seg.id] || '').trim().length < 5"
-                  class="reject-hint">Falten {{ 5 - (rejectReason[seg.id] || '').trim().length }} caràcters més al motiu.</div>
+                  class="reject-hint">Falten {{ 5 - (rejectReason[seg.id] || '').trim().length }} lletres més.</div>
                 <button @click="rejectSegment(seg)" class="btn-reject"
-                  :disabled="!rejectFault[seg.id] || (rejectReason[seg.id] || '').trim().length < 5">Rebutjar i qualificar</button>
+                  :disabled="!rejectFault[seg.id] || (rejectReason[seg.id] || '').trim().length < 5">Rebutjar</button>
               </div>
             </div>
           </div>
@@ -197,7 +201,7 @@
 
       <!-- Trazabilidad -->
       <div class="card modifications-card">
-        <h3>Traçabilitat ({{ modifications.length }})</h3>
+        <h3>Historial de canvis ({{ modifications.length }})</h3>
         <div v-if="modifications.length === 0" class="empty">No hi ha modificacions registrades</div>
         <div v-else class="modifications-list">
           <div v-for="mod in modifications" :key="mod.id" class="modification-item">
@@ -365,7 +369,7 @@ async function rejectSegment(seg) {
 const esTitular = computed(() => authStore.user?.id === workLog.value?.user_id)
 const potReobrir = computed(() => ['admin', 'hr'].includes(authStore.user?.role))
 async function reobrirTram(seg) {
-  const motiu = await demana(`Per què cal revisar de nou el tram ${seg.segment_number}? (mínim 10 caràcters)\nQuedarà registrat a la traçabilitat.`, { frases: 'revisar_de_nou' })
+  const motiu = await demana(`Per què cal tornar a revisar la part ${seg.segment_number}? (mínim 10 caràcters)\nQuedarà registrat a la traçabilitat.`, { frases: 'revisar_de_nou' })
   if (motiu === null) return
   if (motiu.trim().length < 10) return alert("Cal un motiu d'almenys 10 caràcters.")
   try {

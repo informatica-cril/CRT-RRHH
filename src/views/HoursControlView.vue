@@ -35,14 +35,14 @@
       <table class="hc-t">
         <thead>
           <tr>
-            <th>Treballador</th><th>Règim</th>
+            <th>Persona</th><th>Jornada</th>
             <th colspan="2">Complementàries pactades</th>
             <th colspan="2">Extraordinàries ({{ params.extra_cap_h }} h · {{ fmtFactor }}×)</th>
           </tr>
           <tr class="hc-sub">
             <th></th><th></th>
-            <th>Usades / topall</th><th style="min-width:160px">Ocupació</th>
-            <th>Usades / {{ params.extra_cap_h }}</th><th style="min-width:160px">Ocupació</th>
+            <th>Fetes / màxim</th><th style="min-width:160px">Quant n'ha gastat</th>
+            <th>Fetes / {{ params.extra_cap_h }} h</th><th style="min-width:160px">Quant n'ha gastat</th>
           </tr>
         </thead>
         <tbody>

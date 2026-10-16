@@ -62,7 +62,7 @@
               <td v-if="authStore.isStaff">
                 <div style="display:flex;gap:4px;flex-wrap:wrap;">
                   <button v-if="!code.revoked && !code.used" class="btn btn-outline btn-sm" @click="renovarCode(code)">↻ Renovar</button>
-                  <button v-if="!code.revoked && !code.used" class="btn btn-danger btn-sm" @click="revokeCode(code)">⊘ Revocar</button>
+                  <button v-if="!code.revoked && !code.used" class="btn btn-danger btn-sm" @click="revokeCode(code)">⊘ Anul·lar</button>
                   <span v-if="code.notification_sent" class="badge badge-info" style="font-size:0.65rem;">📧 Enviat</span>
                 </div>
               </td>
@@ -91,7 +91,7 @@
     <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
       <div class="modal" style="max-width:600px;">
         <div class="modal-header">
-          <h3 class="modal-title">Nou codi d'autorització</h3>
+          <h3 class="modal-title">Nou codi d'hores extra</h3>
           <button class="icon-btn" @click="showModal = false">✕</button>
         </div>
         <div class="form-group">
@@ -114,8 +114,8 @@
         <div class="form-group">
           <label class="form-label">Tipus d'hora *</label>
           <select class="form-select" v-model="form.type">
-            <option value="complementaria">✋ Complementàries (només contractes a temps parcial, art. 12.5 ET)</option>
-            <option value="extraordinaria">⚡ Extraordinàries (màxim 80 h/any, art. 20.2 del conveni)</option>
+            <option value="complementaria">✋ Complementàries (només per a qui treballa a temps parcial)</option>
+            <option value="extraordinaria">⚡ Extraordinàries (com a màxim 80 h l'any)</option>
           </select>
         </div>
 
@@ -135,14 +135,14 @@
             retribuïdes a 1,25×. El topall del 30% de complementàries no hi aplica.
           </template>
           <template v-else-if="capInfo">
-            <strong>Tope anual complementàries ({{ capInfo.year }}): {{ capInfo.cap }}h</strong>
+            <strong>Màxim de complementàries de l'any ({{ capInfo.year }}): {{ capInfo.cap }}h</strong>
             <span> — 30% de {{ capInfo.annualBasic }}h de jornada bàsica anual</span>
             · ja autoritzades l'any <strong>{{ capInfo.already }}h</strong> · disponibles <strong>{{ capInfo.remaining }}h</strong>
             <div style="margin-top:6px;">
               <button type="button" class="btn btn-accent btn-sm" @click="useFullCap" :disabled="!(capInfo.remaining > 0)">
                 ⚡ Donar d'alta el PACTE signat amb tot l'any ({{ capInfo.remaining }}h)
               </button>
-              <span class="text-small text-muted" style="margin-left:6px;">Normalment NO cal: el codi del pacte neix sol amb l'alta del treballador (o amb «pacte:backfill» per als antics). Aquest botó és per a casos manuals.</span>
+              <span class="text-small text-muted" style="margin-left:6px;">Normalment no cal: el codi es crea sol quan es dona d'alta la persona. Fes-lo servir només si li falta.</span>
             </div>
             <!-- Seguiment mensual del consum anual -->
             <div style="margin-top:6px;font-weight:600;">Seguiment mensual {{ capInfo.year }}:</div>
@@ -152,9 +152,9 @@
                 <div style="font-weight:700;">{{ h > 0 ? h : '·' }}</div>
               </div>
             </div>
-            <div v-if="capExceeded" style="font-weight:700;margin-top:6px;">⚠️ Supera el tope anual del 30%. Redueix les hores o revoca codis previs.</div>
+            <div v-if="capExceeded" style="font-weight:700;margin-top:6px;">⚠️ Passa del màxim de l'any (el 30 % de la seva jornada). Posa-hi menys hores o anul·la algun codi anterior.</div>
           </template>
-          <template v-else>Calculant el tope anual del 30%…</template>
+          <template v-else>Calculant el màxim de l'any…</template>
         </div>
         <div v-else class="text-small text-muted" style="margin:-4px 0 8px;">
           El límit del 30% s'aplica quan s'assigna a un treballador concret.
@@ -227,13 +227,13 @@
     <div v-if="showRevokeModal" class="modal-overlay" @click.self="showRevokeModal = false">
       <div class="modal" style="max-width:400px;">
         <div class="modal-header">
-          <h3 class="modal-title">⚠️ Confirmar revocació</h3>
+          <h3 class="modal-title">⚠️ Anul·lar el codi</h3>
         </div>
-        <p>Esteu segurs de revocar el codi <strong>{{ revokeTarget?.code }}</strong>?</p>
+        <p>Segur que vols anul·lar el codi <strong>{{ revokeTarget?.code }}</strong>?</p>
         <p class="text-small text-muted mt-sm">Aquesta acció és immediata i no es pot desfer.</p>
         <div class="modal-footer">
           <button class="btn btn-outline" @click="showRevokeModal = false">{{ t('cancel') }}</button>
-          <button class="btn btn-danger" @click="confirmRevoke">Revocar immediatament</button>
+          <button class="btn btn-danger" @click="confirmRevoke">Sí, anul·lar-lo ara</button>
         </div>
       </div>
     </div>

@@ -84,8 +84,8 @@
               </th>
               <th v-for="c in columnes" :key="c.clau" v-show="c.clau !== 'treballador' || authStore.isStaff"
                 class="th-ord" :class="{ actiu: ordre.col === c.clau }" :aria-sort="ordre.col === c.clau ? (ordre.dir === 'asc' ? 'ascending' : 'descending') : 'none'"
-                @click="ordena(c.clau)" :title="'Ordenar per ' + t(c.text).toLowerCase()">
-                {{ t(c.text) }}
+                @click="ordena(c.clau)" :title="'Ordenar per ' + c.text.toLowerCase()">
+                {{ c.text }}
                 <span class="ord-fletxa">{{ ordre.col === c.clau ? (ordre.dir === 'asc' ? '▲' : '▼') : '↕' }}</span>
               </th>
               <th>{{ t('actions') }}</th>
@@ -105,7 +105,7 @@
                   {{ formatHM(log.effective_hours ?? log.total_hours_worked) }}
                 </strong>
                 <span v-else>—</span>
-                <span v-if="log.segmented && Number(log.effective_hours) !== Number(log.total_hours_worked)" class="badge badge-warning" style="font-size:0.7rem; margin-left:4px;" title="Temps efectiu segons trams aprovats">efectiu</span>
+                <span v-if="log.segmented && Number(log.effective_hours) !== Number(log.total_hours_worked)" class="badge badge-warning" style="font-size:0.7rem; margin-left:4px;" title="Només compta el temps aprovat; la resta està per revisar al detall. Temps efectiu segons trams aprovats">de {{ formatHM(log.total_hours_worked) }}</span>
                 <div v-if="sortidaAltreDia(log)" class="sortida-altre-dia" :title="'La jornada es va iniciar el ' + String(log.date).slice(0, 10).split('-').reverse().join('/') + ' i la sortida no es va fitxar fins al ' + sortidaAltreDia(log).data">
                     ⚠ Sortida fitxada el {{ sortidaAltreDia(log).data }}<span v-if="sortidaAltreDia(log).dies > 1"> (+{{ sortidaAltreDia(log).dies }} dies)</span>
                   </div>
@@ -121,7 +121,7 @@
                   <span v-if="Number(log.hours_out_of_area || 0) > 0" class="badge badge-danger" title="Hores Fora de Zona Descomptades">
                     -{{ formatHM(log.hours_out_of_area) }} (Fora Zona)
                   </span>
-                  <span v-if="horesForaHorari(log) > 0" class="badge badge-warning" title="Temps fet fora de l'horari: no compta fins que s'aprova el tram al detall">
+                  <span v-if="horesForaHorari(log) > 0" class="badge badge-warning" title="Temps fet fora de l'horari: no compta fins que s'aprova al detall">
                     +{{ formatHM(horesForaHorari(log)) }} fora d'horari (per revisar)
                   </span>
                   <span v-if="!Number(log.extra_hours_authorized) && !Number(log.extra_hours_unauthorized) && !Number(log.hours_out_of_area) && !horesForaHorari(log)">—</span>
@@ -152,13 +152,13 @@
               </td>
               <td>
                 <div style="display: flex; gap: 4px; flex-wrap: wrap;">
-                  <button class="btn btn-outline btn-sm" @click="viewDetail(log.id)" title="Veure detall de trams">🔍 Detall</button>
+                  <button class="btn btn-outline btn-sm" @click="viewDetail(log.id)" title="Veure com es divideix el fitxatge i el seu historial">🔍 Detall</button>
                   <template v-if="authStore.isStaff && log.status === 'pending'">
                     <button class="btn btn-success btn-sm" @click="approve(log.id)">{{ t('approve') }}</button>
                     <button class="btn btn-danger btn-sm" @click="openReject(log.id)">{{ t('reject') }}</button>
                   </template>
                   <!-- RRHH i admin poden tornar a revisar el que ja s'ha resolt (p. ex. coordinació). -->
-                  <button v-if="authStore.canManageStaff && log.status !== 'pending'" class="btn btn-outline btn-sm" @click="reobrir(log)" title="Torna el fitxatge a pendent per validar-lo de nou">↺ Revisar de nou</button>
+                  <button v-if="authStore.canManageStaff && log.status !== 'pending'" class="btn btn-outline btn-sm" @click="reobrir(log)" title="Torna el fitxatge a «Pendent» per revisar-lo una altra vegada">↺ Tornar a revisar</button>
                   <template v-if="!authStore.isStaff && log.status === 'rejected'">
                     <button class="btn btn-outline btn-sm" @click="openModify(log)">{{ t('modify_record') }}</button>
                   </template>
@@ -327,11 +327,11 @@ useEstatUrl('vista', vista)
 const filtres = [
   { clau: 'tots', nom: 'Tots', icona: '📋', to: 'neutre', fn: () => true },
   { clau: 'perrevisar', nom: 'Per revisar', icona: '👀', to: 'groc', fn: l => l.status === 'pending' && !!l.end_time },
-  { clau: 'pendents', nom: "Pendents d'aprovar", icona: '⏳', to: 'groc', fn: l => l.status === 'pending' },
+  { clau: 'pendents', nom: 'Pendents (també els en curs)', icona: '⏳', to: 'groc', fn: l => l.status === 'pending' },
   { clau: 'forazona', nom: 'Fora de zona', icona: '📍', to: 'vermell', fn: esForaZona },
-  { clau: 'extra', nom: 'Hores extra no autoritzades', icona: '⏱', to: 'taronja', fn: l => Number(l.extra_hours_unauthorized || 0) > 0 },
+  { clau: 'extra', nom: 'Hores extra sense aprovar', icona: '⏱', to: 'taronja', fn: l => Number(l.extra_hours_unauthorized || 0) > 0 },
   { clau: 'forahorari', nom: "Fora d'horari per revisar", icona: '🕘', to: 'taronja', fn: l => horesForaHorari(l) > 0 },
-  { clau: 'sensesortida', nom: 'Sense sortida', icona: '🕒', to: 'taronja', fn: l => !l.end_time },
+  { clau: 'sensesortida', nom: 'Encara sense sortida', icona: '🕒', to: 'taronja', fn: l => !l.end_time },
   { clau: 'llargs', nom: 'Més de 14 h', icona: '⚠️', to: 'vermell', fn: esLlarg },
   { clau: 'aprovats', nom: 'Aprovats', icona: '✅', to: 'verd', fn: l => l.status === 'approved' },
   { clau: 'rebutjats', nom: 'Rebutjats', icona: '❌', to: 'neutre', fn: l => l.status === 'rejected' },
@@ -436,13 +436,13 @@ const recomptes = computed(() => Object.fromEntries(filtres.map(f => [f.clau, lo
 
 // Ordenació per columna: un clic ordena, el segon inverteix. Per defecte, data més recent primer.
 const columnes = [
-  { clau: 'treballador', text: 'employee' },
-  { clau: 'data', text: 'date' },
-  { clau: 'inici', text: 'start_time' },
-  { clau: 'fi', text: 'end_time' },
-  { clau: 'hores', text: 'worked_hours' },
-  { clau: 'extres', text: 'extra_hours' },
-  { clau: 'estat', text: 'status' },
+  { clau: 'treballador', text: 'Persona' },
+  { clau: 'data', text: 'Dia' },
+  { clau: 'inici', text: 'Entrada' },
+  { clau: 'fi', text: 'Sortida' },
+  { clau: 'hores', text: 'Hores que compten' },
+  { clau: 'extres', text: 'Hores extra' },
+  { clau: 'estat', text: 'Estat' },
 ]
 const ordre = ref({ col: 'data', dir: 'desc' })
 function ordena(col) {
