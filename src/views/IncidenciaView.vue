@@ -2,7 +2,7 @@
   <div class="inc">
     <div class="page-header">
       <div>
-        <h1 class="page-title">🛎️ Incidències</h1>
+        <h1 class="page-title">🛎️ Tinc un problema</h1>
         <p class="page-subtitle">Explica què passa i RRHH se n'encarregarà. La resposta la veuràs aquí mateix.</p>
       </div>
     </div>

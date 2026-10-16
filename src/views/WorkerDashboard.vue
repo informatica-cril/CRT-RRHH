@@ -25,7 +25,7 @@
     <div class="page-header">
       <div>
         <h1 class="page-title">{{ tabTitles[activeTab] }}</h1>
-        <p class="page-subtitle">Portal de treballador — {{ authStore.userName }}</p>
+        <p class="page-subtitle">{{ tabAjuda[activeTab] }}</p>
       </div>
     </div>
 
@@ -37,7 +37,7 @@
       <div class="dashboard-grid">
         <div>
           <div class="time-tracker" id="worker-clock">
-            <div class="tracker-label">{{ t('time_tracker') }}</div>
+            <div class="tracker-label">{{ workLogStore.isWorking ? 'Estàs treballant' : 'Encara no has començat la jornada' }}</div>
             <div class="tracker-time">{{ workLogStore.formattedElapsed }}</div>
             <div v-if="workLogStore.isWorking && workLogStore.horaEntrada" class="tracker-entrada">
               Entrada a les <strong>{{ workLogStore.horaEntrada }}</strong>
@@ -79,16 +79,17 @@
           <div class="card mt-lg">
             <h3 class="card-title mb-md">Resum del dia</h3>
             <div class="stats-grid" style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px;">
-              <div class="stat-card" style="padding:12px;"><div class="text-small" style="font-weight:600;color:var(--color-text-secondary);">Hores avui</div><div style="font-size:1.5rem;font-weight:700;color:var(--color-primary);margin-top:4px;">{{ todayHours }}</div></div>
-              <div class="stat-card" style="padding:12px;"><div class="text-small" style="font-weight:600;color:var(--color-text-secondary);">Hores setmana</div><div style="font-size:1.5rem;font-weight:700;color:var(--color-accent);margin-top:4px;">{{ weekHours }}</div></div>
-              <div class="stat-card" style="padding:12px;border-bottom:3px solid var(--color-success);"><div class="text-small" style="font-weight:600;color:var(--color-success);">✓ H. extra autoritzades (mes)</div><div style="font-size:1.5rem;font-weight:700;color:var(--color-success);margin-top:4px;">{{ todayAuthorized }}</div></div>
-              <div class="stat-card" style="padding:12px;border-bottom:3px solid var(--color-danger);"><div class="text-small" style="font-weight:600;color:var(--color-danger);">✗ H. extra no autoritzades (mes)</div><div style="font-size:1.5rem;font-weight:700;color:var(--color-danger);margin-top:4px;">{{ todayUnauthorized }}</div></div>
+              <div class="stat-card" style="padding:12px;"><div class="text-small" style="font-weight:600;color:var(--color-text-secondary);">Hores fetes avui</div><div style="font-size:1.5rem;font-weight:700;color:var(--color-primary);margin-top:4px;">{{ todayHours }}</div></div>
+              <div class="stat-card" style="padding:12px;"><div class="text-small" style="font-weight:600;color:var(--color-text-secondary);">Hores aquesta setmana</div><div style="font-size:1.5rem;font-weight:700;color:var(--color-accent);margin-top:4px;">{{ weekHours }}</div></div>
+              <div class="stat-card" style="padding:12px;border-bottom:3px solid var(--color-success);"><div class="text-small" style="font-weight:600;color:var(--color-success);">✓ Hores extra aprovades aquest mes</div><div style="font-size:1.5rem;font-weight:700;color:var(--color-success);margin-top:4px;">{{ todayAuthorized }}</div></div>
+              <div class="stat-card" style="padding:12px;border-bottom:3px solid var(--color-danger);"><div class="text-small" style="font-weight:600;color:var(--color-danger);">✗ Hores extra sense aprovar aquest mes</div><div style="font-size:1.5rem;font-weight:700;color:var(--color-danger);margin-top:4px;">{{ todayUnauthorized }}</div></div>
             </div>
           </div>
 
           <!-- Auth Code input for extra hours -->
-          <div class="card mt-lg" style="border-left:4px solid var(--color-warning);">
-            <h3 class="card-title mb-md">🔑 Autoritzar hores extra</h3>
+          <!-- Només surt si hi ha alguna cosa a fer: un fitxatge amb hores extra sense aprovar o un codi vigent -->
+          <div v-if="logsWithUnauthorized.length || myAuthCodes.length" class="card mt-lg" style="border-left:4px solid var(--color-warning);">
+            <h3 class="card-title mb-md">🔑 Aprovar hores extra amb un codi</h3>
             <div v-if="myAuthCodes.length" style="margin-bottom:12px;">
               <div class="text-small" style="font-weight:600;margin-bottom:6px;">Els teus codis vigents — toca'n un per fer-lo servir:</div>
               <div style="display:flex;flex-direction:column;gap:6px;">
@@ -101,20 +102,20 @@
                 </button>
               </div>
             </div>
-            <p class="text-small text-muted" style="margin-bottom:12px;">{{ myAuthCodes.length ? 'O introdueix un codi rebut per una altra via.' : 'Si tens hores extra no autoritzades en un fitxatge anterior, introdueix el codi que t\'ha enviat el teu responsable per autoritzar-les.' }}</p>
+            <p class="text-small text-muted" style="margin-bottom:12px;">{{ myAuthCodes.length ? 'O escriu un codi que t\'hagin donat per una altra via.' : 'Tens hores extra sense aprovar. Tria el dia i escriu el codi que t\'ha donat el teu responsable.' }}</p>
             <div class="mobile-stack-form" style="display:flex; flex-direction: column; gap:12px; margin-bottom:8px;">
               <div class="form-group" style="margin-bottom:0;">
-                <label class="form-label">Fitxatge</label>
+                <label class="form-label">Quin dia?</label>
                 <select class="form-select" v-model="authLogId" style="width:100%;">
-                  <option value="">Selecciona fitxatge...</option>
-                  <option v-for="l in logsWithUnauthorized" :key="l.id" :value="l.id">{{ formatDateFull(l.date) }} — {{ formatHM(l.extra_hours_unauthorized) }} no aut.</option>
+                  <option value="">Tria el dia…</option>
+                  <option v-for="l in logsWithUnauthorized" :key="l.id" :value="l.id">{{ formatDateFull(l.date) }} — {{ formatHM(l.extra_hours_unauthorized) }} sense aprovar</option>
                 </select>
               </div>
               <div class="form-group" style="margin-bottom:0;">
-                <label class="form-label">Codi d'autorització</label>
+                <label class="form-label">Codi</label>
                 <input class="form-input" v-model="authCodeInput" placeholder="XXXX-XXXX-XXXX" style="font-family:monospace;font-size:1rem;letter-spacing:1px; width:100%;" @input="authCodeInput = authCodeInput.toUpperCase()" />
               </div>
-              <button class="btn btn-accent" style="width:100%;" @click="submitAuthCode" :disabled="!authCodeInput || !authLogId">Autoritzar</button>
+              <button class="btn btn-accent" style="width:100%;" @click="submitAuthCode" :disabled="!authCodeInput || !authLogId">Aprovar les hores</button>
             </div>
             <div v-if="authCodeResult" class="mt-sm" style="padding:10px 14px;border-radius:8px;font-size:0.85rem;"
               :style="{
@@ -334,8 +335,8 @@
     <div v-else-if="activeTab === 'absences'">
       <div class="card">
         <div class="card-header">
-          <h3 class="card-title">Sol·licitar permís o absència</h3>
-          <button class="btn btn-accent btn-sm" @click="showPermissionModal = true">+ Nova sol·licitud</button>
+          <h3 class="card-title">Quants dies has fet servir aquest any</h3>
+          <button class="btn btn-accent btn-sm" @click="showPermissionModal = true">+ Demanar vacances o un permís</button>
         </div>
         <!-- Summary -->
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:16px;">
@@ -343,20 +344,20 @@
             <div class="text-small" style="font-weight:600;">{{ summary.name }}</div>
             <div style="display:flex;align-items:baseline;gap:4px;margin-top:4px;">
               <span style="font-size:1.3rem;font-weight:700;color:var(--color-primary);">{{ summary.used }}</span>
-              <span v-if="summary.max" class="text-small text-muted">/ {{ summary.max }}</span>
+              <span v-if="summary.max" class="text-small text-muted">de {{ summary.max }} dies</span>
               <span v-else class="text-small text-muted">dies</span>
             </div>
-            <div v-if="summary.max && summary.used >= summary.max" class="text-small" style="color:var(--color-danger);margin-top:2px;">Esgotat</div>
+            <div v-if="summary.max && summary.used >= summary.max" class="text-small" style="color:var(--color-danger);margin-top:2px;">Ja els has fet servir tots</div>
           </div>
         </div>
       </div>
 
       <div class="card mt-lg">
-        <h3 class="card-title mb-md">Els meus permisos</h3>
-        <div v-if="myAbsences.length === 0" class="empty-state"><p>No hi ha permisos sol·licitats</p></div>
+        <h3 class="card-title mb-md">El que has demanat</h3>
+        <div v-if="myAbsences.length === 0" class="empty-state"><p>Encara no has demanat cap dia. Toca «Demanar vacances o un permís» per fer-ho.</p></div>
         <div class="table-container" v-else>
           <table>
-            <thead><tr><th>Tipus</th><th>Període</th><th>Motiu</th><th>Estat</th></tr></thead>
+            <thead><tr><th>Què</th><th>Quins dies</th><th>Motiu</th><th>Resposta de RRHH</th></tr></thead>
             <tbody>
               <tr v-for="a in myAbsences" :key="a.id">
                 <td style="font-weight:500;">{{ getAbsenceTypeName(a.absence_type_id) }}</td>
@@ -374,8 +375,8 @@
     <div v-else-if="activeTab === 'excedencies'">
       <div class="card">
         <div class="card-header">
-          <h3 class="card-title">Sol·licitar excedència</h3>
-          <button class="btn btn-accent btn-sm" @click="showExcedenciaModal = true">+ Nova sol·licitud</button>
+          <h3 class="card-title">Tipus d'excedència que pots demanar</h3>
+          <button class="btn btn-accent btn-sm" @click="showExcedenciaModal = true">+ Demanar una excedència</button>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:16px;">
           <div v-for="et in excedenciaTypes" :key="et.id" class="stat-card" style="padding:16px;">
@@ -387,10 +388,10 @@
       </div>
       <div class="card mt-lg">
         <h3 class="card-title mb-md">Les meves excedències</h3>
-        <div v-if="myExcedencies.length === 0" class="empty-state"><p>No hi ha excedències sol·licitades</p></div>
+        <div v-if="myExcedencies.length === 0" class="empty-state"><p>No has demanat cap excedència.</p></div>
         <div class="table-container" v-else>
           <table>
-            <thead><tr><th>Tipus</th><th>Inici</th><th>Fi</th><th>Estat</th></tr></thead>
+            <thead><tr><th>Tipus</th><th>Des del</th><th>Fins al</th><th>Resposta de RRHH</th></tr></thead>
             <tbody>
               <tr v-for="e in myExcedencies" :key="e.id">
                 <td>{{ getExcTypeName(e.excedencia_type_id) }}</td><td>{{ formatDate(e.start_date) }}</td><td>{{ formatDate(e.end_date) }}</td>
@@ -405,23 +406,23 @@
     <!-- ═══ TAB: HISTORY ═══ -->
     <div v-else-if="activeTab === 'history'">
       <div class="card">
-        <h3 class="card-title mb-md">Historial de fitxatges</h3>
+        <h3 class="card-title mb-md">Què vol dir cada color</h3>
         <p class="text-small text-muted mb-md">
-          <span style="display:inline-flex;align-items:center;gap:4px;margin-right:16px;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--color-success);"></span>Vàlid (dins zona + horari)</span>
-          <span style="display:inline-flex;align-items:center;gap:4px;margin-right:16px;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f97316;"></span>Extra no autoritzat (dins zona, fora horari)</span>
-          <span style="display:inline-flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--color-danger);"></span>Fora de zona (no computa)</span>
+          <span style="display:inline-flex;align-items:center;gap:4px;margin-right:16px;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--color-success);"></span>Correcte: dins de la teva zona i del teu horari</span>
+          <span style="display:inline-flex;align-items:center;gap:4px;margin-right:16px;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f97316;"></span>Has fet hores fora de l'horari i encara no estan aprovades</span>
+          <span style="display:inline-flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--color-danger);"></span>Fora de la teva zona: aquestes hores no compten fins que RRHH ho revisi</span>
         </p>
-        <div v-if="myWorkLogs.length === 0" class="empty-state"><p>No hi ha fitxatges registrats</p></div>
+        <div v-if="myWorkLogs.length === 0" class="empty-state"><p>Encara no tens cap fitxatge.</p></div>
         <div class="table-container" v-else>
           <table>
             <thead>
               <tr>
-                <th>Data</th><th>Inici</th><th>Fi</th>
-                <th style="color:var(--color-success);">H. Comptades</th>
-                <th style="color:#f97316;">⏱ Extra</th>
-                <th style="color:var(--color-danger);">📍 Fora zona</th>
-                <th style="color:var(--color-success);">✓ Autorit.</th>
-                <th>Estat</th>
+                <th>Dia</th><th>Entrada</th><th>Sortida</th>
+                <th style="color:var(--color-success);" title="Les hores que compten per a la teva jornada">Hores que compten</th>
+                <th style="color:#f97316;" title="Hores fora de l'horari que encara no estan aprovades">⏱ Extra sense aprovar</th>
+                <th style="color:var(--color-danger);" title="Hores fetes fora de la teva zona">📍 Fora de zona</th>
+                <th style="color:var(--color-success);" title="Hores extra que ja estan aprovades">✓ Extra aprovades</th>
+                <th>Revisat per RRHH?</th>
                 <th></th>
               </tr>
             </thead>
@@ -454,7 +455,7 @@
                 </td>
                 <td><span class="badge" :class="l.status === 'approved' ? 'badge-success' : l.status === 'pending' ? 'badge-warning' : 'badge-danger'">{{ etiqueta('fitxatge', l.status) }}</span></td>
                 <!-- La fila ja obre el detall, però no es veia: el botó diu que hi ha trams i pausa per consultar. -->
-                <td><button class="btn btn-outline btn-sm" style="white-space:nowrap;" @click.stop="router.push(`/work-logs/${l.id}/detail`)">🔍 Veure trams</button></td>
+                <td><button class="btn btn-outline btn-sm" style="white-space:nowrap;" @click.stop="router.push(`/work-logs/${l.id}/detail`)">🔍 Veure el detall</button></td>
               </tr>
             </tbody>
           </table>
@@ -464,113 +465,22 @@
 
     <!-- ═══ TAB: MENU ═══ -->
     <div v-else-if="activeTab === 'menu'">
-      <div class="card" style="background: transparent; border: none; padding: 0; box-shadow: none;">
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
-          <!-- La meva safata -->
-          <router-link to="/worker/safata" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
-            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(179, 53, 47, 0.10); color: #B3352F; display: flex; align-items: center; justify-content: center;">
-              <svg style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-            </div>
-            <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text);">📥 La meva safata</div>
-          </router-link>
-
-          <!-- Nòmines -->
-          <router-link to="/worker/payrolls" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
-            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(13, 175, 131, 0.10); color: #0A7C5E; display: flex; align-items: center; justify-content: center;">
-              <svg style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-            </div>
-            <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text);">Nòmines</div>
-          </router-link>
-
-          <!-- Les meves apps (SSO) -->
-          <router-link v-if="teApps" to="/portal" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
-            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(13, 175, 131, 0.12); color: var(--color-success); display: flex; align-items: center; justify-content: center;">
-              <svg style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-            </div>
-            <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text);">Les meves apps</div>
-          </router-link>
-
-          <!-- Informar d'una incidència a RRHH -->
-          <router-link to="/worker/incidencia" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
-            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(217, 119, 6, 0.12); color: #d97706; display: flex; align-items: center; justify-content: center;">
-              <svg style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            </div>
-            <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text);">Informar d'una incidència</div>
-          </router-link>
-
-          <!-- Informació i polítiques (acusos) -->
-          <router-link to="/worker/compliance" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
-            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(217, 164, 0, 0.12); color: #b8860b; display: flex; align-items: center; justify-content: center;">
-              <svg style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
-            </div>
-            <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text);">Informació i polítiques</div>
-          </router-link>
-
-          <!-- Hores de comitè (només representants) -->
-          <router-link v-if="esRepresentant" to="/worker/comite" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
-            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(9, 78, 140, 0.10); color: #094E8C; display: flex; align-items: center; justify-content: center;">
-              <svg style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><path d="M16 3.5l2 2"/></svg>
-            </div>
-            <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text);">Hores de comitè</div>
-          </router-link>
-
-          <!-- Absences -->
-          <router-link to="/worker/absences" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
-            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(59, 130, 246, 0.1); color: var(--color-primary); display: flex; align-items: center; justify-content: center;">
-              <svg style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
-            </div>
-            <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text);">Permisos i absències</div>
-          </router-link>
-
-          <!-- Excedences -->
-          <router-link to="/worker/excedencies" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
-            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(139, 92, 246, 0.1); color: #8b5cf6; display: flex; align-items: center; justify-content: center;">
-              <svg style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="12" y1="14" x2="12" y2="18"/></svg>
-            </div>
-            <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text);">Excedències</div>
-          </router-link>
-
-          <!-- History -->
-          <router-link to="/worker/history" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
-            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(16, 185, 129, 0.1); color: var(--color-success); display: flex; align-items: center; justify-content: center;">
-              <svg style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><path d="M4.93 4.93l4.24 4.24"/></svg>
-            </div>
-            <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text);">Historial fitxatges</div>
-          </router-link>
-
-          <!-- Documents -->
-          <router-link to="/worker/documents" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
-            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(249, 115, 22, 0.1); color: #f97316; display: flex; align-items: center; justify-content: center;">
-              <svg style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-            </div>
-            <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text);">Documents</div>
-          </router-link>
-
-          <!-- Biblioteca de documents (formacions, protocols...) -->
-          <router-link to="/worker/biblioteca" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
-            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(9, 78, 140, 0.1); color: #094E8C; display: flex; align-items: center; justify-content: center;">
-              <svg style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-            </div>
-            <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text);">Biblioteca</div>
-          </router-link>
-
-          <!-- Settings -->
-          <router-link to="/worker/settings" class="stat-card" style="padding: 24px 16px; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
-            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(107, 114, 128, 0.1); color: #6b7280; display: flex; align-items: center; justify-content: center;">
-              <svg style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            </div>
-            <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text);">Configuració</div>
-          </router-link>
-
-          <!-- Logout -->
-          <div @click="handleLogout" class="stat-card" style="padding: 24px 16px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; height: 100%;">
-            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(239, 68, 68, 0.1); color: var(--color-danger); display: flex; align-items: center; justify-content: center;">
-              <svg style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-            </div>
-            <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text);">Tancar Sessió</div>
-          </div>
+      <!-- Totes les pantalles, agrupades com al menú lateral i amb una frase que diu per a què serveix cada una -->
+      <section v-for="sec in seccionsMenu" :key="sec.titol" class="menu-seccio">
+        <h2 class="menu-seccio-titol">{{ sec.titol }}</h2>
+        <div class="menu-graella">
+          <component :is="e.to ? 'router-link' : 'button'" v-for="e in sec.entrades" :key="e.nom" :to="e.to" type="button"
+            class="menu-entrada" @click="e.accio && e.accio()">
+            <span class="menu-icona" :style="{ background: e.fons, color: e.color }">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" v-html="e.icona"></svg>
+            </span>
+            <span class="menu-text">
+              <strong>{{ e.nom }}</strong>
+              <small>{{ e.ajuda }}</small>
+            </span>
+          </component>
         </div>
-      </div>
+      </section>
     </div>
 
     <!-- ═══ TAB: SETTINGS ═══ -->
@@ -1270,9 +1180,68 @@ const permissionSummary = computed(() => {
 })
 
 // --- Tab management ---
+// Pantalla «Més» del mòbil: les mateixes seccions que el menú lateral, amb una frase per entrada.
+const ICONES = {
+  safata: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  xat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  calendari: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  rellotge: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  full: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>',
+  persona: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  euro: '<path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+  llibre: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+  avis: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  escut: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>',
+  grafic: '<path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/>',
+  apps: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  engranatge: '<circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M1 12h3M20 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+  sortir: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
+}
+const entrada = (nom, ajuda, to, icona, color, extra = {}) => ({ nom, ajuda, to, icona: ICONES[icona], color, fons: color + '1a', ...extra })
+const seccionsMenu = computed(() => [
+  { titol: 'Avui', entrades: [
+    entrada("Safata d'avisos", 'Coses que et demanen o que has de saber', '/worker/safata', 'safata', '#B3352F'),
+    entrada('Missatges', 'Parla amb RRHH o amb el teu equip', '/worker/chat', 'xat', '#094E8C'),
+  ] },
+  { titol: 'El meu temps', entrades: [
+    entrada('Calendari i horari', 'El teu horari, els festius i les teves vacances', '/worker/calendar', 'calendari', '#1d5fbf'),
+    entrada('Els meus fitxatges', "Les hores que has fet cada dia i si estan aprovades", '/worker/history', 'rellotge', '#0A7C5E'),
+    entrada('Vacances i permisos', 'Demana dies lliures o un permís i mira com van', '/worker/absences', 'full', '#1d5fbf'),
+    entrada('Excedències', 'Demana una temporada sense treballar', '/worker/excedencies', 'persona', '#8b5cf6'),
+  ] },
+  { titol: 'Els meus papers', entrades: [
+    entrada('Les meves nòmines', 'Descarrega les teves nòmines', '/worker/payrolls', 'euro', '#0A7C5E'),
+    entrada('Documents per llegir i signar', "Contractes i documents que t'envia l'empresa", '/worker/documents', 'full', '#c2570c'),
+    entrada("Biblioteca de l'empresa", 'Protocols, guies i formacions', '/worker/biblioteca', 'llibre', '#094E8C'),
+  ] },
+  { titol: 'Ajuda', entrades: [
+    entrada('Tinc un problema', "Explica a RRHH què passa (un fitxatge malament, un dubte…)", '/worker/incidencia', 'avis', '#d97706'),
+    entrada('Normes i informació', "Les normes de l'empresa que has de conèixer", '/worker/compliance', 'escut', '#b8860b'),
+  ] },
+  { titol: 'Més', entrades: [
+    entrada('El meu rendiment', 'Com et va la feina, segons els indicadors', '/worker/rendiment', 'grafic', '#1d5fbf'),
+    ...(esRepresentant.value ? [entrada('Hores de comitè', 'Les hores que fas com a representant', '/worker/comite', 'rellotge', '#094E8C')] : []),
+    ...(teApps.value ? [entrada('Les meves apps', "Entra a les altres aplicacions de l'empresa", '/portal', 'apps', '#0A7C5E')] : []),
+  ] },
+  { titol: 'El meu compte', entrades: [
+    entrada('Configuració', 'Canvia la contrasenya i les preferències', '/worker/settings', 'engranatge', '#6b7280'),
+    entrada('Tancar sessió', "Surt de l'app en aquest aparell", null, 'sortir', '#dc2626', { accio: handleLogout }),
+  ] },
+])
+
 const tabMap = { 'worker-dashboard': 'clock', 'worker-calendar': 'calendar', 'worker-absences': 'absences', 'worker-excedencies': 'excedencies', 'worker-history': 'history', 'worker-settings': 'settings', 'worker-menu': 'menu' }
 const activeTab = computed(() => props.initialTab || tabMap[route.name] || 'clock')
-const tabTitles = { clock: 'Fitxatge', calendar: 'Calendari laboral', absences: 'Permisos i absències', excedencies: 'Excedències', history: 'Historial de fitxatges', settings: 'Configuració', menu: 'Menú principal' }
+const tabTitles = { clock: 'Fitxar entrada i sortida', calendar: 'Calendari i horari', absences: 'Vacances i permisos', excedencies: 'Excedències', history: 'Els meus fitxatges', settings: 'Configuració', menu: 'Totes les opcions' }
+// Una frase sota el títol de cada pestanya que diu què s'hi fa.
+const tabAjuda = {
+  clock: 'Toca «Iniciar jornada» quan comencis a treballar i «Finalitzar jornada» quan acabis.',
+  calendar: 'El teu horari de cada dia, els festius i les vacances que tens aprovades.',
+  absences: 'Demana vacances o un permís. Quan RRHH respongui, ho veuràs aquí mateix.',
+  excedencies: 'Demana una temporada sense treballar (excedència). RRHH et respondrà aquí.',
+  history: 'Les hores que has fet cada dia. «Aprovat» vol dir que RRHH ja ho ha revisat.',
+  settings: 'Canvia la teva contrasenya i mira les teves zones de treball.',
+  menu: "Totes les pantalles de l'app, agrupades.",
+}
 
 // --- Data Fetching ---
 async function fetchData() {
@@ -2068,6 +2037,16 @@ watch(() => activeTab.value, async (tab) => {
 })
 </script>
 <style scoped>
+.menu-seccio { margin-bottom: 18px; }
+.menu-seccio-titol { margin: 0 0 8px; font-size: .78rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-secondary); }
+.menu-graella { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.menu-entrada { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--color-border); background: var(--color-bg-card); color: var(--color-text); text-decoration: none; text-align: left; cursor: pointer; font: inherit; width: 100%; }
+.menu-entrada:active { transform: scale(.99); }
+.menu-icona { flex: none; width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+.menu-icona svg { width: 24px; height: 24px; }
+.menu-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.menu-text strong { font-size: .95rem; }
+.menu-text small { font-size: .8rem; color: var(--color-text-secondary); line-height: 1.3; }
 .avis-sense-horari { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 16px; padding: 12px 16px;
   border-radius: 12px; background: #fff4d6; border: 1px solid #f0d58a; border-left: 5px solid #D9A400; color: #5c4400; font-size: .9rem; line-height: 1.4; }
 .avis-sense-horari strong { display: block; margin-bottom: 2px; }

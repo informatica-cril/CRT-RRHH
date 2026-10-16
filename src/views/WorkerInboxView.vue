@@ -2,7 +2,7 @@
   <div class="safata">
     <div class="sf-head">
       <div>
-        <h1 class="page-title">📥 La meva safata</h1>
+        <h1 class="page-title">📥 Safata d'avisos</h1>
         <p class="page-subtitle">Tot el que et reclama una acció: firmes, avisos i notificacions. Cada targeta t'hi porta.</p>
       </div>
       <span class="sf-tot"><b>{{ total }}</b> pendents</span>

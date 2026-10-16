@@ -43,11 +43,11 @@ const messages = {
     
     // Sidebar Menu
     menu: 'MENÚ',
-    dashboard: 'Tauler',
-    work_logs: 'Registres horaris',
+    dashboard: 'Inici',
+    work_logs: 'Fitxatges',
     absences: 'Absències',
     employees: 'Treballadors',
-    auth_codes: 'Codis autorització',
+    auth_codes: "Codis d'hores extra",
     reports: 'Informes',
     payrolls: 'Nòmines',
     audit: 'Auditoria',
@@ -85,7 +85,7 @@ const messages = {
     
     // Work Logs
     work_log: 'Registre horari',
-    work_logs_title: 'Registres de jornada',
+    work_logs_title: 'Fitxatges',
     start_time: 'Hora d\'inici',
     end_time: 'Hora de fi',
     worked_hours: 'Hores treballades',
@@ -208,7 +208,7 @@ const messages = {
     configuration: 'Configuració',
 
     // Admin sidebar nav
-    permissions_config: 'Permisos (Config)',
+    permissions_config: 'Tipus de permisos',
     documentation: 'Documentació',
 
     // Payrolls worker view

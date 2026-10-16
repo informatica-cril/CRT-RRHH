@@ -2,8 +2,8 @@
   <div>
     <div class="page-header">
       <div>
-        <h1 class="page-title">📄 Els meus documents</h1>
-        <p class="page-subtitle">Documents assignats — lectura i firma electrònica</p>
+        <h1 class="page-title">📄 Documents per llegir i signar</h1>
+        <p class="page-subtitle">Contractes i documents que t'envia l'empresa. Obre'ls per llegir-los i, si et demana firma, signa'ls aquí mateix.</p>
       </div>
     </div>
 
@@ -46,7 +46,7 @@
     </div>
 
     <div v-if="myDocuments.length === 0" class="card">
-      <div class="empty-state"><p>No hi ha documents assignats</p></div>
+      <div class="empty-state"><p>Ara mateix no tens cap document per llegir ni signar.</p></div>
     </div>
 
     <!-- Document Viewer / Signer Modal -->

@@ -42,7 +42,7 @@ const navItems = computed(() => {
       {
         to: '/worker',
         name: 'worker-dashboard',
-        label: t('dashboard'),
+        label: 'Fitxar',
         icon: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'
       },
       {
@@ -54,13 +54,13 @@ const navItems = computed(() => {
       {
         to: '/worker/safata',
         name: 'worker-safata',
-        label: 'Safata',
+        label: 'Avisos',
         icon: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>'
       },
       {
         to: '/worker/chat',
         name: 'worker-chat',
-        label: 'Xat',
+        label: 'Missatges',
         icon: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'
       },
       {
