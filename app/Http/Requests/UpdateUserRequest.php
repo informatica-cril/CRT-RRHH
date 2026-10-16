@@ -41,6 +41,8 @@ class UpdateUserRequest extends FormRequest
             'relacio' => 'nullable|in:laboral,autonom',
             'entitat' => 'nullable|in:CRIL,CRT,CRIL_CRT',
             'disponibilitat_setmanal' => 'nullable|numeric|min:0|max:99',
+            // % de retribució: només informatiu (la jornada va per l'historial de /users/{id}/jornada).
+            'retribucio_pct' => 'nullable|numeric|min:0|max:100',
             'specialties' => 'sometimes|array',
             'specialties.*' => 'string|exists:specialties,code',
         ];

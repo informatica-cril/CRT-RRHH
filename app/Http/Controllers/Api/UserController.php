@@ -166,7 +166,7 @@ class UserController extends Controller
             } elseif ($esGestioRrhh && ! $propia) {
                 unset($data['role'], $data['password'], $data['active']);
             } else {
-                foreach (['role', 'active', 'work_type', 'job_profile', 'work_schedule_id', 'device_phone',
+                foreach (['role', 'active', 'work_type', 'job_profile', 'work_schedule_id', 'retribucio_pct', 'device_phone',
                           'pacte_complementaries', 'relacio', 'disponibilitat_setmanal',
                           'seniority_date', 'onboarding_profile_id', 'onboarding_completed',
                           'must_change_password', 'password'] as $field) {

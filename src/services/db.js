@@ -30,6 +30,12 @@ const db = {
   getWorkSchedule: (id) => api.get(`/v1/work-schedules/${id}`),
   addWorkSchedule: (s) => api.post('/v1/work-schedules', s),
   updateWorkSchedule: (s) => api.put(`/v1/work-schedules/${s.id}`, s),
+  // Màxim anual, mòdul diari i resta d'un % de jornada de contracte (pestanya Jornada).
+  getModulJornada: (pct, any) => api.get(`/v1/jornada/modul?pct=${encodeURIComponent(pct)}&any=${any}`),
+  // Historial del % de jornada d'una persona, trams de l'any i saldo mensual.
+  getJornadaUsuari: (userId, any) => api.get(`/v1/users/${userId}/jornada?any=${any}`),
+  addJornadaUsuari: (userId, canvi) => api.post(`/v1/users/${userId}/jornada`, canvi),
+  removeJornadaUsuari: (userId, id) => api.delete(`/v1/users/${userId}/jornada/${id}`),
 
   // ── Work Logs ──
   // mes (AAAA-MM) opcional: el mes sencer. Sense, els 500 últims (comportament de sempre).

@@ -698,6 +698,14 @@ Route::prefix('v1')->group(function () {
         Route::post('holidays', [HolidayController::class, 'store'])->middleware('role:admin,hr');
         Route::delete('holidays/{holiday}', [HolidayController::class, 'destroy'])->middleware('role:admin,hr');
 
+        // ── Jornada de contracte: màxim anual i mòdul diari d'un % (pestanya Jornada de la fitxa) ──
+        Route::get('jornada/modul', [\App\Http\Controllers\Api\JornadaController::class, 'modul'])->middleware('role:admin,hr');
+        Route::middleware('role:admin,hr')->group(function () {
+            Route::get('users/{user}/jornada', [\App\Http\Controllers\Api\JornadaController::class, 'show']);
+            Route::post('users/{user}/jornada', [\App\Http\Controllers\Api\JornadaController::class, 'store']);
+            Route::delete('users/{user}/jornada/{canvi}', [\App\Http\Controllers\Api\JornadaController::class, 'destroy']);
+        });
+
         // ── Bossa anual d'hores (1726 h prorratejades) ──
         Route::get('bossa-anual', [\App\Http\Controllers\Api\AnnualBagController::class, 'show']);
         Route::get('bossa-anual/tots', [\App\Http\Controllers\Api\AnnualBagController::class, 'index'])->middleware('role:admin,hr,coordinator');

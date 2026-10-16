@@ -32,6 +32,8 @@ class StoreUserRequest extends FormRequest
             'relacio' => 'nullable|in:laboral,autonom',
             'entitat' => 'nullable|in:CRIL,CRT,CRIL_CRT',
             'disponibilitat_setmanal' => 'nullable|numeric|min:0|max:99',
+            // % de retribució: només informatiu (la jornada va per l'historial de /users/{id}/jornada).
+            'retribucio_pct' => 'nullable|numeric|min:0|max:100',
             'work_schedule_id' => 'nullable|exists:work_schedules,id',
             'active' => 'boolean',
             'seniority_date' => 'nullable|date',
@@ -69,6 +71,9 @@ class StoreUserRequest extends FormRequest
             'email.max' => 'El correu electrònic no pot tenir més de :max caràcters.',
             'job_profile.max' => 'El lloc de treball no pot tenir més de :max caràcters.',
             'postal_code_assigned.max' => 'El codi postal no pot tenir més de :max caràcters.',
+            'retribucio_pct.numeric' => 'El percentatge de retribució ha de ser un número.',
+            'retribucio_pct.min' => 'El percentatge de retribució no pot ser negatiu.',
+            'retribucio_pct.max' => 'El percentatge de retribució no pot passar del 100%.',
         ];
     }
 }

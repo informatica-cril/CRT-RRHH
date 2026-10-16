@@ -326,6 +326,111 @@
         </div>
 
         <div v-show="pestanyaFitxa === 'jornada'">
+          <!-- % de jornada del CONTRACTE amb historial: mana la jornada màxima anual del conveni
+               (1726 h × %). Cada ampliació o reducció es guarda amb la seva data d'efecte. -->
+          <div class="fitxa-bloc">
+            <div class="form-label" style="margin-bottom:6px;">Percentatge de jornada del contracte</div>
+            <div v-if="!editingUser" class="text-small text-muted">Deseu primer la fitxa per posar-hi el % de jornada.</div>
+            <template v-else>
+              <div v-if="jornadaAny?.vigent" style="font-size:0.95rem;">
+                Vigent: <strong>{{ fmtPct(jornadaAny.vigent.pct) }}%</strong> des del {{ fmtData(jornadaAny.vigent.valid_from) }}
+              </div>
+              <div v-else-if="jornadaAny" class="text-small text-muted">
+                Sense % de contracte: es dedueix de l'horari ({{ pctHorari != null ? fmtPct(pctHorari) + '%' : 'sense horari' }}).
+              </div>
+              <div v-if="avisHorariPct" class="text-small" style="color:#92400e;margin-top:4px;">⚠️ {{ avisHorariPct }}</div>
+
+              <div v-if="modulJornada" class="modul-jornada">
+                <div class="modul-titol">{{ fmtPct(modulJornada.pct) }}% de jornada · {{ modulJornada.any }}<span v-if="nouPct" class="text-muted" style="font-weight:400;"> (previsualització del canvi)</span></div>
+                <div class="modul-graella">
+                  <div><span class="text-muted">Màxim anual</span><strong>{{ fmtMin(modulJornada.maxim_anual_min) }}</strong></div>
+                  <div><span class="text-muted">Mòdul diari</span><strong>{{ fmtMin(modulJornada.modul_diari_min) }}</strong></div>
+                  <div><span class="text-muted">Setmana de referència</span><strong>{{ fmtMin(modulJornada.setmana_referencia_min) }}</strong></div>
+                  <div><span class="text-muted">Minuts per repartir a l'any</span><strong>{{ modulJornada.resta_min }} min</strong></div>
+                </div>
+                <div class="text-small text-muted" style="margin-top:6px;">
+                  {{ modulJornada.jornada_anual_completa_h }} h (art. 31.2) × {{ fmtPct(modulJornada.pct) }}% ·
+                  {{ modulJornada.dies_laborables }} dies laborables ({{ modulJornada.festius_entre_setmana }} festius entre setmana)
+                  − {{ modulJornada.vacances_laborables }} de vacances = {{ modulJornada.moduls }} mòduls.
+                  Els minuts per repartir no són excés: falten per col·locar algun dia.
+                </div>
+                <div v-if="modulJornada.avis" class="text-small" style="color:#92400e;margin-top:4px;">⚠️ {{ modulJornada.avis }}</div>
+              </div>
+
+              <!-- Canvi de % amb data d'efecte -->
+              <div class="canvi-jornada">
+                <div class="text-small" style="font-weight:600;">Canviar el % (ampliació o reducció)</div>
+                <div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;margin-top:4px;">
+                  <label class="text-small">Nou %<br>
+                    <input class="form-input" type="number" min="1" max="100" step="0.5" list="pcts-jornada" v-model="nouPct" placeholder="p. ex. 75" style="width:100px;" :disabled="desantJornada" />
+                  </label>
+                  <datalist id="pcts-jornada"><option v-for="p in PCTS_JORNADA" :key="p" :value="p" /></datalist>
+                  <label class="text-small">Des del<br>
+                    <input class="form-input" type="date" v-model="nouDesDe" style="width:150px;" :disabled="desantJornada" />
+                  </label>
+                  <label class="text-small" style="flex:1;min-width:160px;">Motiu (opcional)<br>
+                    <input class="form-input" v-model="nouMotiu" maxlength="255" placeholder="p. ex. Ampliació de jornada" :disabled="desantJornada" />
+                  </label>
+                  <button type="button" class="btn btn-primary btn-sm" :disabled="desantJornada || !nouPct || !nouDesDe" @click="desaCanviJornada">
+                    {{ desantJornada ? 'Desant…' : 'Desa el canvi' }}
+                  </button>
+                </div>
+                <div class="text-small text-muted" style="margin-top:4px;">Es guarda a l'historial: l'any es calcula a trams amb cada %.</div>
+                <div v-if="modulError" class="text-small error-camp">{{ modulError }}</div>
+              </div>
+
+              <!-- Historial -->
+              <div v-if="jornadaAny?.historial?.length" style="margin-top:10px;">
+                <div class="text-small" style="font-weight:600;">Historial</div>
+                <table class="taula-jornada">
+                  <tr v-for="h in [...jornadaAny.historial].reverse()" :key="h.id">
+                    <td><strong>{{ fmtPct(h.pct) }}%</strong></td>
+                    <td>des del {{ fmtData(h.valid_from) }}<span v-if="h.futur" class="text-muted"> (pendent)</span></td>
+                    <td class="text-muted">{{ h.motiu || '' }}</td>
+                    <td class="text-muted">{{ h.autor || '' }}</td>
+                    <td><button type="button" class="icon-btn" title="Treure aquest canvi (entrat per error)" @click="esborraCanviJornada(h)">✕</button></td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- L'any a trams i el saldo de cada mes -->
+              <div v-if="jornadaAny?.trams?.length" style="margin-top:12px;">
+                <div class="text-small" style="font-weight:600;">Any {{ jornadaAny.any }}: màxim {{ fmtMin(jornadaAny.maxim_anual_min) }}</div>
+                <div v-if="jornadaAny.trams.length > 1" class="text-small text-muted">
+                  <span v-for="(t, i) in jornadaAny.trams" :key="i">{{ i ? ' · ' : '' }}{{ fmtPct(t.pct) }}% del {{ fmtData(t.des) }} al {{ fmtData(t.fins) }} ({{ fmtMin(t.maxim_min) }})</span>
+                </div>
+                <table class="taula-jornada" style="margin-top:6px;">
+                  <thead><tr><th>Mes</th><th>Tocava</th><th>Fet (ordinari)</th><th>Diferència</th><th>Acumulat</th><th>Complem.</th><th>Extres</th></tr></thead>
+                  <tbody>
+                    <tr v-for="m in jornadaAny.mesos" :key="m.mes">
+                      <td>{{ NOMS_MES[m.mes - 1] }}</td>
+                      <td>{{ fmtMinCurt(m.esperat_min) }}</td>
+                      <td>{{ fmtMinCurt(m.ordinari_min) }}<span v-if="m.pendents_validar_min" class="text-muted" title="Inclou fitxatges pendents de validar"> *</span></td>
+                      <td :class="classeSaldo(m.diferencia_min)">{{ m.diferencia_min == null ? '' : fmtSaldo(m.diferencia_min) }}</td>
+                      <td :class="classeSaldo(m.acumulat_min)">{{ m.acumulat_min == null ? '' : fmtSaldo(m.acumulat_min) }}</td>
+                      <td>{{ m.complementaries_min ? fmtMinCurt(m.complementaries_min) : '' }}</td>
+                      <td>{{ m.extres_min ? fmtMinCurt(m.extres_min) : '' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="text-small text-muted" style="margin-top:4px;">
+                  «Tocava» = mòdul diari × dies laborables sense absències aprovades, fins avui. La diferència s'acumula: el còmput és a final d'any.
+                  Complementàries i extres autoritzades van a part. * inclou fitxatges pendents de validar.
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">% de retribució (només informatiu)</label>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input class="form-input" type="number" min="0" max="100" step="0.01" v-model="form.retribucio_pct" placeholder="p. ex. 81,25" style="width:110px;"
+                     :class="{ 'camp-error': errorsCamp.retribucio_pct }" :disabled="isSaving" />
+              <span style="font-weight:700;">%</span>
+            </div>
+            <small style="color:#6b7280;">No afecta la jornada ni cap càlcul d'hores. Es desa amb la fitxa.</small>
+            <div v-if="errorsCamp.retribucio_pct" class="text-small error-camp">{{ errorsCamp.retribucio_pct }}</div>
+          </div>
           <div class="form-group">
             <label class="form-label" style="display:flex;align-items:center;gap:8px;">
               <input type="checkbox" v-model="form.pacte_complementaries" :disabled="isSaving" />
@@ -598,13 +703,13 @@
           <input v-if="d.active" class="form-input" type="time" v-model="d.end" style="width:115px;" />
           <span v-if="d.active" class="text-small text-muted">{{ formatHM(calcHours(d)) }}</span>
           <span v-else class="text-small text-muted">Descans</span>
-          <button v-if="d.active && !isExtraTramo(index)" type="button" class="btn btn-outline btn-sm" title="Afegir un segon tram (jornada partida)" @click="addTramo(index)">+ tram</button>
+          <button v-if="d.active" type="button" class="btn btn-outline btn-sm" title="Afegir un altre tram a aquest dia (jornada partida)" @click="addTramo(index)">+ tram</button>
           <button v-if="isExtraTramo(index)" type="button" class="btn btn-outline btn-sm" style="color:var(--color-danger);" title="Treure aquest tram" @click="removeTramo(index)">✕</button>
         </div>
 
         <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
           <span class="text-small"><strong>Total setmanal:</strong> {{ formatHM(totalWeeklyHours) }}</span>
-          <span class="text-small text-muted">Anual estimat: {{ (totalWeeklyHours * 46.5).toFixed(0) }}h</span>
+          <span class="text-small text-muted">Anual estimat: {{ (totalWeeklyHours / 37.5 * 1726).toFixed(0) }}h</span>
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline" @click="showScheduleModal = false">{{ t('cancel') }}</button>
@@ -931,6 +1036,59 @@ const esJornadaCompleta = computed(() => {
   const sch = schedules.value.find(s => s.id === form.work_schedule_id)
   return !!sch && Number(sch.total_hours_weekly) >= 37.5 - 0.01
 })
+// ── % de jornada del contracte (historial, trams i saldo mensual; ho calcula el servidor) ──
+const PCTS_JORNADA = Array.from({ length: 21 }, (_, i) => 50 + i * 2.5)
+const NOMS_MES = ['Gener', 'Febrer', 'Març', 'Abril', 'Maig', 'Juny', 'Juliol', 'Agost', 'Setembre', 'Octubre', 'Novembre', 'Desembre']
+const jornadaAny = ref(null), modulPrevi = ref(null), modulError = ref('')
+const nouPct = ref(''), nouDesDe = ref(''), nouMotiu = ref(''), desantJornada = ref(false)
+// El recuadre ensenya el % que s'està escrivint; si no, el vigent.
+const modulJornada = computed(() => (nouPct.value ? modulPrevi.value : null) || jornadaAny.value?.modul || null)
+const fmtPct = (p) => Number(p).toLocaleString('ca-ES', { maximumFractionDigits: 2 })
+const fmtMin = (m) => `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')} min`
+const fmtMinCurt = (m) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`
+const fmtSaldo = (m) => (m > 0 ? '+' : m < 0 ? '−' : '') + fmtMinCurt(Math.abs(m))
+const classeSaldo = (m) => (m == null || m === 0 ? '' : m > 0 ? 'saldo-mes' : 'saldo-menys')
+const fmtData = (d) => (d ? d.split('-').reverse().join('/') : '')
+const avuiMadrid = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Madrid' })
+// El % que es dedueix de l'horari assignat (hores setmanals ÷ 37,5), com fins ara.
+const pctHorari = computed(() => {
+  const sch = schedules.value.find(s => s.id === form.work_schedule_id)
+  return sch ? Math.round(Number(sch.total_hours_weekly) / 37.5 * 1000) / 10 : null
+})
+const avisHorariPct = computed(() => {
+  const pct = jornadaAny.value?.vigent?.pct
+  if (pct == null || pctHorari.value == null || Math.abs(pctHorari.value - pct) < 1) return ''
+  return `L'horari assignat equival al ${fmtPct(pctHorari.value)}% i el contracte és del ${fmtPct(pct)}%. Reviseu l'horari.`
+})
+async function carregaJornadaAny(userId) {
+  jornadaAny.value = null
+  try { jornadaAny.value = await db.getJornadaUsuari(userId, new Date().getFullYear()) } catch (e) { /* sense dades, es queda buit */ }
+}
+async function desaCanviJornada() {
+  modulError.value = ''
+  desantJornada.value = true
+  try {
+    await db.addJornadaUsuari(editingUser.value.id, { pct: Number(nouPct.value), valid_from: nouDesDe.value, motiu: nouMotiu.value || null })
+    auditLog(authStore.userId, 'JORNADA_CONTRACTE', 'user', editingUser.value.id, `Jornada ${nouPct.value}% des del ${nouDesDe.value}`)
+    nouPct.value = ''; nouMotiu.value = ''; nouDesDe.value = avuiMadrid()
+    await carregaJornadaAny(editingUser.value.id)
+    avisa('Canvi de jornada desat.', 'ok')
+  } catch (e) {
+    modulError.value = `No s'ha desat el canvi de jornada: ${e?.message || 'error del servidor.'}`
+    avisa(modulError.value, 'error')
+  } finally {
+    desantJornada.value = false
+  }
+}
+async function esborraCanviJornada(h) {
+  if (!(await confirma(`Treure el canvi al ${fmtPct(h.pct)}% des del ${fmtData(h.valid_from)}? Feu-ho només si es va entrar per error.`))) return
+  try {
+    await db.removeJornadaUsuari(editingUser.value.id, h.id)
+    await carregaJornadaAny(editingUser.value.id)
+  } catch (e) {
+    avisa(`No s'ha pogut treure el canvi: ${e?.message || 'error del servidor.'}`, 'error')
+  }
+}
 async function carregaJornadaTope(userId){
   try {
     const r = await api.get(`/v1/pacte-complementaries/info/${userId}`)
@@ -1235,7 +1393,25 @@ const DESC_ROL = {
   hr: 'Gestiona la plantilla: fitxes, horaris, zones, fitxatges i permisos.',
   admin: "Control total de l'aplicació, també la configuració i qui és Superior.",
 }
-const form = reactive({ role: 'worker', entitat: 'CRT', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: '', specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
+const form = reactive({ retribucio_pct: '', role: 'worker', entitat: 'CRIL', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: '', specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
+// Previsualitza el mòdul del % que s'està escrivint.
+let tempsModul = null
+watch(nouPct, (pct) => {
+  clearTimeout(tempsModul)
+  modulError.value = ''
+  const n = Number(pct)
+  if (pct === '' || pct == null || !(n >= 1 && n <= 100)) { modulPrevi.value = null; return }
+  tempsModul = setTimeout(async () => {
+    try {
+      const r = await db.getModulJornada(n, new Date().getFullYear())
+      if (Number(nouPct.value) === n) modulPrevi.value = r
+    } catch (e) {
+      modulPrevi.value = null
+      modulError.value = e?.message ? `No s'ha pogut calcular la jornada: ${e.message}` : "No s'ha pogut calcular la jornada."
+    }
+  }, 300)
+})
+
 const scheduleForm = reactive({ id: 1, days: [] })
 const isNewSchedule = ref(false)
 const newScheduleName = ref('')
@@ -1358,7 +1534,7 @@ const NOMS_CAMP = {
   name: 'Nom', email: 'Correu electrònic', dni: 'DNI / NIE', device_phone: 'Telèfon corporatiu',
   seniority_date: "Data d'alta", entitat: 'Entitat', work_type: 'Àmbit', job_profile: 'Lloc de treball',
   work_schedule_id: 'Horari', role: 'Rol', postal_code_assigned: 'Codi postal', specialties: 'Especialitats',
-  relacio: 'Relació', disponibilitat_setmanal: 'Disponibilitat setmanal', pacte_complementaries: 'Pacte de complementàries',
+  retribucio_pct: '% de retribució', relacio: 'Relació', disponibilitat_setmanal: 'Disponibilitat setmanal', pacte_complementaries: 'Pacte de complementàries',
 }
 const nomCamp = (camp) => NOMS_CAMP[camp] || NOMS_CAMP[camp.split('.')[0]] || camp
 function netejaErrorsDesar() {
@@ -1392,11 +1568,14 @@ async function openEditModal(user) {
   estatActiu.value = user ? user.active !== false && user.active !== 0 : true
   pestanyaFitxa.value = 'dades'
   if (user) carregaPractiques(user.id)
+  nouPct.value = ''; nouMotiu.value = ''; nouDesDe.value = avuiMadrid(); modulError.value = ''
+  jornadaAny.value = null
+  if (user) carregaJornadaAny(user.id)
   if (user) {
     // L'API serialitza la data en UTC (2020-03-01 surt com 2020-02-29T23:00:00Z): tallar per la T
     // mostrava i desava el dia anterior. Es llegeix en hora de Madrid.
     const sDate = user.seniority_date ? new Date(user.seniority_date).toLocaleDateString('en-CA', { timeZone: 'Europe/Madrid' }) : ''
-    Object.assign(form, { role: user.role || 'worker', entitat: user.entitat || 'CRT', name: user.name, email: user.email, dni: user.dni || '', device_phone: user.device_phone || '', pacte_complementaries: !!user.pacte_complementaries,  work_type: user.work_type || 'DOMICILIARIA', job_profile: user.job_profile || 'Fisioterapeuta', postal_code_assigned: user.postal_code_assigned, work_schedule_id: user.work_schedule_id, seniority_date: sDate, specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
+    Object.assign(form, { retribucio_pct: '', role: user.role || 'worker', entitat: user.entitat || 'CRT', name: user.name, email: user.email, dni: user.dni || '', device_phone: user.device_phone || '', pacte_complementaries: !!user.pacte_complementaries,  work_type: user.work_type || 'DOMICILIARIA', job_profile: user.job_profile || 'Fisioterapeuta', postal_code_assigned: user.postal_code_assigned, work_schedule_id: user.work_schedule_id, seniority_date: sDate, specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
     ratioActual.value = Number(user.complementary_ratio ?? 0.30)
     ratioPct.value = Math.round(ratioActual.value * 100)
     ratioPendent.value = user.complementary_ratio_pending != null ? Number(user.complementary_ratio_pending) : null
@@ -1414,11 +1593,12 @@ async function openEditModal(user) {
         form.domi_provisioned_at = full.domi_provisioned_at || null
         // La llista no porta l'entitat: sense això, desar una fitxa CRT o CRIL_CRT la tornava a CRIL.
         if (full.entitat) form.entitat = full.entitat
+        form.retribucio_pct = full.retribucio_pct != null ? Number(full.retribucio_pct) : ''
         form.lots = (full.lots || []).map(l => l.code)
         form.departments = (full.departments || []).map(d => d.code)
       } catch (e) { /* es queda buit */ }
   } else {
-    Object.assign(form, { role: 'worker', entitat: 'CRT', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: new Date().toISOString().split('T')[0], specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
+    Object.assign(form, { retribucio_pct: '', role: 'worker', entitat: 'CRIL', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: new Date().toISOString().split('T')[0], specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
     showEditModal.value = true
   }
 }
@@ -1456,7 +1636,7 @@ async function openScheduleModal(user) {
   // Sense horari assignat no es demana /work-schedules/null (404 i el modal no s'obria).
   const sched = (user.work_schedule_id ? await db.getWorkSchedule(user.work_schedule_id).catch(() => null) : null) || schedules.value[0]
   scheduleForm.id = sched.id
-  scheduleForm.days = JSON.parse(JSON.stringify(sched.days))
+  scheduleForm.days = senseTramsBuits(JSON.parse(JSON.stringify(sched.days)))
   showScheduleModal.value = true
 }
 
@@ -1468,13 +1648,29 @@ function startNewSchedule() {
 
 async function loadScheduleTemplate() {
   const sched = await db.getWorkSchedule(scheduleForm.id)
-  if (sched) scheduleForm.days = JSON.parse(JSON.stringify(sched.days))
+  if (sched) scheduleForm.days = senseTramsBuits(JSON.parse(JSON.stringify(sched.days)))
 }
 
 function calcHours(d) {
   if (!d.start || !d.end) return 0
   const [sh, sm] = d.start.split(':').map(Number); const [eh, em] = d.end.split(':').map(Number)
-  return ((eh * 60 + em - sh * 60 - sm) / 60).toFixed(1)
+  return (eh * 60 + em - sh * 60 - sm) / 60
+}
+
+// Els trams extra van amb el dia: si el dia és de descans, tampoc compten.
+function diaActiu(day) {
+  const primer = scheduleForm.days.find(x => x.day === day)
+  return !!primer?.active
+}
+// El que es desa: trams extra buits fora i, si el dia és de descans, els seus trams també.
+function diesPerDesar() {
+  return scheduleForm.days
+    .filter((d, i) => !(isExtraTramo(i) && !d.start && !d.end))
+    .map((d, i, arr) => (arr.slice(0, i).some(x => x.day === d.day) ? { ...d, active: diaActiu(d.day) && !!d.start && !!d.end } : d))
+}
+// En carregar una plantilla, els trams extra buits que s'hagin desat no es poden omplir (surten com a descans): fora.
+function senseTramsBuits(days) {
+  return days.filter((d, i) => !(days.slice(0, i).some(x => x.day === d.day) && !d.start && !d.end))
 }
 
 // ── Jornades partides: diversos trams (entrades) amb el mateix `day` ──
@@ -1507,7 +1703,7 @@ function applyBulkSchedule(dayNumbers) {
   }
 }
 
-const totalWeeklyHours = computed(() => scheduleForm.days.filter(d => d.active).reduce((s, d) => s + parseFloat(calcHours(d)), 0).toFixed(1))
+const totalWeeklyHours = computed(() => scheduleForm.days.filter(d => d.active && diaActiu(d.day)).reduce((s, d) => s + calcHours(d), 0).toFixed(2))
 
 // Altres persones actives amb la plantilla triada (sense comptar la de la fitxa).
 const altresAmbPlantilla = computed(() => workers.value.filter(w => w.active && w.id !== scheduleUser.value?.id
@@ -1525,24 +1721,24 @@ async function saveSchedule() {
       const created = await db.addWorkSchedule({
         name: newScheduleName.value.trim(),
         total_hours_weekly: parseFloat(totalWeeklyHours.value),
-        days: scheduleForm.days
+        days: diesPerDesar()
       })
       scheduleId = created.id
       auditLog(authStore.userId, 'CREATE_SCHEDULE', 'work_schedule', created.id, `Nova plantilla "${created.name}" creada per ${scheduleUser.value.name}`)
     } else {
       const originalSched = await db.getWorkSchedule(scheduleForm.id)
-      const canviat = JSON.stringify(originalSched?.days || []) !== JSON.stringify(scheduleForm.days)
+      const canviat = JSON.stringify(originalSched?.days || []) !== JSON.stringify(diesPerDesar())
       if (canviat && altresAmbPlantilla.value > 0) {
         // Plantilla compartida: abans es reescrivia i canviava l'horari de tothom qui la tenia.
         const created = await db.addWorkSchedule({
           name: `${originalSched.name} · ${scheduleUser.value.name}`.slice(0, 250),
           total_hours_weekly: parseFloat(totalWeeklyHours.value),
-          days: scheduleForm.days
+          days: diesPerDesar()
         })
         scheduleId = created.id
         auditLog(authStore.userId, 'CREATE_SCHEDULE', 'work_schedule', created.id, `Plantilla pròpia "${created.name}" (la compartida no es toca)`)
       } else if (canviat) {
-        const sched = { ...originalSched, days: scheduleForm.days, total_hours_weekly: parseFloat(totalWeeklyHours.value) }
+        const sched = { ...originalSched, days: diesPerDesar(), total_hours_weekly: parseFloat(totalWeeklyHours.value) }
         const rSched = await db.updateWorkSchedule(sched)
         recalculats += rSched?.trams_recalculats || 0
         auditLog(authStore.userId, 'UPDATE_SCHEDULE', 'work_schedule', scheduleForm.id, `Horari actualitzat per ${scheduleUser.value.name}`)
@@ -1853,6 +2049,16 @@ async function saveMuniAssignment() {
 .error-desar { margin: 12px 0 0; padding: 10px 12px; border: 1px solid #fecdd3; border-radius: 8px; background: #fff1f2; color: #be123c; font-size: 0.85rem; }
 .error-desar ul { margin: 6px 0 0; padding-left: 18px; }
 .error-camp { color: #be123c; margin-top: 4px; }
+.modul-jornada { margin: 4px 0 14px; padding: 10px 12px; border: 1px solid var(--color-border-light, #e5e7eb); border-radius: 8px; background: var(--color-bg, #f8fafc); }
+.modul-titol { font-weight: 700; margin-bottom: 8px; }
+.modul-graella { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.modul-graella > div { display: flex; flex-direction: column; font-size: 0.85rem; }
+.modul-graella strong { font-size: 1rem; }
+.canvi-jornada { margin-top: 8px; padding: 8px 10px; border: 1px dashed var(--color-border-light, #e5e7eb); border-radius: 8px; }
+.taula-jornada { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.taula-jornada th, .taula-jornada td { padding: 3px 6px; border-bottom: 1px solid var(--color-border-light, #e5e7eb); text-align: left; white-space: nowrap; }
+.saldo-mes { color: #065f46; font-weight: 600; }
+.saldo-menys { color: #be123c; font-weight: 600; }
 .camp-error { border-color: #be123c !important; }
 .eines { position: relative; }
 .eines-fletxa { display: inline-block; margin-left: 4px; transition: transform 0.15s; }
