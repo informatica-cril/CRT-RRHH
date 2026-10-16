@@ -36,6 +36,11 @@ class AbsenceController extends Controller
             'extends_with_travel' => 'boolean',
             'extra_days_travel' => 'nullable|integer',
             'category' => 'string',
+            'codi_rrhh' => 'nullable|string|max:100',
+            'quantitat' => 'nullable|numeric|min:0',
+            'unitat' => 'nullable|in:dies,hores,setmanes,temps_necessari',
+            'periode' => 'nullable|in:fet,any,mes',
+            'notes' => 'nullable|string|max:255',
         ]);
 
         return response()->json(AbsenceType::create($data), 201);
@@ -55,6 +60,11 @@ class AbsenceController extends Controller
             'extends_with_travel' => 'sometimes|boolean',
             'extra_days_travel' => 'sometimes|nullable|integer',
             'category' => 'sometimes|string',
+            'codi_rrhh' => 'sometimes|nullable|string|max:100',
+            'quantitat' => 'sometimes|nullable|numeric|min:0',
+            'unitat' => 'sometimes|nullable|in:dies,hores,setmanes,temps_necessari',
+            'periode' => 'sometimes|nullable|in:fet,any,mes',
+            'notes' => 'sometimes|nullable|string|max:255',
         ]);
         $absenceType->update($data);
         return response()->json($absenceType->fresh());
@@ -85,7 +95,15 @@ class AbsenceController extends Controller
             'end_date' => 'required|date|after_or_equal:start_date',
             'reason' => 'nullable|string',
             'with_travel' => 'boolean',
+            // Permís d'unes hores (metge de 9 a 10): el saldo de jornada només en descompta aquests minuts.
+            'hora_inici' => 'nullable|date_format:H:i|required_with:hora_fi',
+            'hora_fi' => 'nullable|date_format:H:i|required_with:hora_inici|after:hora_inici',
+        ], [
+            'hora_fi.after' => "L'hora de fi ha de ser després de la d'inici.",
+            'hora_inici.required_with' => "Cal l'hora d'inici i la de fi.",
+            'hora_fi.required_with' => "Cal l'hora d'inici i la de fi.",
         ]);
+        $data['minuts'] = self::minutsEntre($data['hora_inici'] ?? null, $data['hora_fi'] ?? null);
 
         // AUTORITZACIÓ: un worker només pot demanar absència per a SI MATEIX;
         // el personal de gestió pot fer-ho per a qualsevol. L'aprovació (update)
@@ -125,6 +143,16 @@ class AbsenceController extends Controller
         return response()->json(Absence::create($data), 201);
     }
 
+    /** Minuts entre dues hores «HH:MM» (null si no n'hi ha). */
+    private static function minutsEntre(?string $ini, ?string $fi): ?int
+    {
+        if (! $ini || ! $fi) return null;
+        [$h1, $m1] = array_map('intval', explode(':', $ini));
+        [$h2, $m2] = array_map('intval', explode(':', $fi));
+
+        return max(0, ($h2 * 60 + $m2) - ($h1 * 60 + $m1)) ?: null;
+    }
+
     public function bulkStore(Request $request)
     {
         $request->validate(['absences' => 'required|array']);
@@ -139,7 +167,7 @@ class AbsenceController extends Controller
     {
         return response()->json(
             Absence::where('user_id', $userId)
-                    ->with('absenceType:id,name')
+                    ->with('absenceType:id,name,unitat')
                     ->orderBy('start_date', 'desc')
                     ->get()
         );
@@ -156,6 +184,15 @@ class AbsenceController extends Controller
     public function update(Request $request, Absence $absence)
     {
         $data = $request->only(['start_date', 'end_date', 'reason', 'with_travel']);
+        if ($request->hasAny(['hora_inici', 'hora_fi'])) {
+            $hores = $request->validate([
+                'hora_inici' => 'nullable|date_format:H:i|required_with:hora_fi',
+                'hora_fi' => 'nullable|date_format:H:i|required_with:hora_inici|after:hora_inici',
+            ], ['hora_fi.after' => "L'hora de fi ha de ser després de la d'inici."]);
+            $data['hora_inici'] = $hores['hora_inici'] ?? null;
+            $data['hora_fi'] = $hores['hora_fi'] ?? null;
+            $data['minuts'] = self::minutsEntre($data['hora_inici'], $data['hora_fi']);
+        }
 
         if ($request->has('approved') && $request->input('approved') !== null) {
             $aprovada = filter_var($request->input('approved'), FILTER_VALIDATE_BOOLEAN);

@@ -24,6 +24,7 @@ const GESTIO = [
   { nom: 'Compliment', ruta: '/compliance', icona: '✅', claus: 'cumplimiento politiques acusaments', pot: a => a.canManageStaff },
   { nom: 'Comunicació certificada', ruta: '/comunicacio-certificada', icona: '✉️', claus: 'burofax comunicacion certificada', pot: a => a.canManageStaff },
   { nom: 'Millores', ruta: '/millores', icona: '💡', claus: 'mejoras suggeriments', pot: a => a.canManageStaff },
+  { nom: "Importar l'Excel de RRHH", ruta: '/absences/importa', icona: '📥', claus: 'importar excel vacances permisos baixes absencies', pot: a => a.canManageStaff },
   { nom: 'Configuració de permisos', ruta: '/permisos-config', icona: '⚙️', claus: 'tipus absencia permisos configuracion', pot: a => a.canManageStaff },
   { nom: 'Pausa obligatòria', ruta: '/break-settings', icona: '☕', claus: 'pausa descans descanso', pot: a => a.isAdmin },
   { nom: 'Segon factor', ruta: '/seguretat/segon-factor', icona: '🔐', claus: '2fa seguretat seguridad doble factor', pot: a => a.isAdmin },

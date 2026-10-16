@@ -112,8 +112,8 @@ final class ModulJornada
                 $acc[$i][$m] = $buit();
             }
             foreach ($diesTram as $d) {
-                if ($d > $avui || isset($absents[$d])) continue;
-                $acc[$i][(int) substr($d, 5, 2)]['esperat'] += $trams[$i]['modul_diari_min'];
+                if ($d > $avui || ($absents[$d] ?? null) === true) continue;
+                $acc[$i][(int) substr($d, 5, 2)]['esperat'] += max(0, $trams[$i]['modul_diari_min'] - (int) ($absents[$d] ?? 0));
             }
         }
 
@@ -245,15 +245,27 @@ final class ModulJornada
             ->count();
     }
 
-    /** Dies amb una absència aprovada (vacances, permisos, baixes): no se'ls espera jornada. */
+    /**
+     * Dies amb una absència aprovada (vacances, permisos, baixes): no se'ls espera jornada.
+     * Un permís d'unes hores (metge de 9 a 10) només en treu aquests minuts: [dia => minuts].
+     * Els permisos que es RECUPEREN (assumptes propis en hores, adaptació horària, exàmens…)
+     * no treuen res: aquelles hores s'han de fer igualment.
+     */
     private static function diesAmbAbsencia(int $userId, int $any): array
     {
         $dies = [];
-        Absence::where('user_id', $userId)->where('approved', true)
+        Absence::with('absenceType:id,recoverable')->where('user_id', $userId)->where('approved', true)
             ->whereDate('start_date', '<=', "{$any}-12-31")->whereDate('end_date', '>=', "{$any}-01-01")
             ->get()->each(function ($a) use (&$dies, $any) {
+                if ($a->absenceType?->recoverable) return;
                 for ($d = $a->start_date->copy(); $d->lte($a->end_date); $d->addDay()) {
-                    if ($d->year === $any) $dies[$d->toDateString()] = true;
+                    if ($d->year !== $any) continue;
+                    $k = $d->toDateString();
+                    if ($a->minuts !== null && $a->minuts > 0 && $a->minuts < 1440) {
+                        if (($dies[$k] ?? 0) !== true) $dies[$k] = ($dies[$k] ?? 0) + (int) $a->minuts;
+                    } else {
+                        $dies[$k] = true;
+                    }
                 }
             });
 

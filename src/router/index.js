@@ -140,6 +140,13 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true, blockHr: true }
   },
   {
+    // Bolcat de l'Excel de RRHH (vacances, permisos, baixes, hores sindicals). Admin i RRHH.
+    path: '/absences/importa',
+    name: 'absences-importa',
+    component: () => import('../views/ImportaAbsenciesView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
     path: '/permisos-config',
     name: 'permisos-config',
     component: () => import('../views/PermisosConfigView.vue'),

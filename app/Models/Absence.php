@@ -10,6 +10,10 @@ class Absence extends Model
         'user_id', 'absence_type_id', 'start_date', 'end_date',
         'reason', 'approved', 'approved_by', 'approved_at', 'denial_reason', 'with_travel',
         'justificant_path', 'justificant_name', 'justificant_uploaded_at',
+        // Permís d'unes hores (metge de 9 a 10): el saldo de jornada només en descompta aquests minuts.
+        'hora_inici', 'hora_fi', 'minuts',
+        // D'on ve (excel_rrhh) i la clau per no duplicar-la si es torna a importar.
+        'origen', 'origen_ref',
     ];
 
     protected $casts = [

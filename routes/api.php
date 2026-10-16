@@ -334,6 +334,9 @@ Route::prefix('v1')->group(function () {
             // controlador comprova la propietat). Fitxer a disc PRIVAT: és dada de salut.
             Route::post('{absence}/justificant', [AbsenceController::class, 'pujaJustificant']);
             Route::get('{absence}/justificant', [AbsenceController::class, 'baixaJustificant']);
+            // Bolcat de l'Excel de RRHH (vacances, permisos, baixes, hores sindicals): previsualitzar i aplicar.
+            Route::post('importa-excel/previsualitza', [\App\Http\Controllers\Api\ImportaAbsenciesController::class, 'previsualitza'])->middleware('role:admin,hr');
+            Route::post('importa-excel/aplica', [\App\Http\Controllers\Api\ImportaAbsenciesController::class, 'aplica'])->middleware('role:admin,hr');
         });
 
         // ── Auth Codes ── (hores complementàries: gestió; 'use' el fa el treballador)

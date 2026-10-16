@@ -5,6 +5,7 @@
         <h1 class="page-title">{{ t('absences') }}</h1>
       </div>
       <div class="page-actions">
+        <router-link v-if="authStore.canManageStaff" to="/absences/importa" class="btn btn-outline">📥 Importar l'Excel de RRHH</router-link>
         <button class="btn btn-primary" @click="showCreateModal = true">+ {{ t('absence_request') }}</button>
       </div>
     </div>
@@ -29,7 +30,7 @@
             <tr v-for="absence in filteredAbsences" :key="absence.id">
               <td v-if="authStore.isStaff">{{ getUserName(absence.user_id) }}</td>
               <td>{{ getAbsenceTypeName(absence.absence_type_id) }}</td>
-              <td>{{ formatDate(absence.start_date) }}</td>
+              <td>{{ formatDate(absence.start_date) }}<div v-if="absence.hora_inici" class="text-small text-muted">{{ hhmm(absence.hora_inici) }}–{{ hhmm(absence.hora_fi) }}</div></td>
               <td>{{ formatDate(absence.end_date) }}</td>
               <td>{{ absence.reason || '—' }}</td>
               <td>
@@ -80,8 +81,7 @@
           <label class="form-label">{{ t('absence_type') }}</label>
           <select class="form-select" v-model="newAbsence.absence_type_id">
             <option v-for="at in absenceTypes" :key="at.id" :value="at.id">
-              {{ at.name }}
-              <span v-if="at.recoverable"> ({{ t('recoverable') }})</span>
+              {{ at.name }}{{ quotaText(at) }}{{ at.recoverable ? ` (${t('recoverable')})` : '' }}
             </option>
           </select>
         </div>
@@ -93,6 +93,17 @@
           <div class="form-group">
             <label class="form-label">{{ t('end_date') }}</label>
             <input class="form-input" type="date" v-model="newAbsence.end_date" />
+          </div>
+        </div>
+        <!-- Permís en hores (metge, assumptes propis en hores…): opcional, d'una hora a l'altra -->
+        <div v-if="selectedType?.unitat === 'hores' || selectedType?.unitat === 'temps_necessari'" class="form-date-row">
+          <div class="form-group">
+            <label class="form-label">Des de les (opcional)</label>
+            <input class="form-input" type="time" v-model="newAbsence.hora_inici" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fins a les</label>
+            <input class="form-input" type="time" v-model="newAbsence.hora_fi" />
           </div>
         </div>
         <!-- Vacances: dies naturals del tram + saldo anual (tope 30) -->
@@ -156,7 +167,9 @@ const newAbsence = reactive({
   absence_type_id: 1,
   start_date: '',
   end_date: '',
-  reason: ''
+  reason: '',
+  hora_inici: '',
+  hora_fi: ''
 })
 const createError = ref('')
 const vacationBalance = ref(null)
@@ -222,16 +235,18 @@ async function createAbsence() {
       start_date: newAbsence.start_date,
       end_date: newAbsence.end_date,
       reason: newAbsence.reason,
+      hora_inici: newAbsence.hora_inici || null,
+      hora_fi: newAbsence.hora_fi || null,
       approved: null
     })
     auditLog(authStore.userId, 'CREATE_ABSENCE', 'absence', null, `Sol·licitud d'absència`)
     await fetchData()
     showCreateModal.value = false
-    Object.assign(newAbsence, { absence_type_id: 1, start_date: '', end_date: '', reason: '' })
+    Object.assign(newAbsence, { absence_type_id: 1, start_date: '', end_date: '', reason: '', hora_inici: '', hora_fi: '' })
   } catch (e) {
     console.error(e)
     // El backend retorna 422 amb el detall del tope; l'api client ho embolica a e.errors
-    createError.value = e?.errors?.end_date?.[0] || e?.errors?.message || e?.message || 'Error al enviar la sol·licitud.'
+    createError.value = e?.errors?.end_date?.[0] || e?.errors?.hora_fi?.[0] || e?.errors?.hora_inici?.[0] || e?.errors?.message || e?.message || 'Error al enviar la sol·licitud.'
   }
 }
 
@@ -277,6 +292,16 @@ async function baixaJustificant(absence) {
   } catch (e) { alert(e?.message || 'No s\'ha pogut baixar el justificant.') }
 }
 
+// «(3 dies/any)», «(24 h/any)», «(15 h/mes)»: el que diu la fulla CONCEPTOS de RRHH.
+const UNITATS = { dies: 'dies', hores: 'h', setmanes: 'setmanes' }
+const PERIODES = { any: '/any', mes: '/mes', fet: '' }
+function quotaText(at) {
+  if (at.unitat === 'temps_necessari') return ' (temps necessari)'
+  if (at.quantitat == null || !UNITATS[at.unitat]) return ''
+  const q = Number(at.quantitat).toLocaleString('ca-ES', { maximumFractionDigits: 2 })
+  return ` (${q} ${UNITATS[at.unitat]}${PERIODES[at.periode] || ''})`
+}
+const hhmm = (h) => (h ? String(h).slice(0, 5) : '')
 function getUserName(id) { return users.value.find(u => u.id === id)?.name || '—' }
 function getAbsenceTypeName(id) { return absenceTypes.value.find(a => a.id === id)?.name || '—' }
 function formatDate(d) { return new Date(d).toLocaleDateString('ca-ES', { day: '2-digit', month: 'short', year: 'numeric' }) }
