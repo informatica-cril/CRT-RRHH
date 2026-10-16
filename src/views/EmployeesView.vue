@@ -608,8 +608,8 @@
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline" @click="showScheduleModal = false">{{ t('cancel') }}</button>
-          <button class="btn btn-primary" @click="saveSchedule">
-            {{ isNewSchedule ? 'Crear i assignar' : t('save') + ' horari' }}
+          <button class="btn btn-primary" @click="saveSchedule" :disabled="desantHorari">
+            {{ desantHorari ? 'Desant…' : (isNewSchedule ? 'Crear i assignar' : t('save') + ' horari') }}
           </button>
         </div>
       </div>
@@ -1453,7 +1453,8 @@ async function openScheduleModal(user) {
   scheduleUser.value = user
   isNewSchedule.value = false
   newScheduleName.value = ''
-  const sched = await db.getWorkSchedule(user.work_schedule_id) || schedules.value[0]
+  // Sense horari assignat no es demana /work-schedules/null (404 i el modal no s'obria).
+  const sched = (user.work_schedule_id ? await db.getWorkSchedule(user.work_schedule_id).catch(() => null) : null) || schedules.value[0]
   scheduleForm.id = sched.id
   scheduleForm.days = JSON.parse(JSON.stringify(sched.days))
   showScheduleModal.value = true
@@ -1512,7 +1513,10 @@ const totalWeeklyHours = computed(() => scheduleForm.days.filter(d => d.active).
 const altresAmbPlantilla = computed(() => workers.value.filter(w => w.active && w.id !== scheduleUser.value?.id
   && w.work_schedule_id === scheduleForm.id).length)
 
+const desantHorari = ref(false)
 async function saveSchedule() {
+  if (desantHorari.value) return
+  desantHorari.value = true
   try {
     let scheduleId = scheduleForm.id
     let recalculats = 0
@@ -1558,6 +1562,8 @@ async function saveSchedule() {
     alert(e?.status === 422 || e?.status === 403
       ? `No s'ha desat l'horari: ${e.message}`
       : "No s'ha desat l'horari: hi ha hagut un error al servidor. Torneu-ho a provar i, si continua passant, aviseu informàtica.")
+  } finally {
+    desantHorari.value = false
   }
 }
 
