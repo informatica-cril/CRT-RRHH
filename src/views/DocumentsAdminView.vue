@@ -606,7 +606,8 @@ async function assignProfile(userId, profileId) {
   const user = workers.value.find(u => u.id === userId)
   if (user) {
     try {
-      await db.updateUser({ ...user, onboarding_profile_id: pid, onboarding_completed: pid ? false : true })
+      // Només els camps d'onboarding: amb l'usuari sencer es reenviava la data d'alta en UTC i perdia un dia.
+      await db.updateUser({ id: user.id, onboarding_profile_id: pid, onboarding_completed: pid ? false : true })
       if (pid) {
         await db.initOnboardingStatus(userId, pid)
         const profile = await db.getOnboardingProfile(pid)

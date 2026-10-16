@@ -20,11 +20,11 @@ class UpdateUserRequest extends FormRequest
     {
         return [
             'name' => 'string|max:255',
-            'email' => 'email|unique:users,email,' . $this->route('user')->id,
+            'email' => 'email|max:255|unique:users,email,' . $this->route('user')->id,
             'password' => 'nullable|string|min:6',
             'role' => 'in:admin,coordinator,worker,hr',
             'work_type' => 'nullable|string|in:DOMICILIARIA,DOMICILIARIA_VALLES,AMBULATORIA',
-            'job_profile' => 'nullable|string',
+            'job_profile' => 'nullable|string|max:255',
             'work_schedule_id' => 'nullable|exists:work_schedules,id',
             'active' => 'boolean',
             'privacy_consent' => 'boolean',
@@ -32,7 +32,8 @@ class UpdateUserRequest extends FormRequest
             'onboarding_profile_id' => 'nullable|integer',
             'onboarding_completed' => 'boolean',
             'must_change_password' => 'boolean',
-            'dni' => 'nullable|string',
+            // La columna és varchar(20): sense límit, MySQL tallava el desat amb un 500.
+            'dni' => 'nullable|string|max:20',
             // CP principal de la persona (domiciliària). No hi era i es descartava sempre en desar.
             'postal_code_assigned' => 'nullable|string|max:255',
             'device_phone' => 'nullable|string|max:20',

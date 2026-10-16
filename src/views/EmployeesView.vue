@@ -185,20 +185,24 @@
         <div v-show="pestanyaFitxa === 'dades'">
         <div class="form-group">
           <label class="form-label">{{ t('name') }}</label>
-          <input class="form-input" v-model="form.name" :disabled="isSaving" />
+          <input :class="{ 'camp-error': errorsCamp.name }" class="form-input" v-model="form.name" :disabled="isSaving" />
+          <div v-if="errorsCamp.name" class="text-small error-camp">{{ errorsCamp.name }}</div>
         </div>
           <div class="fitxa-graella">
           <div class="form-group">
             <label class="form-label">{{ t('email') }}</label>
-            <input class="form-input" type="email" v-model="form.email" :disabled="isSaving" />
+            <input :class="{ 'camp-error': errorsCamp.email }" class="form-input" type="email" v-model="form.email" :disabled="isSaving" />
+            <div v-if="errorsCamp.email" class="text-small error-camp">{{ errorsCamp.email }}</div>
           </div>
           <div class="form-group">
             <label class="form-label">DNI / NIE</label>
-            <input class="form-input" v-model="form.dni" placeholder="12345678A" style="font-family:monospace;" :disabled="isSaving" />
+            <input :class="{ 'camp-error': errorsCamp.dni }" class="form-input" v-model="form.dni" placeholder="12345678A" style="font-family:monospace;" :disabled="isSaving" />
+            <div v-if="errorsCamp.dni" class="text-small error-camp">{{ errorsCamp.dni }}</div>
           </div>
           <div class="form-group">
             <label class="form-label">Telèfon corporatiu (SIM de tauleta o fix del lloc de treball)</label>
-            <input class="form-input" v-model="form.device_phone" placeholder="+34600000000 o 934000000" style="font-family:monospace;" :disabled="isSaving" />
+            <input :class="{ 'camp-error': errorsCamp.device_phone }" class="form-input" v-model="form.device_phone" placeholder="+34600000000 o 934000000" style="font-family:monospace;" :disabled="isSaving" />
+            <div v-if="errorsCamp.device_phone" class="text-small error-camp">{{ errorsCamp.device_phone }}</div>
           </div>
           <div class="form-group">
             <label class="form-label">Data alta (antiguitat)</label>
@@ -511,6 +515,13 @@
           </div>
         </div>
 
+        </div>
+        <!-- Error en desar: fora de les pestanyes perquè es vegi sempre, sigui on sigui el camp. -->
+        <div v-if="errorDesar" class="error-desar" role="alert">
+          <strong>{{ errorDesar }}</strong>
+          <ul v-if="Object.keys(errorsCamp).length">
+            <li v-for="(msg, camp) in errorsCamp" :key="camp">{{ nomCamp(camp) }}: {{ msg }}</li>
+          </ul>
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline" @click="showEditModal = false" :disabled="isSaving">{{ t('cancel') }}</button>
@@ -888,6 +899,7 @@
 <script setup>
 import FrasesRapides from '../components/FrasesRapides.vue'
 import { confirma, demana } from '../utils/dialegs'
+import { avisa } from '../utils/avisos'
 import { ref, computed, reactive, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useEstatUrl } from '../composables/useEstatUrl'
@@ -1338,13 +1350,52 @@ async function canviaEstat() {
   }
 }
 
+// Errors de l'últim desar de la fitxa: el motiu general i, si és un 422, el de cada camp.
+// Abans només anava a la consola i l'avís flotant passava desapercebut: no se sabia que no s'havia desat.
+const errorDesar = ref('')
+const errorsCamp = reactive({})
+const NOMS_CAMP = {
+  name: 'Nom', email: 'Correu electrònic', dni: 'DNI / NIE', device_phone: 'Telèfon corporatiu',
+  seniority_date: "Data d'alta", entitat: 'Entitat', work_type: 'Àmbit', job_profile: 'Lloc de treball',
+  work_schedule_id: 'Horari', role: 'Rol', postal_code_assigned: 'Codi postal', specialties: 'Especialitats',
+  relacio: 'Relació', disponibilitat_setmanal: 'Disponibilitat setmanal', pacte_complementaries: 'Pacte de complementàries',
+}
+const nomCamp = (camp) => NOMS_CAMP[camp] || NOMS_CAMP[camp.split('.')[0]] || camp
+function netejaErrorsDesar() {
+  errorDesar.value = ''
+  for (const k of Object.keys(errorsCamp)) delete errorsCamp[k]
+}
+function mostraErrorDesar(e) {
+  netejaErrorsDesar()
+  if (e?.status === 422) {
+    // apiClient deixa a `errors` els errors per camp ({ dni: ['...'] }) o, si no n'hi ha, la resposta sencera.
+    const errs = e.errors && typeof e.errors === 'object' && !('message' in e.errors) ? e.errors : {}
+    for (const [camp, msgs] of Object.entries(errs)) errorsCamp[camp] = Array.isArray(msgs) ? msgs[0] : String(msgs)
+    errorDesar.value = Object.keys(errorsCamp).length
+      ? "No s'han desat els canvis. Reviseu aquests camps:"
+      : `No s'han desat els canvis: ${e.message || 'dades no vàlides.'}`
+  } else if (e?.status === 403) {
+    errorDesar.value = `No s'han desat els canvis: ${e.message && e.message !== 'Forbidden' ? e.message : 'no teniu permís per editar aquesta fitxa.'}`
+  } else if (e?.status) {
+    errorDesar.value = "No s'han desat els canvis: hi ha hagut un error al servidor. Torneu-ho a provar i, si continua passant, aviseu informàtica."
+  } else {
+    errorDesar.value = "No s'han desat els canvis: no s'ha pogut connectar amb el servidor. Comproveu la connexió i torneu-ho a provar."
+  }
+  // També com a avís (es queda fins que el tanquen), per si el recuadre de la fitxa no es veu.
+  const detall = Object.entries(errorsCamp).map(([camp, msg]) => `• ${nomCamp(camp)}: ${msg}`).join('\n')
+  avisa(detall ? `${errorDesar.value}\n${detall}` : errorDesar.value, 'error')
+}
+
 async function openEditModal(user) {
+  netejaErrorsDesar()
   editingUser.value = user
   estatActiu.value = user ? user.active !== false && user.active !== 0 : true
   pestanyaFitxa.value = 'dades'
   if (user) carregaPractiques(user.id)
   if (user) {
-    const sDate = user.seniority_date ? user.seniority_date.split('T')[0] : ''
+    // L'API serialitza la data en UTC (2020-03-01 surt com 2020-02-29T23:00:00Z): tallar per la T
+    // mostrava i desava el dia anterior. Es llegeix en hora de Madrid.
+    const sDate = user.seniority_date ? new Date(user.seniority_date).toLocaleDateString('en-CA', { timeZone: 'Europe/Madrid' }) : ''
     Object.assign(form, { role: user.role || 'worker', entitat: user.entitat || 'CRT', name: user.name, email: user.email, dni: user.dni || '', device_phone: user.device_phone || '', pacte_complementaries: !!user.pacte_complementaries,  work_type: user.work_type || 'DOMICILIARIA', job_profile: user.job_profile || 'Fisioterapeuta', postal_code_assigned: user.postal_code_assigned, work_schedule_id: user.work_schedule_id, seniority_date: sDate, specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
     ratioActual.value = Number(user.complementary_ratio ?? 0.30)
     ratioPct.value = Math.round(ratioActual.value * 100)
@@ -1361,6 +1412,8 @@ async function openEditModal(user) {
         form.totp_confirmed = !!full.totp_confirmed
         form.domi_username = full.domi_username || ''
         form.domi_provisioned_at = full.domi_provisioned_at || null
+        // La llista no porta l'entitat: sense això, desar una fitxa CRT o CRIL_CRT la tornava a CRIL.
+        if (full.entitat) form.entitat = full.entitat
         form.lots = (full.lots || []).map(l => l.code)
         form.departments = (full.departments || []).map(d => d.code)
       } catch (e) { /* es queda buit */ }
@@ -1372,6 +1425,7 @@ async function openEditModal(user) {
 
 async function saveUser() {
   if (!form.name || !form.email) return alert('El nom i email són obligatoris.')
+  netejaErrorsDesar()
   isSaving.value = true
   try {
     if (editingUser.value) {
@@ -1389,7 +1443,7 @@ async function saveUser() {
     showEditModal.value = false; editingUser.value = null
   } catch (e) {
     console.error(e)
-    alert(`Error en desar: ${e.message || 'Error desconegut'}\n\nSi persisteix, revisi els camps (DNI duplicat, email invàlid, etc).`)
+    mostraErrorDesar(e)
   } finally {
     isSaving.value = false
   }
@@ -1490,14 +1544,21 @@ async function saveSchedule() {
         auditLog(authStore.userId, 'UPDATE_SCHEDULE', 'work_schedule', scheduleForm.id, `Horari actualitzat per ${scheduleUser.value.name}`)
       }
     }
-    const rUser = await db.updateUser({ ...scheduleUser.value, work_schedule_id: scheduleId })
+    // Només l'horari: amb l'usuari sencer de la llista es reenviava la data d'alta en UTC i perdia un dia.
+    const rUser = await db.updateUser({ id: scheduleUser.value.id, work_schedule_id: scheduleId })
     recalculats += rUser?.trams_recalculats || 0
     await fetchData()
     showScheduleModal.value = false
     isNewSchedule.value = false
     // El servidor torna a calcular els trams dels fitxatges pendents amb l'horari nou.
     if (recalculats > 0) alert(`Horari desat. S'han tornat a calcular els trams de ${recalculats} fitxatge${recalculats === 1 ? '' : 's'} pendent${recalculats === 1 ? '' : 's'} amb l'horari nou (les hores d'entrada i sortida no canvien).`)
-  } catch (e) { console.error(e) }
+  } catch (e) {
+    // Abans només console.error: el modal es quedava obert i no se sabia que no s'havia desat.
+    console.error(e)
+    alert(e?.status === 422 || e?.status === 403
+      ? `No s'ha desat l'horari: ${e.message}`
+      : "No s'ha desat l'horari: hi ha hagut un error al servidor. Torneu-ho a provar i, si continua passant, aviseu informàtica.")
+  }
 }
 
 function handleFileSelect(e) { parseCsv(e.target.files[0]) }
@@ -1783,6 +1844,10 @@ async function saveMuniAssignment() {
 </script>
 
 <style scoped>
+.error-desar { margin: 12px 0 0; padding: 10px 12px; border: 1px solid #fecdd3; border-radius: 8px; background: #fff1f2; color: #be123c; font-size: 0.85rem; }
+.error-desar ul { margin: 6px 0 0; padding-left: 18px; }
+.error-camp { color: #be123c; margin-top: 4px; }
+.camp-error { border-color: #be123c !important; }
 .eines { position: relative; }
 .eines-fletxa { display: inline-block; margin-left: 4px; transition: transform 0.15s; }
 .eines-fletxa.oberta { transform: rotate(180deg); }
