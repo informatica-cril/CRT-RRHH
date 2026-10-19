@@ -201,7 +201,6 @@ a:hover { color: var(--color-primary); }
 .app-content {
   flex: 1;
   padding: var(--space-lg);
-  max-width: 1400px;
   width: 100%;
 }
 
