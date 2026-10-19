@@ -96,6 +96,13 @@
         <span class="text-small">de {{ personesTriades }} persona{{ personesTriades === 1 ? '' : 'es' }}</span>
         <button type="button" class="btn btn-outline btn-sm" @click="seleccio = new Set()">Treure la selecció</button>
       </div>
+      <!-- Quina jornada tenen ara els dies triats, abans de canviar-la. -->
+      <ul class="qd-actual">
+        <li v-for="l in jornadaTriada.linies" :key="l.clau">
+          <strong>{{ l.titol }}</strong> · {{ l.text }}<span v-if="l.n > 1" class="text-muted"> ({{ l.n }} dies)</span>
+        </li>
+        <li v-if="jornadaTriada.mes" class="text-muted">i {{ jornadaTriada.mes }} més…</li>
+      </ul>
       <div class="qd-accions-cos">
         <div class="qd-accio">
           <label class="text-small">Posar una plantilla</label>
@@ -308,6 +315,31 @@ const triaFila = p => triaGrup(dades.value.dies.map(d => clau(p.id, d)))
 const triaColumna = d => triaGrup(personesVisibles.value.map(p => clau(p.id, d)))
 const personesTriades = computed(() => new Set([...seleccio.value].map(k => k.split('|')[0])).size)
 
+// Jornada actual dels dies triats: un per un si són pocs; si no, agrupats per persona i horari.
+const diaCurt = d => new Date(`${d}T12:00:00`).toLocaleDateString('ca-ES', { weekday: 'short', day: 'numeric', month: 'numeric' })
+const jornadaTriada = computed(() => {
+  const claus = [...seleccio.value].sort()
+  const perPersona = new Map(dades.value.persones.map(p => [String(p.id), p]))
+  const files = claus.map(k => {
+    const [uid, d] = k.split('|')
+    const p = perPersona.get(uid)
+    return p && p.dies[d] ? { uid, d, nom: p.name, text: textLlarg(p.dies[d]) } : null
+  }).filter(Boolean)
+  let linies
+  if (files.length <= 4) {
+    linies = files.map(f => ({ clau: f.uid + f.d, titol: `${f.nom} · ${diaCurt(f.d)}`, text: f.text, n: 1 }))
+  } else {
+    const grups = new Map()
+    for (const f of files) {
+      const k = f.uid + '|' + f.text
+      if (!grups.has(k)) grups.set(k, { clau: k, titol: f.nom, text: f.text, n: 0 })
+      grups.get(k).n++
+    }
+    linies = [...grups.values()]
+  }
+  return { linies: linies.slice(0, 6), mes: Math.max(0, linies.length - 6) }
+})
+
 // ── Accions ──
 const plantillaTriada = ref(null)
 const tramsAMida = ref([{ start: '', end: '' }])
@@ -447,7 +479,8 @@ thead .qd-nom { z-index: 3; }
 .qd-cel.sel { outline: 2px solid var(--color-primary, #094E8C); outline-offset: -2px; box-shadow: inset 0 0 0 40px rgba(9, 78, 140, .14); }
 .qd-hores { position: sticky; right: 0; background: var(--color-surface, #fff); padding: 0 8px; font-weight: 700; white-space: nowrap; text-align: right; }
 .qd-accions { position: sticky; bottom: 8px; z-index: 6; margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: var(--color-surface, #fff); border: 1px solid var(--color-primary, #094E8C); box-shadow: 0 8px 24px rgba(15, 35, 60, .18); }
-.qd-accions-cap { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; }
+.qd-accions-cap { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 6px; }
+.qd-actual { list-style: none; margin: 0 0 10px; padding: 8px 10px; border-radius: 8px; background: var(--color-bg, #f8fafc); font-size: .8rem; display: flex; flex-direction: column; gap: 2px; }
 .qd-accions-cos { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
 .qd-accio { display: flex; flex-direction: column; gap: 6px; }
 .qd-fila { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
