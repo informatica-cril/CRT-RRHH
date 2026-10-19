@@ -155,7 +155,8 @@
                 </div>
               </td>
               <td>
-                <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                <!-- Sempre un botó sota l'altre, tots de la mateixa amplada: abans s'anaven partint en files de 2 i 1. -->
+                <div class="emp-accions">
                   <button class="btn btn-outline btn-sm" @click="openEditModal(user)" title="Obrir la fitxa: dades, jornada i accés">✎ Fitxa</button>
                   <button v-if="user.work_type === 'DOMICILIARIA'" class="btn btn-outline btn-sm" @click="openCpModal(user)" title="Codis postals on treballa">📍 Zona</button>
                   <button v-if="user.work_type === 'DOMICILIARIA_VALLES'" class="btn btn-outline btn-sm" @click="openMuniModal(user)" style="color:rgba(147,51,234,1);" title="Municipis on treballa">🏘️ Municipis</button>
@@ -2039,6 +2040,8 @@ async function saveMuniAssignment() {
 </script>
 
 <style scoped>
+.emp-accions { display: flex; flex-direction: column; gap: 4px; width: max-content; min-width: 120px; }
+.emp-accions .btn { justify-content: flex-start; width: 100%; white-space: nowrap; }
 .error-desar { margin: 12px 0 0; padding: 10px 12px; border: 1px solid #fecdd3; border-radius: 8px; background: #fff1f2; color: #be123c; font-size: 0.85rem; }
 .error-desar ul { margin: 6px 0 0; padding-left: 18px; }
 .error-camp { color: #be123c; margin-top: 4px; }
