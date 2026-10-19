@@ -33,10 +33,13 @@
     <!-- Aprovació automàtica: els fitxatges correctes s'aproven sols en fitxar la sortida; aquest botó
          fa el mateix amb els pendents que ja hi havia (del mes i la persona triats). -->
     <div v-if="authStore.isStaff && confAuto" class="wl-auto-barra" :class="{ apagada: !confAuto.enabled }">
-      <span v-if="confAuto.enabled">
-        🤖 <strong>Aprovació automàtica activada.</strong> Un fitxatge s'aprova sol en fitxar la sortida si l'entrada i la sortida
-        quadren amb l'horari (± {{ confAuto.marge_minuts }} min), és dins de zona i no té hores extra ni cap incidència.
-        La resta es queda aquí per revisar.
+<span v-if="confAuto.enabled && modeAprovar === 'auto'">
+        🤖 <strong>Aprovació automàtica.</strong> Els fitxatges que quadren amb l'horari (± {{ confAuto.marge_minuts }} min),
+        són dins de zona i no tenen hores extra ni incidències s'aproven sols. Aquí només queden els que cal revisar.
+      </span>
+      <span v-else-if="confAuto.enabled">
+        ✋ <strong>Aprovació manual.</strong> Marca els fitxatges que vulguis aprovar. S'aprovaran tal com estan,
+        encara que tinguin hores extra o coses per revisar.
       </span>
       <span v-else>⏸ <strong>Aprovació automàtica desactivada:</strong> tots els fitxatges s'han d'aprovar a mà.</span>
       <span class="wl-auto-accions">
