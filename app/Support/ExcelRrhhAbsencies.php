@@ -27,7 +27,8 @@ final class ExcelRrhhAbsencies
         'incapacitats' => ['nom' => 'A', 'motiu' => 'B', 'ini' => 'C', 'fi' => 'D', 'estat' => 'F', 'obs' => 'I', 'codi' => 'incapacitat'],
         'Petició vacances' => ['nom' => 'B', 'motiu' => 'C', 'ini' => 'D', 'fi' => 'E', 'estat' => 'G', 'obs' => 'K'],
         'Petició vacances DOMICILIARIA' => ['nom' => 'A', 'motiu' => 'B', 'ini' => 'C', 'fi' => 'D', 'estat' => 'F'],
-        'hores sindicals' => ['nom' => 'B', 'motiu' => 'C', 'ini' => 'D', 'fi' => 'E', 'estat' => 'G', 'durada' => 'F', 'obs' => 'J'],
+        // A «hores sindicals» la J diu «mensual» (el tipus de crèdit) i el motiu de debò és a la K.
+        'hores sindicals' => ['nom' => 'B', 'motiu' => 'C', 'ini' => 'D', 'fi' => 'E', 'estat' => 'G', 'durada' => 'F', 'obs' => 'J', 'detall' => 'K'],
     ];
 
     /** @return array<int, array> una fila per absència, amb el full i la fila d'origen */
@@ -60,6 +61,7 @@ final class ExcelRrhhAbsencies
                     'estat' => mb_strtolower(trim((string) ($v[$col['estat']] ?? ''))),
                     'hora_inici' => null, 'hora_fi' => null, 'minuts' => null,
                     'obs' => isset($col['obs']) ? (trim((string) ($v[$col['obs']] ?? '')) ?: null) : null,
+                    'detall' => isset($col['detall']) ? (trim((string) ($v[$col['detall']] ?? '')) ?: null) : null,
                 ];
                 if (isset($col['hini'])) {
                     $fila['hora_inici'] = self::hora($v[$col['hini']] ?? null);

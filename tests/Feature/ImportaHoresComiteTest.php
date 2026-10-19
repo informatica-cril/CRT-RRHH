@@ -21,7 +21,8 @@ class ImportaHoresComiteTest extends TestCase
     private function fila(string $nom, string $dia, int $minuts, string $estat = 'concedit', string $obs = 'Accions administratives', int $fila = 2): array
     {
         return ['full' => 'hores sindicals', 'fila' => $fila, 'nom' => $nom, 'motiu' => 'accions sindicals', 'codi' => 'accions sindicals',
-            'ini' => $dia, 'fi' => $dia, 'estat' => $estat, 'hora_inici' => null, 'hora_fi' => null, 'minuts' => $minuts, 'obs' => $obs];
+            'ini' => $dia, 'fi' => $dia, 'estat' => $estat, 'hora_inici' => null, 'hora_fi' => null, 'minuts' => $minuts,
+            'obs' => 'mensual', 'detall' => $obs];
     }
 
     private function persona(string $nom): User
@@ -64,6 +65,7 @@ class ImportaHoresComiteTest extends TestCase
         $this->assertSame($hr->id, ComiteHora::where('user_id', $laia->id)->value('validat_per'));
         $this->assertSame('pendent', ComiteHora::where('user_id', $merce->id)->where('data', '2026-06-10')->value('estat'));
         $this->assertSame(90, (int) ComiteHora::where('user_id', $merce->id)->where('data', '2026-06-10')->value('minuts'));
+        $this->assertSame('Reunió', ComiteHora::where('data', '2026-06-10')->value('motiu'));   // la K, no «mensual»
 
         // Tornar a importar el mateix Excel: res de nou; si l'estat ha canviat, s'actualitza.
         $files[3]['estat'] = 'concedit';

@@ -36,9 +36,13 @@ class ImportaHoresComite
         $vegades = [];
         foreach ($files as $f) {
             if ($f['full'] !== self::FULL || ! $f['ini'] || ! $f['minuts'] || $f['nom'] === '') continue;
-            $motiu = trim(($f['obs'] ?? '') ?: ($f['motiu'] ?: 'Hores sindicals'));
+            // La clau es fa amb la columna J («mensual»), com a la primera importació: si canviés,
+            // tornar a importar duplicaria les hores. El text que es veu és el motiu de la K.
+            $perClau = trim(($f['obs'] ?? '') ?: ($f['motiu'] ?: 'Hores sindicals'));
+            $obs = mb_strtolower((string) ($f['obs'] ?? '')) === 'mensual' ? null : $f['obs'];
+            $motiu = trim(($f['detall'] ?? '') ?: ($obs ?: ($f['motiu'] ?: 'Hores sindicals')));
             // Dues files idèntiques (mateixa persona, dia, durada i motiu) són dos usos: es numeren.
-            $base = implode('|', [ImportaAbsenciesRrhh::clauNom($f['nom']), $f['ini'], $f['minuts'], mb_strtolower($motiu)]);
+            $base = implode('|', [ImportaAbsenciesRrhh::clauNom($f['nom']), $f['ini'], $f['minuts'], mb_strtolower($perClau)]);
             $vegades[$base] = ($vegades[$base] ?? 0) + 1;
             $registres[] = [
                 'clau' => sha1('comite|' . $base . '|' . $vegades[$base]),
@@ -106,7 +110,7 @@ class ImportaHoresComite
                     $hora = new ComiteHora($dades);
                     $hora->forceFill(['origen_ref' => $r['clau'], 'estat' => $estat] + $this->resolucio($estat, $autor))->save();
                     $fet['hores_creades']++;
-                } elseif ($hora->estat !== $estat || (int) $hora->minuts !== $r['minuts']) {
+                } elseif ($hora->estat !== $estat || (int) $hora->minuts !== $r['minuts'] || $hora->motiu !== $r['motiu']) {
                     // Mana l'Excel, com a les absències.
                     $hora->fill($dades)->forceFill(['estat' => $estat] + $this->resolucio($estat, $autor))->save();
                     $fet['hores_actualitzades']++;
