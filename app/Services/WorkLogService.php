@@ -56,6 +56,11 @@ class WorkLogService
      */
     public function isScheduledDay($user, Carbon $when): bool
     {
+        // Un dia canviat al quadrant mana: laborable si aquell dia té algun tram.
+        $dia = $when->copy()->setTimezone('Europe/Madrid')->toDateString();
+        if ($user && HorariDia::teQuadrant($user->id, $dia)) {
+            return HorariDia::trams($user, $dia) !== [];
+        }
         $schedule = $user->workSchedule ?? null;
         if (! $schedule || ! is_array($schedule->days)) {
             return true; // sense horari definit → no bloquejar
@@ -144,31 +149,18 @@ class WorkLogService
         $startTime = Carbon::parse($workLog->getRawOriginal('start_time'), 'Europe/Madrid');
         $endTime = Carbon::parse($workLog->getRawOriginal('end_time'), 'Europe/Madrid');
 
-        // Obtener horario del trabajador
-        $workSchedule = $workLog->user->workSchedule;
-        $dayOfWeek = $startTime->copy()->setTimezone('Europe/Madrid')->dayOfWeekIso;
-
         // Finestres de l'horari d'aquell dia, en hora de Madrid sense zona (com start_time i end_time).
-        // - El dia es busca per la clau 'day' (0=Dg..6=Ds), no per la posició a l'array: un horari
-        //   de 7 dies (de diumenge a dissabte) agafava el dia anterior.
+        // - L'horari és el del quadrant si RRHH ha canviat aquell dia; si no, el de la plantilla
+        //   setmanal, buscat per la clau 'day' (0=Dg..6=Ds) i no per la posició (veure HorariDia).
         // - Un dia pot tenir diversos trams (jornada partida): abans només es mirava el primer i
         //   la resta de la jornada sortia «fora d'horari». Els trams que es toquen s'ajunten.
         $finestres = [];
-        if ($workSchedule) {
-            $localDate = $startTime->toDateString();
-            $trams = collect(\App\Models\WorkSchedule::normalizeDays($workSchedule->days))
-                ->filter(fn ($d) => $d['day'] === ($dayOfWeek % 7) && $d['active'])
-                ->map(fn ($d) => [Carbon::parse("{$localDate} {$d['start']}", 'Europe/Madrid'),
-                                  Carbon::parse("{$localDate} {$d['end']}", 'Europe/Madrid')])
-                ->filter(fn ($f) => $f[1]->gt($f[0]))
-                ->sortBy(fn ($f) => $f[0]->getTimestamp())->values();
-            foreach ($trams as [$a, $b]) {
-                $ultim = count($finestres) - 1;
-                if ($ultim >= 0 && $a->lte($finestres[$ultim][1])) {
-                    if ($b->gt($finestres[$ultim][1])) $finestres[$ultim][1] = $b;
-                } else {
-                    $finestres[] = [$a, $b];
-                }
+        foreach (HorariDia::finestres($workLog->user, $startTime->toDateString()) as [$a, $b]) {
+            $ultim = count($finestres) - 1;
+            if ($ultim >= 0 && $a->lte($finestres[$ultim][1])) {
+                if ($b->gt($finestres[$ultim][1])) $finestres[$ultim][1] = $b;
+            } else {
+                $finestres[] = [$a, $b];
             }
         }
 

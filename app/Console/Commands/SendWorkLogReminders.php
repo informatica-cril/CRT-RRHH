@@ -92,15 +92,9 @@ class SendWorkLogReminders extends Command
 
     private function scheduledEndTimeFor(?User $user, Carbon $date): ?Carbon
     {
-        $schedule = $user?->workSchedule;
-        if (!$schedule || !$schedule->days) {
-            return null;
-        }
-
-        $dayOfWeek = $date->dayOfWeek;
-        $day = collect($schedule->days)->first(fn ($d) =>
-            (int) ($d['day'] ?? -1) === $dayOfWeek && ($d['active'] ?? false)
-        );
+        // Quadrant o plantilla d'aquell dia (veure HorariDia).
+        $trams = \App\Services\HorariDia::trams($user, $date->toDateString());
+        $day = $trams[0] ?? null;
 
         if (!$day || empty($day['end'])) {
             return null;

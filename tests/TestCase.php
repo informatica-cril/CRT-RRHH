@@ -15,5 +15,7 @@ abstract class TestCase extends BaseTestCase
         // existeix a l'entorn de tests: sense això, tota ruta que renderitzi una
         // pàgina retorna 500 i els tests menteixen sobre el que proven.
         $this->withoutVite();
+        // La memòria del quadrant és estàtica: entre tests, els ids es reaprofiten.
+        \App\Services\HorariDia::oblida();
     }
 }

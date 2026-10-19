@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\AprovacioAutomaticaSetting;
 use App\Models\WorkLog;
-use App\Models\WorkSchedule;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -97,17 +96,9 @@ final class AprovacioAutomatica
         });
     }
 
-    /** Trams de l'horari d'aquell dia [inici, fi] en hora de Madrid sense zona, com segmentWorkLog. */
+    /** Trams de l'horari d'aquell dia [inici, fi] en hora de Madrid sense zona (quadrant o plantilla). */
     public static function finestres(WorkLog $log, string $dia): array
     {
-        $horari = $log->user?->workSchedule;
-        if (! $horari) return [];
-        $diaSetmana = Carbon::parse($dia, 'Europe/Madrid')->dayOfWeekIso % 7;
-
-        return collect(WorkSchedule::normalizeDays($horari->days))
-            ->filter(fn ($d) => $d['day'] === $diaSetmana && $d['active'])
-            ->map(fn ($d) => [Carbon::parse("{$dia} {$d['start']}", 'Europe/Madrid'), Carbon::parse("{$dia} {$d['end']}", 'Europe/Madrid')])
-            ->filter(fn ($f) => $f[1]->gt($f[0]))
-            ->values()->all();
+        return HorariDia::finestres($log->user, $dia);
     }
 }

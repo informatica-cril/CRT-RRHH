@@ -33,7 +33,7 @@ const MAPES = {
     UPDATE_ABSENCE_TYPE: 'Tipus d\'absència modificat', MASS_ASSIGN_PERMISSION: 'Permís assignat en bloc',
     REQUEST_EXCEDENCIA: 'Excedència sol·licitada', APPROVE_EXCEDENCIA: 'Excedència aprovada', REJECT_EXCEDENCIA: 'Excedència denegada',
     CREATE_USER: 'Persona donada d\'alta', UPDATE_USER: 'Fitxa de persona modificada', IMPORT_CSV: 'Importació de personal',
-    CREATE_SCHEDULE: 'Horari creat', UPDATE_SCHEDULE: 'Horari modificat',
+    CREATE_SCHEDULE: 'Horari creat', UPDATE_SCHEDULE: 'Horari modificat', QUADRANT_CANVI: 'Quadrant modificat',
     UPLOAD_PAYROLL: 'Nòmina pujada', BULK_UPLOAD_PAYROLL: 'Nòmines pujades en bloc', DELETE_PAYROLL: 'Nòmina eliminada',
     VIEW_PAYROLL: 'Nòmina consultada', DOWNLOAD_PAYROLL: 'Nòmina descarregada', PRINT_PAYROLL: 'Nòmina impresa',
     SIGN_PAYROLL: 'Recepció de nòmina signada', EMAIL_PAYROLL: 'Nòmina enviada per correu', CHAT_SEND_PAYROLL: 'Nòmina enviada pel xat',

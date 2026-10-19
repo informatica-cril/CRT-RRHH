@@ -12,6 +12,7 @@ const GESTIO = [
   { nom: "Codis d'hores extra", ruta: '/auth-codes', icona: '🔑', claus: 'hores extra codigos autorizacion' },
   { nom: 'Informes', ruta: '/reports', icona: '📊', claus: 'reports informes estadistiques' },
   { nom: 'Treballadors', ruta: '/employees', icona: '👥', claus: 'personal plantilla trabajadores empleados fitxa', pot: a => a.canManageStaff },
+  { nom: 'Quadrant', ruta: '/quadrant', icona: '🗓️', claus: 'quadrant horaris torns cuadrante horarios turnos calendari', pot: a => a.canManageStaff },
   { nom: 'Disponibilitat', ruta: '/disponibilitat', icona: '📅', claus: 'disponibilidad setmanal', pot: a => a.canManageStaff },
   { nom: 'Nòmines', ruta: '/payrolls-admin', icona: '💶', claus: 'nominas payroll sou sueldo', pot: a => a.isAdmin },
   { nom: 'Documents', ruta: '/documents', icona: '📁', claus: 'documents documentos signatura', pot: a => a.isAdmin },

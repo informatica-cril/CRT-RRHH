@@ -27,8 +27,12 @@ class RecalculaTrams
 
     public function __construct(private WorkLogService $workLogs) {}
 
-    /** @param iterable<int> $userIds  Retorna quants fitxatges s'han recalculat. */
-    public function perUsuaris(iterable $userIds, User $autor): int
+    /**
+     * @param iterable<int> $userIds
+     * @param string[]|null $dies  Només aquests dies (AAAA-MM-DD), p. ex. els canviats al quadrant.
+     * Retorna quants fitxatges s'han recalculat.
+     */
+    public function perUsuaris(iterable $userIds, User $autor, ?array $dies = null): int
     {
         $logs = WorkLog::whereIn('user_id', collect($userIds)->all())
             ->where('status', 'pending')
@@ -36,6 +40,9 @@ class RecalculaTrams
             ->where('segmented', true)
             ->whereDate('date', '>=', now('Europe/Madrid')->subDays(self::DIES)->toDateString())
             ->get();
+        if ($dies !== null) {
+            $logs = $logs->filter(fn ($l) => in_array(substr((string) $l->getRawOriginal('date'), 0, 10), $dies, true));
+        }
 
         $n = 0;
         foreach ($logs as $log) {

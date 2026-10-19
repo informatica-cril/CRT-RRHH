@@ -65,6 +65,15 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true }
   },
   {
+    /* Quadrant (RRHH, 19-10-2026): l'horari de cada persona dia a dia. Només RRHH i admin
+       (coordinació no); qui talla de veritat és l'API amb role:admin,hr. */
+    path: '/quadrant',
+    name: 'quadrant',
+    component: () => import('../views/QuadrantView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true },
+    beforeEnter: () => (useAuthStore().canManageStaff ? true : { name: 'dashboard' })
+  },
+  {
     path: '/employees',
     name: 'employees',
     component: () => import('../views/EmployeesView.vue'),

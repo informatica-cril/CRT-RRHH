@@ -63,6 +63,12 @@
           <span>Codis d'hores extra</span>
         </router-link>
       </li>
+      <li v-if="authStore.canManageStaff">
+        <router-link to="/quadrant" :class="{ active: $route.name === 'quadrant' }">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h2M14 14h2M8 18h2M14 18h2"/></svg>
+          <span>Quadrant</span>
+        </router-link>
+      </li>
       <li v-if="authStore.canManageStaff && ['admin','hr'].includes(authStore.user?.role)">
         <router-link to="/disponibilitat" :class="{ active: $route.name === 'disponibilitat' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>

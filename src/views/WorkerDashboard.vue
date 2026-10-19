@@ -246,6 +246,9 @@
             </div>
           </div>
 
+          <!-- Quadrant: l'horari de cada dia del mes, amb els canvis que hagi fet RRHH. -->
+          <ElMeuQuadrant v-if="authStore.user?.role === 'worker'" />
+
           <div class="card">
             <div class="card-header">
               <button class="btn btn-outline btn-sm" @click="prevMonth">◂</button>
@@ -841,6 +844,7 @@ import PacteComplementaries from '../components/PacteComplementaries.vue'
 import BreakTimerModal from '../components/BreakTimerModal.vue'
 import AvisSenseSortida from '../components/AvisSenseSortida.vue'
 import CalendarPdfViewer from '../components/CalendarPdfViewer.vue'
+import ElMeuQuadrant from '../components/ElMeuQuadrant.vue'
 
 // --- Break state (pausa obligatoria basada en horario configurado) ---
 // Jornades d'altres dies sense sortida i sense declarar (les omple AvisSenseSortida)
@@ -1072,9 +1076,23 @@ const senseHorari = computed(() => {
   return Array.isArray(dies) && !dies.some(d => d && d.start && d.end && d.active !== false)
 })
 async function loadWorkerSchedule() {
+  carregaQuadrantProper()
   const sid = authStore.user?.work_schedule_id
   if (!sid) { workerSchedule.value = null; return }
   workerSchedule.value = await db.getWorkSchedule(sid).catch(() => null)
+}
+// Dies d'aquest mes i del següent amb l'horari del quadrant (si RRHH n'ha canviat algun, mana sobre la plantilla).
+const quadrantProper = ref({})
+async function carregaQuadrantProper() {
+  if (authStore.user?.role !== 'worker') return
+  const d = new Date()
+  const mesos = [0, 1].map(n => { const x = new Date(d.getFullYear(), d.getMonth() + n, 1); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}` })
+  const dies = {}
+  const { api } = await import('../services/apiClient')
+  for (const m of mesos) {
+    try { Object.assign(dies, (await api.get(`/v1/el-meu-quadrant?mes=${m}`))?.dies || {}) } catch { /* servidor sense quadrant: plantilla */ }
+  }
+  quadrantProper.value = dies
 }
 // Horari de tota la setmana (pestanya Calendari), de dilluns a diumenge.
 const NOMS_DIES = { 1: 'Dilluns', 2: 'Dimarts', 3: 'Dimecres', 4: 'Dijous', 5: 'Divendres', 6: 'Dissabte', 0: 'Diumenge' }
@@ -1114,7 +1132,10 @@ function horariDia(offset) {
   if (festiu) return { etiqueta, data, horari: '', motiu: `Festiu · ${festiu.name}`, avui: offset === 0 }
   const permis = (myAbsences.value || []).find(a => a.approved === true && dateStr >= a.start_date && dateStr <= a.end_date)
   if (permis) return { etiqueta, data, horari: '', motiu: getAbsenceTypeName(permis.absence_type_id), avui: offset === 0 }
-  const entrades = (workerSchedule.value?.days || []).filter(x => x.day === d.getDay() && x.active !== false && x.start && x.end)
+  const q = quadrantProper.value[dateStr]
+  const entrades = q && q.origen === 'quadrant'
+    ? q.trams
+    : (workerSchedule.value?.days || []).filter(x => x.day === d.getDay() && x.active !== false && x.start && x.end)
   const horari = entrades.map(x => `${x.start.substring(0, 5)} – ${x.end.substring(0, 5)}`).join('  ·  ')
   return { etiqueta, data, horari, motiu: '', avui: offset === 0 }
 }
