@@ -278,59 +278,42 @@
             </div>
           </div>
 
-          <!-- Bossa anual d'hores. Si no es pot calcular es diu: abans la targeta
-               desapareixia i el treballador no sabia que li faltava el quadre horari. -->
-          <div class="card mt-md" v-if="bossa && bossa.calculable === false">
-            <h3 class="card-title mb-md">La meva bossa anual d'hores · {{ new Date().getFullYear() }}</h3>
-            <p class="text-small" style="color:var(--color-danger);">
-              ⚠ Encara no es pot calcular: {{ bossa.motiu_no_calculable }}
-              Comenta-ho a Recursos Humans perquè completin la teva fitxa.
-            </p>
-          </div>
-          <div class="card mt-md" v-else-if="bossa">
-            <h3 class="card-title mb-md">La meva bossa anual d'hores · {{ new Date().getFullYear() }}</h3>
-            <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:12px;">
-              <div><div class="text-small text-muted">Jornada</div><strong>{{ bossa.pct_jornada }}%</strong></div>
-              <div><div class="text-small text-muted">Bossa anual</div><strong>{{ bossa.bossa_anual_h }} h</strong></div>
-              <div><div class="text-small text-muted">Treballades</div><strong>{{ bossa.treballat_h }} h</strong></div>
-              <div><div class="text-small text-muted">Pendents</div><strong>{{ bossa.pendent_h }} h</strong></div>
-              <div><div class="text-small text-muted">Ritme</div>
-                <strong :style="{ color: bossa.desviacio_h < -10 ? 'var(--color-danger)' : (bossa.desviacio_h > 10 ? '#ca8a04' : 'var(--color-success)') }">
-                  {{ bossa.desviacio_h > 0 ? '+' : '' }}{{ bossa.desviacio_h }} h</strong></div>
-            </div>
-            <div style="background:var(--color-border-light);border-radius:8px;height:14px;overflow:hidden;">
-              <div :style="{ width: Math.min(100, Math.round(100 * bossa.treballat_h / Math.max(1, bossa.bossa_anual_h))) + '%',
-                             background: 'var(--color-primary)', height: '100%' }"></div>
-            </div>
-            <p class="text-small text-muted" style="margin-top:10px;">
-              <template v-if="bossa.es_complet">Jornada completa: sense hores complementàries; màxim
-                {{ bossa.extra_tope_h }} h extraordinàries l'any (portes {{ bossa.extra_consumides_h }}), remunerades a ×{{ bossa.extra_factor }}.</template>
-              <template v-else>Jornada parcial: les hores complementàries pactades es remuneren a part i mai
-                poden portar-te per sobre de la jornada d'un temps complet.</template>
-            </p>
-          </div>
-
-          <!-- Periods legend -->
-          <div class="card mt-md" v-if="calendarPeriods.length > 0">
-            <h3 class="card-title mb-md">Períodes del mes</h3>
-            <div style="display:flex;flex-direction:column;gap:8px;">
-              <div v-for="period in calendarPeriods" :key="period.key" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--color-border-light);" :style="{ background: period.bgColor }">
-                <span style="font-size:1.1rem;">{{ period.icon }}</span>
-                <div style="flex:1;min-width:0;">
-                  <div style="font-weight:600;font-size:0.85rem;">{{ period.label }}</div>
-                  <div style="font-size:0.75rem;color:var(--color-text-secondary);">{{ period.dateRange }}</div>
+          <!-- Bossa, períodes del mes i propers festius en una sola targeta compacta.
+               Si la bossa no es pot calcular es diu: abans desapareixia i no se sabia per què. -->
+          <div class="card mt-md wd-resum" v-if="bossa || calendarPeriods.length || upcomingHolidays.length">
+            <div class="wd-resum-col" v-if="bossa">
+              <div class="wd-resum-titol">Bossa anual · {{ new Date().getFullYear() }}</div>
+              <p v-if="bossa.calculable === false" class="text-small" style="color:var(--color-danger);margin:0;">
+                ⚠ Encara no es pot calcular: {{ bossa.motiu_no_calculable }} Comenta-ho a Recursos Humans.
+              </p>
+              <template v-else>
+                <div class="wd-bossa-xifra"><strong>{{ bossa.treballat_h }} h</strong> <span class="text-muted">de {{ bossa.bossa_anual_h }} h</span></div>
+                <div class="wd-barra"><div :style="{ width: Math.min(100, Math.round(100 * bossa.treballat_h / Math.max(1, bossa.bossa_anual_h))) + '%' }"></div></div>
+                <div class="text-small wd-bossa-peu"
+                  :title="bossa.es_complet
+                    ? `Jornada completa: sense hores complementàries; màxim ${bossa.extra_tope_h} h extraordinàries l'any (portes ${bossa.extra_consumides_h}), remunerades a ×${bossa.extra_factor}.`
+                    : 'Jornada parcial: les hores complementàries pactades es remuneren a part i mai poden portar-te per sobre de la jornada d\'un temps complet.'">
+                  <span>Jornada {{ bossa.pct_jornada }}% · queden {{ bossa.pendent_h }} h</span>
+                  <span>Ritme <strong :style="{ color: bossa.desviacio_h < -10 ? 'var(--color-danger)' : (bossa.desviacio_h > 10 ? '#ca8a04' : 'var(--color-success)') }">{{ bossa.desviacio_h > 0 ? '+' : '' }}{{ bossa.desviacio_h }} h</strong></span>
                 </div>
-                <span class="badge" :class="period.badgeClass">{{ period.statusLabel }}</span>
+              </template>
+            </div>
+
+            <div class="wd-resum-col" v-if="calendarPeriods.length">
+              <div class="wd-resum-titol">Permisos d'aquest mes</div>
+              <div v-for="period in calendarPeriods" :key="period.key" class="wd-linia">
+                <span>{{ period.icon }}</span>
+                <span class="wd-linia-text"><strong>{{ period.label }}</strong> <span class="text-muted">{{ period.dateRange }}</span></span>
+                <span class="badge wd-xip" :class="period.badgeClass">{{ period.statusLabel }}</span>
               </div>
             </div>
-          </div>
-        </div>
-        <div>
-          <div class="card">
-            <h3 class="card-title mb-md">Festius Barcelona 2026</h3>
-            <div v-for="h in upcomingHolidays" :key="h.date" style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--color-border-light);font-size:0.85rem;">
-              <span>{{ h.name }}</span>
-              <span class="text-muted">{{ formatDate(h.date) }}</span>
+
+            <div class="wd-resum-col" v-if="upcomingHolidays.length">
+              <div class="wd-resum-titol">Propers festius</div>
+              <div v-for="h in upcomingHolidays.slice(0, 5)" :key="h.date" class="wd-linia">
+                <span class="wd-data">{{ formatDate(h.date) }}</span>
+                <span class="wd-linia-text">{{ h.name }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -2126,4 +2109,16 @@ watch(() => activeTab.value, async (tab) => {
   color: inherit; font-size: .8rem; cursor: pointer; }
 .extra-xip.actiu { border-color: var(--color-accent); background: rgba(59, 130, 246, .1); font-weight: 600; }
 @media (max-width: 480px) { .extra-opcions { grid-template-columns: 1fr; } }
+/* Resum del calendari del treballador: bossa, permisos i festius en una sola targeta */
+.wd-resum { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px 28px; padding: 16px 18px; }
+.wd-resum-titol { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--color-text-secondary); margin-bottom: 8px; }
+.wd-bossa-xifra strong { font-size: 1.15rem; }
+.wd-barra { height: 8px; border-radius: 99px; background: var(--color-border-light); overflow: hidden; margin: 6px 0; }
+.wd-barra div { height: 100%; background: var(--color-primary); }
+.wd-bossa-peu { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; color: var(--color-text-secondary); cursor: help; }
+.wd-linia { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: .82rem; border-top: 1px solid var(--color-border-light); }
+.wd-resum-titol + .wd-linia { border-top: 0; }
+.wd-linia-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wd-xip { font-size: .66rem; padding: 1px 7px; }
+.wd-data { min-width: 64px; font-weight: 600; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
 </style>
