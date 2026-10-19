@@ -1038,7 +1038,7 @@ const seccionsMenu = computed(() => {
       ...e("Control d'hores", 'Hores complementàries i extres de cada persona', '/hours-control', '🕐', a.isStaff),
       ...e('Absències i permisos', 'Vacances, permisos i baixes per aprovar', '/absences', '📅'),
       ...e('Excedències', 'Temporades sense treballar', '/excedencies', '⏳'),
-      ...e("Codis d'hores extra", 'Codis perquè les hores de més comptin', '/auth-codes', '🔑'),
+      ...e('Hores de més', 'Autoritzar les hores de més i les peticions', '/auth-codes', '⏱'),
       ...e('Disponibilitat', 'Qui pot treballar cada dia', '/disponibilitat', '📆', a.canManageStaff),
     ] },
     { titol: 'Persones', entrades: [

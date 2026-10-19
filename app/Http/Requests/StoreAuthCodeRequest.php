@@ -19,13 +19,15 @@ class StoreAuthCodeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'code' => 'required|string|unique:authorization_codes',
+            // El codi es genera al servidor si no n'arriba cap: ja no l'ha d'escriure ningú.
+            'code' => 'nullable|string|unique:authorization_codes',
             'concept' => 'required|string',
             'authorized_hours' => 'required|numeric|min:0',
             'time_slot_start' => 'required',
             'time_slot_end' => 'required',
             'generated_by' => 'required|exists:users,id',
-            'user_id' => 'nullable|exists:users,id',
+            // Sempre d'una persona (RRHH, 20-10-2026): un codi «per a qualsevol» el podia fer servir tothom.
+            'user_id' => 'required|exists:users,id',
             /* El TIPUS ha de poder venir del formulari: si no, tot codi neix
                complementari i a un treballador a jornada completa (que per llei
                només pot fer extraordinàries) no se li podia emetre res.

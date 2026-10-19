@@ -287,6 +287,8 @@ class WorkLogController extends Controller
         // Segmentación automática al cerrar fichaje
         if (array_key_exists('end_time', $data) && $data['end_time'] !== null && !$workLog->segmented) {
             $this->workLogs->segmentWorkLog($workLog, $request->user());
+            // Les hores de més autoritzades per a aquell dia s'apliquen soles (sense codi a escriure).
+            \App\Services\AutoritzacioHores::aplica($workLog->fresh());
             // Un fitxatge que ho té tot bé (horari, zona, sense extres ni incidències) s'aprova sol.
             \App\Services\AprovacioAutomatica::intenta($workLog);
         } elseif (array_key_exists('end_time', $data) && $data['end_time'] !== null && $workLog->segmented) {

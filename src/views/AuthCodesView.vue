@@ -1,9 +1,28 @@
 <template>
   <div>
     <div class="page-header">
-      <div><h1 class="page-title">Codis d'hores extra</h1><p class="page-subtitle">Crea un codi perquè una persona pugui fer hores de més i li comptin. Ella el posa al seu fitxatge.</p></div>
+      <div><h1 class="page-title">Hores de més</h1><p class="page-subtitle">Les peticions per autoritzar i les hores de més autoritzades a cada persona. S'apliquen soles als seus fitxatges d'aquells dies: no cal cap codi.</p></div>
       <div class="page-actions" v-if="authStore.isStaff">
-        <button class="btn btn-primary" @click="openCreateModal">+ {{ t('generate_code') }}</button>
+        <button class="btn btn-primary" @click="openCreateModal">+ Autoritzar hores</button>
+      </div>
+    </div>
+
+    <!-- Peticions pendents: les demana la persona quan es passa de l'hora, o les força coordinació des de domi. -->
+    <div v-if="authStore.isStaff && pendents.length" class="card mb-lg hm-pendents">
+      <h3 class="card-title">⚠ {{ pendents.length }} petici{{ pendents.length === 1 ? 'ó' : 'ons' }} per autoritzar</h3>
+      <p class="text-small text-muted" style="margin:4px 0 10px;">Si s'autoritza i la jornada ja està tancada, les hores s'hi apliquen soles.</p>
+      <div v-for="p in pendents" :key="p.id" class="hm-peticio">
+        <div class="hm-peticio-info">
+          <strong>{{ p.user?.name || getUserName(p.user_id) }}</strong>
+          <span class="badge badge-warning">{{ p.hours }} h</span>
+          <span class="text-small text-muted">{{ formatDate(p.period_from) }}<template v-if="p.period_to && p.period_to !== p.period_from"> → {{ formatDate(p.period_to) }}</template>
+            · {{ p.origen === 'treballador' ? 'la demana la persona' : 'forçada per ' + p.requested_by }}</span>
+          <div v-if="p.reason" class="text-small text-muted">{{ p.reason }}</div>
+        </div>
+        <div class="hm-peticio-acc">
+          <button class="btn btn-success btn-sm" :disabled="p._busy" @click="autoritzar(p)">✔ Autoritzar</button>
+          <button class="btn btn-outline btn-sm" :disabled="p._busy" @click="denegar(p)">✖ Denegar</button>
+        </div>
       </div>
     </div>
 
@@ -12,13 +31,12 @@
         <table>
           <thead>
             <tr>
-              <th>{{ t('auth_code') }}</th>
+              <th>Persona</th>
               <th>Tipus</th>
               <th>Concepte</th>
               <th>Hores</th>
               <th>Consum (registre)</th>
               <th>S'esgota</th>
-              <th>Destinatari</th>
               <th>Validesa</th>
               <th>{{ t('status') }}</th>
               <th v-if="authStore.isStaff">{{ t('actions') }}</th>
@@ -26,7 +44,7 @@
           </thead>
           <tbody>
             <tr v-for="code in codes" :key="code.id">
-              <td><code style="background:var(--color-bg);padding:4px 8px;border-radius:4px;font-weight:600;">{{ code.code }}</code></td>
+              <td><strong>{{ code.user_id ? getUserName(code.user_id) : 'Qualsevol (codi antic)' }}</strong><div class="text-small text-muted">Ref. {{ code.code }}</div></td>
               <td>
                 <span class="badge" :class="code.type === 'extraordinaria' ? 'badge-warning' : 'badge-info'" style="white-space:nowrap;">
                   {{ code.type === 'extraordinaria' ? '⚡ Extra 1,25×' : '✋ Compl. 1,00×' }}
@@ -54,7 +72,6 @@
                 </template>
                 <template v-else><span class="text-muted">sense consum imputat</span></template>
               </td>
-              <td>{{ code.user_id ? getUserName(code.user_id) : 'Qualsevol' }}</td>
               <td><span class="text-small">{{ formatDate(code.valid_from) }} → {{ formatDate(code.valid_to) }}</span></td>
               <td>
                 <span class="badge" :class="codeBadge(code)">{{ codeStatusText(code) }}</span>
@@ -72,26 +89,11 @@
       </div>
     </div>
 
-    <!-- Worker: Validate -->
-    <div v-if="authStore.isWorker" class="card mt-lg" style="max-width:500px;">
-      <h3 class="card-title mb-md">{{ t('validate_code') }}</h3>
-      <div style="display:flex;gap:8px;">
-        <input class="form-input" v-model="codeInput" :placeholder="t('enter_code')" />
-        <button class="btn btn-accent" @click="validate">{{ t('validate_code') }}</button>
-      </div>
-      <div v-if="validationResult" class="mt-sm" style="padding:8px 12px;border-radius:8px;" :style="{ background: validationResult.valid ? 'rgba(76,175,80,0.1)' : 'rgba(239,68,68,0.1)', color: validationResult.valid ? 'var(--color-success)' : 'var(--color-danger)' }">
-        <strong>{{ validationResult.valid ? '✓ Codi vàlid' : '✗ ' + validationResult.reason }}</strong>
-        <div v-if="validationResult.valid && validationResult.code" class="text-small mt-sm">
-          Concepte: {{ validationResult.code.concept }} · {{ validationResult.code.authorized_hours }}h · Franja: {{ validationResult.code.time_slot_start }}-{{ validationResult.code.time_slot_end }}
-        </div>
-      </div>
-    </div>
-
     <!-- Create Modal -->
     <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
       <div class="modal" style="max-width:600px;">
         <div class="modal-header">
-          <h3 class="modal-title">Nou codi d'hores extra</h3>
+          <h3 class="modal-title">Autoritzar hores de més</h3>
           <button class="icon-btn" @click="showModal = false">✕</button>
         </div>
         <div class="form-group">
@@ -105,8 +107,8 @@
               :style="capExceeded ? 'border-color:var(--color-danger);' : ''" />
           </div>
           <div class="form-group">
-            <label class="form-label">Destinatari</label>
-            <SelectorPersona v-model="form.user_id" :persones="workers" :buida="{ valor: null, text: 'Qualsevol treballador' }" style="width:100%;" />
+            <label class="form-label">Persona *</label>
+            <SelectorPersona v-model="form.user_id" :persones="workers" style="width:100%;" />
           </div>
         </div>
 
@@ -157,7 +159,7 @@
           <template v-else>Calculant el màxim de l'any…</template>
         </div>
         <div v-else class="text-small text-muted" style="margin:-4px 0 8px;">
-          El límit del 30% s'aplica quan s'assigna a un treballador concret.
+          Tria la persona: les hores s'apliquen soles als seus fitxatges d'aquells dies.
         </div>
         <div class="form-date-row">
           <div class="form-group">
@@ -192,7 +194,7 @@
         <div v-if="createError" class="text-small" style="color:var(--color-danger);margin-top:8px;">{{ createError }}</div>
         <div class="modal-footer">
           <button class="btn btn-outline" @click="showModal = false">{{ t('cancel') }}</button>
-          <button class="btn btn-primary" @click="createCode" :disabled="!form.concept || !form.authorized_hours || capExceeded || franjaInvalid">{{ t('generate_code') }}</button>
+          <button class="btn btn-primary" @click="createCode" :disabled="!form.user_id || !form.concept || !form.authorized_hours || capExceeded || franjaInvalid">Autoritzar</button>
         </div>
       </div>
     </div>
@@ -246,6 +248,8 @@ import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { db } from '../services/db'
 import { auditLog } from '../services/audit'
+import { avisa } from '../utils/avisos'
+import { demana } from '../utils/dialegs'
 import { i18n } from '../i18n'
 
 console.log('[AuthCodesView] Compilando componente...')
@@ -254,8 +258,6 @@ const authStore = useAuthStore()
 const t = (key) => i18n.t(key)
 
 const codes = ref([])
-const codeInput = ref('')
-const validationResult = ref(null)
 const showModal = ref(false)
 const showRevokeModal = ref(false)
 const revokeTarget = ref(null)
@@ -359,7 +361,34 @@ async function fetchData() {
   }
 }
 
-onMounted(fetchData)
+onMounted(() => { fetchData(); loadPendents() })
+
+// ── Peticions pendents (abans només a «Control d'hores») ──
+const pendents = ref([])
+async function loadPendents() {
+  if (!authStore.isStaff) return
+  try {
+    const r = await db.getOvertimeRequests('pending')
+    pendents.value = (Array.isArray(r) ? r : (r?.data ?? [])).map(p => ({ ...p, _busy: false }))
+  } catch (e) { pendents.value = [] }
+}
+async function autoritzar(p) {
+  p._busy = true
+  try {
+    const r = await db.authorizeOvertime(p.id)
+    avisa(r?.aplicades ? `✅ Autoritzades i aplicades ${r.aplicades} h al fitxatge.` : '✅ Autoritzades.')
+    await Promise.all([loadPendents(), fetchData()])
+  } catch (e) { p._busy = false; avisa(e?.message || "No s'ha pogut autoritzar.", 'error') }
+}
+async function denegar(p) {
+  // El motiu és obligatori: qui rep la denegació ha de saber per què.
+  const reason = await demana('Motiu de la denegació (obligatori):', { frases: 'denegacio' })
+  if (reason === null) return
+  if (!reason.trim()) { avisa('Cal escriure el motiu de la denegació.', 'error'); return }
+  p._busy = true
+  try { await db.denyOvertime(p.id, reason); await loadPendents() }
+  catch (e) { p._busy = false; avisa(e?.message || "No s'ha pogut denegar.", 'error') }
+}
 
 const now = new Date()
 const form = reactive({
@@ -395,7 +424,7 @@ async function createCode() {
   crypto.getRandomValues(arr)
   const code = Array.from(arr, b => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('').replace(/(.{4})/g, '$1-').slice(0, 14)
   try {
-    await db.addAuthCode({
+    const creat = await db.addAuthCode({
       code, concept: form.concept, authorized_hours: form.authorized_hours,
       type: form.type,
       time_slot_start: form.time_slot_start, time_slot_end: form.time_slot_end,
@@ -412,6 +441,9 @@ async function createCode() {
     }
     await fetchData()
     showModal.value = false
+    avisa(creat?.aplicades > 0
+      ? `✅ Hores autoritzades. Ja s'han aplicat ${creat.aplicades} h a fitxatges tancats d'aquells dies.`
+      : "✅ Hores autoritzades. S'aplicaran soles quan fitxi la sortida aquells dies.")
   } catch (e) {
     console.error(e)
     if (e && e.status === 422) {
@@ -440,14 +472,17 @@ async function confirmRevoke() {
   }
 }
 
-async function validate() { 
-  try {
-    validationResult.value = await db.validateAuthCode(codeInput.value) 
-  } catch (e) { console.error(e) }
-}
 function getUserName(id) { return users.value.find(u => u.id === id)?.name || '—' }
 function formatDate(d) { return new Date(d).toLocaleDateString('ca-ES', { day: '2-digit', month: 'short', year: 'numeric' }) }
 function codeBadge(c) { return c.revoked ? 'badge-danger' : c.used ? 'badge-warning' : isExpired(c) ? 'badge-warning' : 'badge-success' }
-function codeStatusText(c) { return c.revoked ? 'Revocat' : c.used ? t('code_used') : isExpired(c) ? t('code_expired') : 'Actiu' }
+function codeStatusText(c) { return c.revoked ? 'Revocat' : c.used ? 'Gastada' : isExpired(c) ? t('code_expired') : 'Actiu' }
 function isExpired(c) { return new Date() > new Date(c.valid_to) }
 </script>
+
+<style scoped>
+.hm-pendents { border-left: 4px solid #D9A400; }
+.hm-peticio { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--color-border-light, #eef2f7); }
+.hm-peticio-info { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.hm-peticio-info > div { flex-basis: 100%; }
+.hm-peticio-acc { display: flex; gap: 6px; }
+</style>

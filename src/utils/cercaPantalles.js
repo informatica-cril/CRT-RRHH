@@ -9,7 +9,7 @@ const GESTIO = [
   { nom: "Control d'hores", ruta: '/hours-control', icona: '🕐', claus: 'complementaries extra horas control', pot: a => a.isStaff },
   { nom: 'Absències i permisos', ruta: '/absences', icona: '📋', claus: 'permisos vacances baixes ausencias vacaciones bajas' },
   { nom: 'Excedències', ruta: '/excedencies', icona: '📄', claus: 'excedencias' },
-  { nom: "Codis d'hores extra", ruta: '/auth-codes', icona: '🔑', claus: 'hores extra codigos autorizacion' },
+  { nom: 'Hores de més', ruta: '/auth-codes', icona: '⏱', claus: 'hores extra de mes codis codigos autorizacion autoritzacio peticions' },
   { nom: 'Informes', ruta: '/reports', icona: '📊', claus: 'reports informes estadistiques' },
   { nom: 'Treballadors', ruta: '/employees', icona: '👥', claus: 'personal plantilla trabajadores empleados fitxa', pot: a => a.canManageStaff },
   { nom: "Plantilles d'horari", ruta: '/plantilles-horari', icona: '🧹', claus: 'plantilles horaris duplicades netejar plantillas horarios', pot: a => a.canManageStaff },

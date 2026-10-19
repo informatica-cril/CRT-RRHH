@@ -86,44 +86,21 @@
             </div>
           </div>
 
-          <!-- Auth Code input for extra hours -->
-          <!-- Només surt si hi ha alguna cosa a fer: un fitxatge amb hores extra sense aprovar o un codi vigent -->
-          <div v-if="logsWithUnauthorized.length || myAuthCodes.length" class="card mt-lg" style="border-left:4px solid var(--color-warning);">
-            <h3 class="card-title mb-md">🔑 Aprovar hores extra amb un codi</h3>
-            <div v-if="myAuthCodes.length" style="margin-bottom:12px;">
-              <div class="text-small" style="font-weight:600;margin-bottom:6px;">Els teus codis vigents — toca'n un per fer-lo servir:</div>
-              <div style="display:flex;flex-direction:column;gap:6px;">
-                <button v-for="c in myAuthCodes" :key="c.id" @click="authCodeInput = c.code"
-                  style="text-align:left;border:1.5px solid var(--color-border);border-radius:9px;padding:9px 12px;background:var(--color-surface);cursor:pointer;min-height:44px;"
-                  :style="authCodeInput === c.code ? 'border-color:var(--color-accent);' : ''">
-                  <code style="font-weight:700;">{{ c.code }}</code>
-                  · {{ formatHM(c.authorized_hours) }} {{ c.type === 'extraordinaria' ? 'extraordinàries (1,25×)' : 'complementàries' }}
-                  <div class="text-small text-muted">{{ c.concept }}</div>
-                </button>
-              </div>
+          <!-- Hores de més: les autoritzacions s'apliquen soles (RRHH, 20-10-2026); ja no s'escriu cap codi. -->
+          <div v-if="logsWithUnauthorized.length || autoritzacionsVigents.length" class="card mt-lg" style="border-left:4px solid var(--color-warning);">
+            <h3 class="card-title mb-md">⏱ Hores de més</h3>
+            <div v-for="c in autoritzacionsVigents" :key="c.id" class="text-small" style="padding:8px 10px;border-radius:8px;background:rgba(13,175,131,.08);margin-bottom:8px;">
+              ✔ Tens <strong>{{ formatHM(c.authorized_hours) }}</strong> {{ c.type === 'extraordinaria' ? 'extraordinàries' : 'complementàries' }} autoritzades
+              del {{ formatDate(c.valid_from) }} al {{ formatDate(c.valid_to) }}. S'apliquen soles als teus fitxatges d'aquells dies.
             </div>
-            <p class="text-small text-muted" style="margin-bottom:12px;">{{ myAuthCodes.length ? 'O escriu un codi que t\'hagin donat per una altra via.' : 'Tens hores extra sense aprovar. Tria el dia i escriu el codi que t\'ha donat el teu responsable.' }}</p>
-            <div class="mobile-stack-form" style="display:flex; flex-direction: column; gap:12px; margin-bottom:8px;">
-              <div class="form-group" style="margin-bottom:0;">
-                <label class="form-label">Quin dia?</label>
-                <select class="form-select" v-model="authLogId" style="width:100%;">
-                  <option value="">Tria el dia…</option>
-                  <option v-for="l in logsWithUnauthorized" :key="l.id" :value="l.id">{{ formatDateFull(l.date) }} — {{ formatHM(l.extra_hours_unauthorized) }} sense aprovar</option>
-                </select>
+            <template v-if="logsWithUnauthorized.length">
+              <p class="text-small text-muted" style="margin:0 0 8px;">Aquests dies tens temps de més que encara no compta. Si RRHH te l'autoritza, s'hi aplicarà sol.</p>
+              <div v-for="l in logsWithUnauthorized" :key="l.id" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--color-border-light);">
+                <span class="text-small"><strong>{{ formatDateFull(l.date) }}</strong> · {{ formatHM(l.extra_hours_unauthorized) }} sense autoritzar</span>
+                <button class="btn btn-outline btn-sm" :disabled="demanantDia === l.id" @click="demanaHoresDia(l)">✋ Demanar-les</button>
               </div>
-              <div class="form-group" style="margin-bottom:0;">
-                <label class="form-label">Codi</label>
-                <input class="form-input" v-model="authCodeInput" placeholder="XXXX-XXXX-XXXX" style="font-family:monospace;font-size:1rem;letter-spacing:1px; width:100%;" @input="authCodeInput = authCodeInput.toUpperCase()" />
-              </div>
-              <button class="btn btn-accent" style="width:100%;" @click="submitAuthCode" :disabled="!authCodeInput || !authLogId">Aprovar les hores</button>
-            </div>
-            <div v-if="authCodeResult" class="mt-sm" style="padding:10px 14px;border-radius:8px;font-size:0.85rem;"
-              :style="{
-                background: !authCodeResult.success ? 'rgba(239,68,68,0.1)' : authCodeResult.hasRemaining ? 'rgba(249,115,22,0.1)' : 'rgba(76,175,80,0.1)',
-                color: !authCodeResult.success ? 'var(--color-danger)' : authCodeResult.hasRemaining ? '#c2410c' : 'var(--color-success)'
-              }">
-              {{ authCodeResult.message }}
-            </div>
+            </template>
+            <div v-if="authCodeResult" class="mt-sm text-small" :style="{ color: authCodeResult.success ? 'var(--color-success)' : 'var(--color-danger)' }">{{ authCodeResult.message }}</div>
           </div>
         </div>
 
@@ -703,17 +680,20 @@
               <strong>⚠️ Ja has registrat {{ restartWorkedHours }} de les {{ restartScheduledHours }} hores programades avui.</strong>
             </p>
             <p style="font-size:0.85rem;color:var(--color-text-secondary);">
-              Per iniciar una nova sessió necessites un <strong>codi d'autorització</strong> del teu responsable.
+              Avui no tens hores de més autoritzades. Si comences ara, aquest temps <strong>no comptarà</strong>
+              fins que RRHH te l'autoritzi (ho pots demanar des del comptador).
             </p>
           </div>
-          <div class="form-group">
-            <label class="form-label">Codi d'autorització</label>
-            <input class="form-input" v-model="restartAuthCode" placeholder="Introduïu el codi..." style="font-family:monospace;font-size:1rem;text-align:center;letter-spacing:2px;" @input="restartAuthCode = restartAuthCode.toUpperCase()" />
-          </div>
+          <!-- Els codis ja no calen (les autoritzacions s'apliquen soles); es manté per als codis antics. -->
+          <details style="margin-bottom:12px;">
+            <summary class="text-small" style="cursor:pointer;">Tinc un codi antic</summary>
+            <input class="form-input" v-model="restartAuthCode" placeholder="Introduïu el codi..." style="margin-top:8px;font-family:monospace;font-size:1rem;text-align:center;letter-spacing:2px;" @input="restartAuthCode = restartAuthCode.toUpperCase()" />
+            <button class="btn btn-outline btn-sm" style="margin-top:6px;" @click="confirmRestartWithAuth" :disabled="!restartAuthCode.trim()">Validar el codi i començar</button>
+          </details>
           <div v-if="restartAuthError" style="color:var(--color-danger);font-size:0.85rem;margin-bottom:12px;">{{ restartAuthError }}</div>
           <div style="display:flex;gap:12px;">
-            <button class="btn btn-primary" style="flex:1;" @click="confirmRestartWithAuth" :disabled="!restartAuthCode.trim()">
-              ✅ Validar i iniciar
+            <button class="btn btn-primary" style="flex:1;" @click="showRestartOvertimeModal = false; doStartWorkday()">
+              Començar igualment
             </button>
             <button class="btn btn-outline" style="flex:1;" @click="showRestartOvertimeModal = false">
               Cancelar
@@ -746,9 +726,6 @@
           </div>
 
           <div class="extra-opcions">
-            <button class="extra-opcio" :class="{ actiu: modeExtra === 'codi' }" @click="modeExtra = 'codi'">
-              <span>🔑</span><b>Tinc un codi</b><small>Me l'ha donat RRHH o el responsable</small>
-            </button>
             <button class="extra-opcio" :class="{ actiu: modeExtra === 'demanar' }" @click="modeExtra = 'demanar'">
               <span>✋</span><b>Demanar autorització</b><small>S'envia a RRHH i pots continuar</small>
             </button>
@@ -1174,6 +1151,25 @@ async function loadMyAuthCodes() {
   } catch (e) { myAuthCodes.value = [] }
 }
 const authCodeResult = ref(null)
+// Autoritzacions d'hores de més vigents de la persona (s'apliquen soles en fitxar la sortida).
+const avuiIso = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' })
+const autoritzacionsVigents = computed(() => myAuthCodes.value.filter(c => !c.used && String(c.valid_to).slice(0, 10) >= avuiIso()))
+const autoritzacioAvui = computed(() => myAuthCodes.value.find(c => !c.used
+  && String(c.valid_from).slice(0, 10) <= avuiIso() && String(c.valid_to).slice(0, 10) >= avuiIso()) || null)
+const demanantDia = ref(null)
+async function demanaHoresDia(l) {
+  const motiu = await demana(`Per què vas fer ${formatHM(l.extra_hours_unauthorized)} de més el ${formatDateFull(l.date)}? (s'envia a RRHH)`, { obligatori: true, minim: 5 })
+  if (!motiu) return
+  demanantDia.value = l.id
+  try {
+    await db.requestMyOvertime({ hours: Math.max(0.25, Number(l.extra_hours_unauthorized)), reason: motiu.trim(), work_log_id: l.id })
+    authCodeResult.value = { success: true, message: "Petició enviada a RRHH. Si l'autoritzen, les hores s'aplicaran soles a aquell dia." }
+  } catch (e) {
+    authCodeResult.value = { success: false, message: e?.message || "No s'ha pogut enviar la petició." }
+  } finally {
+    demanantDia.value = null
+  }
+}
 const logsWithUnauthorized = computed(() => myWorkLogs.value.filter(l => (l.extra_hours_unauthorized || 0) > 0))
 const isFinishing = ref(false)
 
@@ -1364,7 +1360,7 @@ async function startWorkday() {
     const todayCompleted = myWorkLogs.value
       .filter(l => l.date && l.date.substring(0, 10) === today && l.end_time)
       .reduce((s, l) => s + Number(l.effective_hours ?? l.total_hours_worked ?? l.hours_worked ?? 0), 0)
-    if (todayCompleted >= scheduledHours) {
+    if (todayCompleted >= scheduledHours && !autoritzacioAvui.value) {
       restartWorkedHours.value = formatH(todayCompleted)
       restartScheduledHours.value = formatH(scheduledHours)
       restartAuthCode.value = ''
@@ -1791,6 +1787,10 @@ const estatExtra = computed(() => {
     }
     return { to: 'ok', text: `✔ Autoritzat fins a ${formatHM(max)} (${tipus}) · codi ${codiExtra.value.code}` }
   }
+  if (autoritzacioAvui.value) {
+    const a = autoritzacioAvui.value
+    return { to: 'ok', text: `✔ Tens ${formatHM(a.authorized_hours)} de més autoritzades: s'aplicaran soles en fitxar la sortida.` }
+  }
   const s = sollicitudAvui.value
   if (s?.status === 'pending') return { to: 'pendent', text: `Sol·licitud de ${formatHM(s.hours)} enviada a RRHH · pendent de resposta` }
   if (s?.status === 'denied') return { to: 'denegada', text: `RRHH ha denegat la sol·licitud${s.denial_reason ? ': ' + s.denial_reason : ''}` }
@@ -1850,7 +1850,7 @@ function startOvertimeMonitor() {
   overtimeCheckInterval = setInterval(async () => {
     if (!workLogStore.isWorking) return
     if (sollicitudAvui.value?.status === 'pending') await carregaSollicitudAvui()
-    if (overtimeAlertDismissed.value || codiExtra.value || sollicitudAvui.value?.status === 'pending') return
+    if (overtimeAlertDismissed.value || codiExtra.value || autoritzacioAvui.value || sollicitudAvui.value?.status === 'pending') return
     if (!workLogStore.currentLog?.start_time) return
     const scheduledHours = await getScheduledHours()
     if (!scheduledHours) return

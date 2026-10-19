@@ -163,6 +163,7 @@ class AuthCodeController extends Controller
     public function store(StoreAuthCodeRequest $request)
     {
         $data = $request->validated();
+        $data['code'] = $data['code'] ?? strtoupper(bin2hex(random_bytes(4)));
 
         // El multiplicador el posa el servidor, mai el formulari: una hora
         // extraordinària val 1,25× (art. 20.1 conveni XII) i una complementària 1,00×.
@@ -235,6 +236,8 @@ class AuthCodeController extends Controller
         }
 
         $authCode = AuthorizationCode::create($data);
+        // S'aplica sola als fitxatges ja tancats d'aquells dies que tenien hores de més.
+        $aplicades = \App\Services\AutoritzacioHores::aplicaAlsTancats($authCode);
 
         if ($authCode->user_id) {
             $this->registraDecisio($request, 'AUTHCODE_ISSUED', 'authorization_code', $authCode->id,
@@ -265,7 +268,7 @@ class AuthCodeController extends Controller
             }
         }
 
-        return response()->json($authCode, 201);
+        return response()->json(array_merge($authCode->fresh()->toArray(), ['aplicades' => $aplicades]), 201);
     }
 
     public function revoke(AuthorizationCode $authCode)
@@ -547,6 +550,9 @@ class AuthCodeController extends Controller
         ]);
 
         $aplicades = $this->aplicaAJornadaTancada($overtimeRequest, $code);
+        // I a qualsevol altre fitxatge tancat d'aquells dies amb hores de més (sense codi a escriure).
+        $altres = \App\Services\AutoritzacioHores::aplicaAlsTancats($code->fresh());
+        if ($altres > 0) $aplicades = round(($aplicades ?? 0) + $altres, 2);
         $nomTipus = $esComplementaria ? 'complementàries' : 'extraordinàries';
 
         $this->registraDecisio($request, 'OVERTIME_AUTHORIZED', 'overtime_request', $overtimeRequest->id,

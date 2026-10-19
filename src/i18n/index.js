@@ -47,7 +47,7 @@ const messages = {
     work_logs: 'Fitxatges',
     absences: 'Absències',
     employees: 'Treballadors',
-    auth_codes: "Codis d'hores extra",
+    auth_codes: 'Hores de més',
     reports: 'Informes',
     payrolls: 'Nòmines',
     audit: 'Auditoria',
