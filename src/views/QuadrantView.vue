@@ -36,6 +36,7 @@
         📋 Copiar del mes anterior
       </button>
       <button v-if="!mostraGuia" type="button" class="btn btn-outline btn-sm" @click="mostraGuia = true">❔ Com funciona</button>
+      <router-link to="/plantilles-horari" class="btn btn-outline btn-sm" title="Veure i netejar les plantilles repetides o que no fa servir ningú">🧹 Plantilles</router-link>
     </div>
 
     <div class="qd-llegenda">
@@ -228,10 +229,9 @@ const minutsDe = h => { const [a, b] = String(h).split(':').map(Number); return 
 function horesDe(plantillaId) {
   const p = dades.value.plantilles.find(x => x.id === plantillaId)
   if (!p) return 0
-  let h = Number(p.total_hours_weekly) || 0
-  if (!h && Array.isArray(p.days)) {
-    h = p.days.filter(d => d && d.start && d.end && d.active !== false).reduce((s, d) => s + minutsDe(d.end) - minutsDe(d.start), 0) / 60
-  }
+  // Les hores que suma l'horari: el número de la plantilla de vegades no quadra (p. ex. «35 h» amb 25 h d'horari).
+  let h = (Number(p.minuts_reals) || 0) / 60
+  if (!h) h = Number(p.total_hours_weekly) || 0
   return Math.round(h * 2) / 2
 }
 // Cada nombre d'hores té sempre el mateix color: de més a menys hores, en l'ordre de la paleta.

@@ -39,6 +39,16 @@ class WorkScheduleController extends Controller
         // no entrin jornades malformades que un consumidor (domi) llegiria com "no treballa".
         $data['days'] = WorkSchedule::normalizeDays($data['days']);
 
+        // No es creen plantilles repetides (RRHH, 19-10-2026: n'hi havia desenes d'iguals): si ja n'hi
+        // ha una amb els mateixos dies i hores, es torna aquella i qui la demanava la fa servir.
+        $signatura = WorkSchedule::signatura($data['days']);
+        if ($signatura !== '') {
+            $igual = WorkSchedule::orderBy('id')->get()->first(fn ($s) => WorkSchedule::signatura($s->days) === $signatura);
+            if ($igual) {
+                return response()->json(array_merge($igual->toArray(), ['reutilitzada' => true]));
+            }
+        }
+
         return response()->json(WorkSchedule::create($data), 201);
     }
 

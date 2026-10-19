@@ -619,6 +619,11 @@ Route::prefix('v1')->group(function () {
         Route::put('quadrant', [\App\Http\Controllers\Api\QuadrantController::class, 'desa'])->middleware('role:admin,hr');
         Route::post('quadrant/copia', [\App\Http\Controllers\Api\QuadrantController::class, 'copia'])->middleware('role:admin,hr');
         Route::get('el-meu-quadrant', [\App\Http\Controllers\Api\QuadrantController::class, 'elMeu']);
+        // Neteja de plantilles d'horari: veure qui les fa servir, ajuntar les iguals i esborrar les que no fa servir ningú.
+        Route::get('plantilles-horari', [\App\Http\Controllers\Api\PlantillesHorariController::class, 'index'])->middleware('role:admin,hr');
+        Route::post('plantilles-horari/esborra-sense-us', [\App\Http\Controllers\Api\PlantillesHorariController::class, 'esborraSenseUs'])->middleware('role:admin,hr');
+        Route::post('plantilles-horari/{workSchedule}/ajunta', [\App\Http\Controllers\Api\PlantillesHorariController::class, 'ajunta'])->middleware('role:admin,hr');
+        Route::delete('plantilles-horari/{workSchedule}', [\App\Http\Controllers\Api\PlantillesHorariController::class, 'destroy'])->middleware('role:admin,hr');
         Route::get('avisos-marge', [\App\Http\Controllers\Api\AvisMargeController::class, 'index'])->middleware('role:admin,hr');
         Route::post('avisos-marge/{user}/descarta', [\App\Http\Controllers\Api\AvisMargeController::class, 'descarta'])->middleware('role:admin,hr');
 

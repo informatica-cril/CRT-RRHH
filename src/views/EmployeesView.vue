@@ -1709,7 +1709,8 @@ async function saveSchedule() {
         days: diesPerDesar()
       })
       scheduleId = created.id
-      auditLog(authStore.userId, 'CREATE_SCHEDULE', 'work_schedule', created.id, `Nova plantilla "${created.name}" creada per ${scheduleUser.value.name}`)
+      if (created.reutilitzada) avisa(`Ja hi havia una plantilla amb aquest horari («${created.name}»): s'ha fet servir aquesta en lloc de crear-ne una de nova.`)
+      else auditLog(authStore.userId, 'CREATE_SCHEDULE', 'work_schedule', created.id, `Nova plantilla "${created.name}" creada per ${scheduleUser.value.name}`)
     } else {
       const originalSched = await db.getWorkSchedule(scheduleForm.id)
       const canviat = JSON.stringify(originalSched?.days || []) !== JSON.stringify(diesPerDesar())
@@ -1721,7 +1722,8 @@ async function saveSchedule() {
           days: diesPerDesar()
         })
         scheduleId = created.id
-        auditLog(authStore.userId, 'CREATE_SCHEDULE', 'work_schedule', created.id, `Plantilla pròpia "${created.name}" (la compartida no es toca)`)
+        if (created.reutilitzada) avisa(`Ja hi havia una plantilla amb aquest horari («${created.name}»): s'ha fet servir aquesta.`)
+        else auditLog(authStore.userId, 'CREATE_SCHEDULE', 'work_schedule', created.id, `Plantilla pròpia "${created.name}" (la compartida no es toca)`)
       } else if (canviat) {
         const sched = { ...originalSched, days: diesPerDesar(), total_hours_weekly: parseFloat(totalWeeklyHours.value) }
         const rSched = await db.updateWorkSchedule(sched)

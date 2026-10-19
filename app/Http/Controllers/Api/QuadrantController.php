@@ -56,7 +56,7 @@ class QuadrantController extends Controller
             'dies' => $dies,
             'festius' => Holiday::whereBetween('date', [$inici, $fi])->get()
                 ->mapWithKeys(fn ($h) => [substr((string) $h->getRawOriginal('date'), 0, 10) => $h->name]),
-            'plantilles' => WorkSchedule::orderBy('name')->get(['id', 'name', 'days', 'total_hours_weekly']),
+            'plantilles' => $this->plantilles(),
             'departaments' => Department::where('active', true)->orderBy('sort')->get(['id', 'name']),
             'persones' => $persones->map(fn (User $u) => $this->fila($u, $dies, $files->get($u->id, collect()), $absencies[$u->id] ?? [])),
         ]);
@@ -79,7 +79,7 @@ class QuadrantController extends Controller
             'any' => (int) $data['any'],
             'festius' => Holiday::whereBetween('date', [$inici, $fi])->get()
                 ->mapWithKeys(fn ($h) => [substr((string) $h->getRawOriginal('date'), 0, 10) => $h->name]),
-            'plantilles' => WorkSchedule::orderBy('name')->get(['id', 'name', 'days', 'total_hours_weekly']),
+            'plantilles' => $this->plantilles(),
             'persona' => $this->fila($u, $this->dies($inici, $fi), $files, $absencies[$u->id] ?? []),
         ]);
     }
@@ -292,6 +292,13 @@ class QuadrantController extends Controller
             });
 
         return $out;
+    }
+
+    /** Les plantilles amb les hores que suma de veritat el seu horari (per al color del quadrant). */
+    private function plantilles(): Collection
+    {
+        return WorkSchedule::orderBy('name')->get(['id', 'name', 'days', 'total_hours_weekly'])
+            ->map(fn ($s) => $s->toArray() + ['minuts_reals' => WorkSchedule::minutsSetmanals($s->days)]);
     }
 
     private function limitsMes(string $mes): array

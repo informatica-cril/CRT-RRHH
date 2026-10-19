@@ -217,6 +217,12 @@
         </router-link>
       </li>
       <li v-if="authStore.canManageStaff">
+        <router-link to="/plantilles-horari" :class="{ active: $route.name === 'plantilles-horari' }">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 14h8M8 18h5"/></svg>
+          <span>Plantilles d'horari</span>
+        </router-link>
+      </li>
+      <li v-if="authStore.canManageStaff">
         <router-link to="/break-settings" :class="{ active: $route.name === 'break-settings' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span>Pausa obligatòria</span>

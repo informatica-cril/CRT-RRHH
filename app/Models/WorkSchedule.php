@@ -72,4 +72,58 @@ class WorkSchedule extends Model
 
         return $out;
     }
+
+    /**
+     * Els trams actius per dia (0=Dg..6=Ds), ordenats i amb els que es trepitgen ajuntats.
+     * @return array<int, array<int, array{0: string, 1: string}>>
+     */
+    public static function tramsPerDia($days): array
+    {
+        // «8:00» i «08:00» són la mateixa hora: es comparen sempre amb dos dígits.
+        $hhmm = fn (?string $h) => $h === null ? null : vsprintf('%02d:%02d', array_map('intval', explode(':', $h) + [0, 0]));
+        $per = [];
+        foreach (self::normalizeDays($days) as $d) {
+            [$a, $b] = [$hhmm($d['start']), $hhmm($d['end'])];
+            if ($d['active'] && $a !== null && $b > $a) $per[$d['day']][] = [$a, $b];
+        }
+        foreach ($per as $dia => $trams) {
+            sort($trams);
+            $junts = [];
+            foreach ($trams as [$a, $b]) {
+                $u = count($junts) - 1;
+                if ($u >= 0 && $a <= $junts[$u][1]) {
+                    $junts[$u][1] = max($junts[$u][1], $b);
+                } else {
+                    $junts[] = [$a, $b];
+                }
+            }
+            $per[$dia] = $junts;
+        }
+        ksort($per);
+
+        return $per;
+    }
+
+    /** Clau de l'horari pels seus trams: dues plantilles amb la mateixa clau fan el mateix horari. */
+    public static function signatura($days): string
+    {
+        $parts = [];
+        foreach (self::tramsPerDia($days) as $dia => $trams) {
+            foreach ($trams as [$a, $b]) $parts[] = "{$dia}:{$a}-{$b}";
+        }
+
+        return implode('|', $parts);
+    }
+
+    /** Minuts setmanals de l'horari tal com està (no el número que diu el nom). */
+    public static function minutsSetmanals($days): int
+    {
+        $min = fn (string $h) => (int) substr($h, 0, 2) * 60 + (int) substr($h, 3, 2);
+        $total = 0;
+        foreach (self::tramsPerDia($days) as $trams) {
+            foreach ($trams as [$a, $b]) $total += $min($b) - $min($a);
+        }
+
+        return $total;
+    }
 }

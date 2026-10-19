@@ -74,6 +74,14 @@ const routes = [
     beforeEnter: () => (useAuthStore().canManageStaff ? true : { name: 'dashboard' })
   },
   {
+    /* Neteja de plantilles d'horari (RRHH, 19-10-2026). Només RRHH i admin, com l'API. */
+    path: '/plantilles-horari',
+    name: 'plantilles-horari',
+    component: () => import('../views/PlantillesHorariView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true },
+    beforeEnter: () => (useAuthStore().canManageStaff ? true : { name: 'dashboard' })
+  },
+  {
     path: '/employees',
     name: 'employees',
     component: () => import('../views/EmployeesView.vue'),
