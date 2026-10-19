@@ -116,6 +116,22 @@ class AprovacioAutomaticaTest extends TestCase
         $this->assertSame('pending', $tard->fresh()->status);
     }
 
+    public function test_el_llistat_diu_per_que_un_pendent_no_s_ha_aprovat_sol(): void
+    {
+        AprovacioAutomaticaSetting::getSettings()->update(['enabled' => false]);
+        $w = $this->treballadora();
+        $bo = $this->jornada($w, '08:20', '16:00');
+        $tard = $this->jornada($w, '08:45', '16:00');
+
+        Sanctum::actingAs($this->gestio('hr'));
+        $logs = collect($this->getJson('/api/v1/work-logs?mes=2026-10')->assertOk()->json())->keyBy('id');
+
+        $this->assertArrayHasKey('motiu_no_auto', $logs[$bo->id]);
+        $this->assertNull($logs[$bo->id]['motiu_no_auto']);
+        $this->assertSame("l'entrada no quadra amb l'horari", $logs[$tard->id]['motiu_no_auto']);
+        $this->assertArrayNotHasKey('work_schedule', $logs[$tard->id]['user']);
+    }
+
     public function test_la_configuracio_la_canvia_rrhh_i_no_un_treballador(): void
     {
         Sanctum::actingAs($this->gestio('hr'));

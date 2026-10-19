@@ -115,7 +115,9 @@
                 <ul v-if="avisos(log).length" class="wl-avisos">
                   <li v-for="a in avisos(log)" :key="a.text" :class="'wl-avis-' + a.to" :title="a.ajuda">{{ a.text }}</li>
                 </ul>
-                <span v-else-if="log.status === 'pending' && log.end_time" class="wl-ok">✓ Tot quadra</span>
+                <span v-else-if="log.status === 'pending' && log.end_time && log.motiu_no_auto" class="wl-avis-groc wl-motiu" title="Per això no s'ha aprovat sol">• {{ etiqueta('noAuto', log.motiu_no_auto) }}</span>
+                <span v-else-if="log.status === 'pending' && log.end_time && 'motiu_no_auto' in log" class="wl-ok" title="Compleix les condicions: s'aprova amb «Aprovar els correctes»">✓ Tot quadra</span>
+                <span v-else-if="log.status === 'pending' && log.end_time" class="text-muted">—</span>
                 <span v-else class="text-muted">—</span>
               </td>
               <td>
@@ -201,6 +203,7 @@ import { db } from '../services/db'
 import api, { apiFetchRaw } from '../services/apiClient'
 import { i18n } from '../i18n'
 import { formatHM } from '../utils/formatHours'
+import { etiqueta } from '../utils/etiquetes'
 import { sortidaAltreDia } from '../utils/sortidaAltreDia'
 import { useEstatUrl, idOText } from '../composables/useEstatUrl'
 
@@ -545,6 +548,7 @@ function statusBadge(s) { return { 'badge-pending': s === 'pending', 'badge-succ
 .wl-avis-groc { color: #b45309; }
 .wl-avis-vermell { color: #b91c1c; }
 .wl-ok { font-size: .78rem; color: #15803d; }
+.wl-motiu { font-size: .78rem; font-weight: 500; }
 .wl-auto { font-size: .7rem; padding: 2px 8px; border-radius: 99px; background: #eef2ff; color: #3730a3; }
 .wl-check { width: 34px; text-align: center; }
 .wl-check input { width: 17px; height: 17px; cursor: pointer; }

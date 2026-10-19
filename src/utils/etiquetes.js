@@ -52,6 +52,27 @@ const MAPES = {
     COMITE_MEMBRE_ALTA: 'Alta de representant', COMITE_MEMBRE_CANVI: 'Canvi de mandat de representant', COMITE_MEMBRE_ESBORRAT: 'Representant eliminat',
     MIGRACIO_HISTORIC_2026: 'Importació de l\'històric 2026',
   },
+  // Motiu pel qual un fitxatge no s'ha aprovat sol (App\Services\AprovacioAutomatica::motiu)
+  noAuto: {
+    'sense entrada o sortida': 'Falta l\'entrada o la sortida',
+    'tancat pel sistema': 'La sortida la va tancar el sistema',
+    'dia fora de quadrant': 'Dia fora del quadrant',
+    'hores extra': 'Té hores extra',
+    'hores extra o fora de zona': 'Té hores extra o temps fora de zona',
+    'entrada fora de zona': 'Entrada fitxada fora de zona',
+    'sortida fora de zona': 'Sortida fitxada fora de zona',
+    'pausa obligatòria sense fer': 'No ha fet la pausa obligatòria',
+    'té alertes': 'Té avisos per revisar',
+    'modificat o registrat a mà': 'S\'ha modificat o registrat a mà',
+    'jornada amb fites de domi': 'Jornada de domicili: cal revisar-la',
+    'tram fora de zona': 'Una part de la jornada és fora de zona',
+    'tram rebutjat': 'Té una part rebutjada',
+    'tram fora de radi': 'Una part és fora del radi del domicili',
+    'temps fora d\'horari': 'Té temps fora d\'horari',
+    'sense horari aquell dia': 'No té horari assignat aquell dia',
+    'l\'entrada no quadra amb l\'horari': 'L\'entrada no quadra amb l\'horari',
+    'la sortida no quadra amb l\'horari': 'La sortida no quadra amb l\'horari',
+  },
 }
 
 /**
