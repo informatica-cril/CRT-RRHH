@@ -67,7 +67,7 @@
   --radius-full: 9999px;
   
   /* Sidebar */
-  --sidebar-width: 240px;
+  --sidebar-width: 272px;
   --sidebar-collapsed-width: 72px;
   --header-height: 64px;
   
@@ -308,6 +308,7 @@ a:hover { color: var(--color-primary); }
 
 .nav-badge {
   margin-left: auto;
+  flex-shrink: 0; /* el número no s'ha de tallar mai */
   background: var(--color-danger);
   color: white;
   font-size: 0.68rem;
