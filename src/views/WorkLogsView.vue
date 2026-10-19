@@ -40,7 +40,14 @@
       </span>
       <span v-else>⏸ <strong>Aprovació automàtica desactivada:</strong> tots els fitxatges s'han d'aprovar a mà.</span>
       <span class="wl-auto-accions">
-        <button v-if="pendentsTancats.length" type="button" class="btn btn-success btn-sm" :disabled="aprovantCorrectes" @click="aprovaCorrectes"
+        <!-- Cada gestor tria com vol aprovar: un sol botó a la vista cada vegada perquè no es confonguin. -->
+        <span class="wl-mode" role="group" aria-label="Com vols aprovar">
+          <button type="button" :class="{ actiu: modeAprovar === 'auto' }" @click="modeAprovar = 'auto'"
+            title="L'app revisa els pendents i només aprova els que ho tenen tot bé">🤖 Automàtica</button>
+          <button type="button" :class="{ actiu: modeAprovar === 'manual' }" @click="modeAprovar = 'manual'"
+            title="Tu marques els fitxatges i s'aproven tal com estan">✋ Manual</button>
+        </span>
+        <button v-if="modeAprovar === 'auto' && pendentsTancats.length" type="button" class="btn btn-success btn-sm" :disabled="aprovantCorrectes" @click="aprovaCorrectes"
           title="Aprova els pendents d'aquest mes que tenen l'horari, la zona i les hores bé. La resta es queden per revisar.">
           {{ aprovantCorrectes ? 'Revisant…' : `✅ Aprovar els correctes (${pendentsTancats.length} pendents)` }}
         </button>
@@ -65,8 +72,9 @@
     </div>
 
     <!-- Aprovació conjunta: apareix quan hi ha fitxatges seleccionats -->
-    <div v-if="authStore.isStaff && seleccionats.length" class="wl-seleccio">
+    <div v-if="ambCaselles && seleccionats.length" class="wl-seleccio">
       <strong>{{ seleccionats.length }}</strong> fitxatge{{ seleccionats.length === 1 ? '' : 's' }} seleccionat{{ seleccionats.length === 1 ? '' : 's' }}
+      <span class="text-small">· s'aprovaran tal com estan, encara que tinguin coses per revisar</span>
       <button type="button" class="btn btn-success btn-sm" :disabled="aprovant" @click="aprovaSeleccionats">
         {{ aprovant ? 'Aprovant…' : '✅ Aprovar seleccionats' }}
       </button>
@@ -78,7 +86,7 @@
         <table>
           <thead>
             <tr>
-              <th v-if="authStore.isStaff" class="wl-check">
+              <th v-if="ambCaselles" class="wl-check">
                 <input type="checkbox" :checked="totsSeleccionats" :indeterminate.prop="seleccionats.length > 0 && !totsSeleccionats"
                   :disabled="!pendentsVisibles.length" title="Seleccionar tots els pendents visibles" @change="seleccionaTots($event.target.checked)" />
               </th>
@@ -93,7 +101,7 @@
           </thead>
           <tbody>
             <tr v-for="log in filteredLogs" :key="log.id" :class="{ 'wl-fila-sel': seleccionats.includes(log.id) }">
-              <td v-if="authStore.isStaff" class="wl-check">
+              <td v-if="ambCaselles" class="wl-check">
                 <input v-if="log.status === 'pending'" type="checkbox" :value="log.id" v-model="seleccionats" :title="'Seleccionar per aprovar'" />
               </td>
               <td v-if="authStore.isStaff">{{ getUserName(log.user_id) }}</td>
@@ -159,7 +167,7 @@
               </td>
             </tr>
             <tr v-if="filteredLogs.length === 0">
-              <td :colspan="authStore.isStaff ? 9 : 7" class="text-center text-muted" style="padding: 32px;">
+              <td :colspan="(authStore.isStaff ? 8 : 7) + (ambCaselles ? 1 : 0)" class="text-center text-muted" style="padding: 32px;">
                 No hi ha registres per aquest període
               </td>
             </tr>
@@ -264,7 +272,7 @@ const altresMesosPendents = computed(() => Object.entries(pendentsPerMes.value)
   .map(([mes, n]) => { const l = nomMes(mes); return { mes, n, label: l.charAt(0).toUpperCase() + l.slice(1) } }))
 function anarAPendents(mes) {
   selectedMonth.value = mes
-  vista.value = 'pendents'
+  vista.value = 'perrevisar'
 }
 // Cada mes es demana sencer a l'API (abans es filtrava sobre els 500 últims i els mesos vells sortien buits).
 watch(selectedMonth, (m) => { workLogStore.mes = m; workLogStore.loadLogs() })
@@ -290,6 +298,13 @@ const months = computed(() => {
 // Fora de zona = alguna verificació d'ubicació fallida o hores descomptades per zona.
 // Es treballa amb el booleà i la DISTÀNCIA que ja viatgen al llistat; les coordenades
 // no hi són mai (minimització, EIPD §6.3) — igual que a la revisió de marques de domi.
+const diaDe = l => String(l.date).slice(0, 10)
+// Dia d'avui al rellotge del navegador (AAAA-MM-DD), com el text de work_logs.date.
+function avui() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function esForaZona(l) {
   return l.hour_status === 'out_of_area'
     || l.location_match === false
@@ -336,11 +351,12 @@ useEstatUrl('vista', vista)
 const filtres = [
   { clau: 'tots', nom: 'Tots', icona: '📋', to: 'neutre', fn: () => true },
   { clau: 'perrevisar', nom: 'Per revisar', icona: '👀', to: 'groc', fn: l => l.status === 'pending' && !!l.end_time },
-  { clau: 'pendents', nom: 'Pendents (també els en curs)', icona: '⏳', to: 'groc', fn: l => l.status === 'pending' },
   { clau: 'forazona', nom: 'Fora de zona', icona: '📍', to: 'vermell', fn: esForaZona },
   { clau: 'extra', nom: 'Hores extra sense aprovar', icona: '⏱', to: 'taronja', fn: l => Number(l.extra_hours_unauthorized || 0) > 0 },
   { clau: 'forahorari', nom: "Fora d'horari per revisar", icona: '🕘', to: 'taronja', fn: l => horesForaHorari(l) > 0 },
-  { clau: 'sensesortida', nom: 'Encara sense sortida', icona: '🕒', to: 'taronja', fn: l => !l.end_time },
+  // Qui és treballant ara (va entrar avui) i qui es va deixar la sortida un altre dia, per separat.
+  { clau: 'encurs', nom: 'Treballant ara', icona: '🟢', to: 'neutre', fn: l => !l.end_time && diaDe(l) === avui() },
+  { clau: 'sensesortida', nom: "Sense sortida d'altres dies", icona: '🕒', to: 'taronja', fn: l => !l.end_time && diaDe(l) < avui() },
   { clau: 'llargs', nom: 'Més de 14 h', icona: '⚠️', to: 'vermell', fn: esLlarg },
   { clau: 'aprovats', nom: 'Aprovats', icona: '✅', to: 'verd', fn: l => l.status === 'approved' },
   { clau: 'rebutjats', nom: 'Rebutjats', icona: '❌', to: 'neutre', fn: l => l.status === 'rejected' },
@@ -359,6 +375,15 @@ const logsDelMes = computed(() => {
 })
 
 // ── Aprovació conjunta ──
+// Mode triat pel gestor (es recorda en aquest navegador): «auto» = «Aprovar els correctes»;
+// «manual» = caselles i «Aprovar seleccionats». Sense configuració d'aprovació, sempre manual.
+const CLAU_MODE = 'wl-mode-aprovar'
+const modeAprovar = ref((() => { try { return localStorage.getItem(CLAU_MODE) === 'manual' ? 'manual' : 'auto' } catch { return 'auto' } })())
+watch(modeAprovar, m => {
+  seleccionats.value = []
+  try { localStorage.setItem(CLAU_MODE, m) } catch { /* sense emmagatzematge: només aquesta visita */ }
+})
+const ambCaselles = computed(() => authStore.isStaff && (modeAprovar.value === 'manual' || !confAuto.value))
 const seleccionats = ref([])
 const aprovant = ref(false)
 const pendentsVisibles = computed(() => filteredLogs.value.filter(l => l.status === 'pending').map(l => l.id))
@@ -540,6 +565,9 @@ function statusBadge(s) { return { 'badge-pending': s === 'pending', 'badge-succ
 .wl-auto-barra.apagada { background: #f4f5f7; border-color: #d5d9e0; color: #3b4252; }
 .wl-auto-form { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,.08); }
 .wl-auto-form label { display: flex; align-items: center; gap: 6px; }
+.wl-mode { display: inline-flex; border: 1px solid #9fdcc8; border-radius: 99px; overflow: hidden; background: #fff; }
+.wl-mode button { border: 0; background: transparent; padding: 4px 12px; font-size: .8rem; font-weight: 600; color: #0A5C46; cursor: pointer; }
+.wl-mode button.actiu { background: #0A5C46; color: #fff; }
 .wl-auto-accions { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
 .wl-auto-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; padding: 10px 14px; border-radius: 12px; background: #E8F8F2; border: 1px solid #9fdcc8; color: #0A5C46; font-size: .86rem; }
 .wl-nota { font-size: .72rem; color: var(--color-text-muted, #6b7280); margin-top: 2px; }
