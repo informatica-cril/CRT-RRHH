@@ -649,7 +649,10 @@
           <div class="form-group" style="display:flex;gap:8px;align-items:flex-end;">
             <div style="flex:1;">
               <label class="form-label">Nom de la nova plantilla</label>
-              <input class="form-input" v-model="newScheduleName" placeholder="Ex: 35h Dl-Dv 09:00-16:00" />
+              <!-- El nom surt sol de l'horari: així no hi ha dues maneres d'escriure el mateix. -->
+              <div class="form-input" style="background:var(--color-bg);" :style="{ color: nomNovaPlantilla ? 'var(--color-text)' : 'var(--color-text-muted)' }">
+                {{ nomNovaPlantilla || 'Es posarà sol quan omplis l\'horari' }}
+              </div>
             </div>
             <button class="btn btn-outline btn-sm" style="white-space:nowrap;margin-bottom:1px;" @click="isNewSchedule = false">← Plantilles</button>
           </div>
@@ -986,6 +989,7 @@
 import FrasesRapides from '../components/FrasesRapides.vue'
 import { confirma, demana } from '../utils/dialegs'
 import { avisa } from '../utils/avisos'
+import { nomHorari } from '../utils/nomHorari'
 import { ref, computed, reactive, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useEstatUrl } from '../composables/useEstatUrl'
@@ -1648,6 +1652,8 @@ function diaActiu(day) {
   return !!primer?.active
 }
 // El que es desa: trams extra buits fora i, si el dia és de descans, els seus trams també.
+// Nom automàtic de la plantilla a partir de l'horari que s'està editant (src/utils/nomHorari.js).
+const nomNovaPlantilla = computed(() => nomHorari(diesPerDesar().filter(d => diaActiu(d.day))))
 function diesPerDesar() {
   return scheduleForm.days
     .filter((d, i) => !(isExtraTramo(i) && !d.start && !d.end))
@@ -1702,9 +1708,9 @@ async function saveSchedule() {
     let scheduleId = scheduleForm.id
     let recalculats = 0
     if (isNewSchedule.value) {
-      if (!newScheduleName.value.trim()) { alert('Cal indicar un nom per a la nova plantilla'); return }
+      if (!nomNovaPlantilla.value) { alert("Omple l'horari d'algun dia abans de crear la plantilla."); return }
       const created = await db.addWorkSchedule({
-        name: newScheduleName.value.trim(),
+        name: nomNovaPlantilla.value,
         total_hours_weekly: parseFloat(totalWeeklyHours.value),
         days: diesPerDesar()
       })
@@ -1717,7 +1723,7 @@ async function saveSchedule() {
       if (canviat && altresAmbPlantilla.value > 0) {
         // Plantilla compartida: abans es reescrivia i canviava l'horari de tothom qui la tenia.
         const created = await db.addWorkSchedule({
-          name: `${originalSched.name} · ${scheduleUser.value.name}`.slice(0, 250),
+          name: nomNovaPlantilla.value,
           total_hours_weekly: parseFloat(totalWeeklyHours.value),
           days: diesPerDesar()
         })

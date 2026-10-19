@@ -30,8 +30,9 @@ class WorkScheduleController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name' => 'required|string|max:255',
-            'total_hours_weekly' => 'required|numeric|min:0',
+            // El nom i les hores es poden deixar buits: surten de l'horari (nom automàtic).
+            'name' => 'nullable|string|max:255',
+            'total_hours_weekly' => 'nullable|numeric|min:0',
             'days' => 'required|array',
         ]);
 
@@ -48,6 +49,9 @@ class WorkScheduleController extends Controller
                 return response()->json(array_merge($igual->toArray(), ['reutilitzada' => true]));
             }
         }
+
+        $data['name'] = trim((string) ($data['name'] ?? '')) ?: (WorkSchedule::nomAutomatic($data['days']) ?: 'Sense horari');
+        $data['total_hours_weekly'] ??= round(WorkSchedule::minutsSetmanals($data['days']) / 60, 2);
 
         return response()->json(WorkSchedule::create($data), 201);
     }

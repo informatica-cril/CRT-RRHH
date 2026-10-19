@@ -115,6 +115,34 @@ class WorkSchedule extends Model
         return implode('|', $parts);
     }
 
+    /**
+     * Nom automàtic a partir dels dies, el mateix criteri que src/utils/nomHorari.js:
+     * «30 h · Dl-Dv 08:00-14:00», «30 h · Dl, Dc, Dv 08:00-14:00 / Dm, Dj 12:00-18:00».
+     */
+    public static function nomAutomatic($days): string
+    {
+        $noms = ['Dg', 'Dl', 'Dm', 'Dc', 'Dj', 'Dv', 'Ds'];
+        $ordre = [1, 2, 3, 4, 5, 6, 0];
+        $per = self::tramsPerDia($days);
+        $perText = [];
+        foreach ($ordre as $dia) {
+            if (empty($per[$dia])) continue;
+            $text = implode(' i ', array_map(fn ($t) => "{$t[0]}-{$t[1]}", $per[$dia]));
+            $perText[$text][] = $dia;
+        }
+        if (! $perText) return '';
+        $parts = [];
+        foreach ($perText as $text => $dies) {
+            $pos = array_map(fn ($d) => array_search($d, $ordre, true), $dies);
+            $seguits = count($dies) > 2 && $pos === range($pos[0], $pos[0] + count($pos) - 1);
+            $etiqueta = $seguits ? $noms[$dies[0]] . '-' . $noms[end($dies)] : implode(', ', array_map(fn ($d) => $noms[$d], $dies));
+            $parts[] = "{$etiqueta} {$text}";
+        }
+        $hores = str_replace('.', ',', (string) round(self::minutsSetmanals($days) / 60, 2));
+
+        return mb_substr("{$hores} h · " . implode(' / ', $parts), 0, 250);
+    }
+
     /** Minuts setmanals de l'horari tal com està (no el número que diu el nom). */
     public static function minutsSetmanals($days): int
     {

@@ -50,6 +50,21 @@ class PlantillesHorariTest extends TestCase
         $this->assertSame(2, WorkSchedule::count());
     }
 
+    public function test_sense_nom_la_plantilla_es_diu_com_el_seu_horari(): void
+    {
+        Sanctum::actingAs($this->persona(null, 'hr'));
+        $dies = array_merge(
+            collect([1, 3, 5])->map(fn ($d) => ['day' => $d, 'start' => '08:00', 'end' => '14:00'])->all(),
+            collect([2, 4])->map(fn ($d) => ['day' => $d, 'start' => '12:00', 'end' => '18:00'])->all(),
+        );
+
+        $r = $this->postJson('/api/v1/work-schedules', ['days' => $dies])->assertCreated();
+
+        $this->assertSame('30 h · Dl, Dc, Dv 08:00-14:00 / Dm, Dj 12:00-18:00', $r->json('name'));
+        $this->assertEquals(30, $r->json('total_hours_weekly'));
+        $this->assertSame('25 h · Dl-Dv 09:00-14:00', WorkSchedule::nomAutomatic($this->dies('09:00', '14:00')));
+    }
+
     public function test_el_llistat_diu_qui_la_fa_servir_i_les_hores_reals(): void
     {
         $s = $this->plantilla('35h Dl-Dv 09:00-14:00', '09:00', '14:00', 35);   // el nom diu 35 h, l'horari en fa 25
