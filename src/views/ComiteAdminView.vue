@@ -39,7 +39,8 @@
             <tr v-for="h in hores" :key="h.id">
               <td><strong>{{ h.user?.name }}</strong><div class="text-small text-muted">{{ h.user?.dni }}</div></td>
               <td>{{ dmy(h.data) }}</td>
-              <td class="text-small">{{ h.hora_inici.slice(0, 5) }}–{{ h.hora_fi.slice(0, 5) }}</td>
+              <!-- Les hores que vénen de l'Excel de RRHH no porten franja, només la durada. -->
+              <td class="text-small">{{ h.origen_ref ? 'Excel de RRHH' : `${h.hora_inici.slice(0, 5)}–${h.hora_fi.slice(0, 5)}` }}</td>
               <td>{{ hm(h.minuts / 60) }}</td>
               <td class="text-small">{{ tipusHores[h.tipus] || h.tipus }}<span v-if="!h.consumeix_credit" class="text-muted"> (no descompta)</span></td>
               <td class="text-small" style="max-width:280px;">

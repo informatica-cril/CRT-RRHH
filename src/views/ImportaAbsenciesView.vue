@@ -73,6 +73,30 @@
         </ul>
       </div>
 
+      <!-- Comitè: les hores sindicals de l'Excel també hi van, i s'hi dona d'alta qui no hi és. -->
+      <div v-if="prev.comite?.registres?.length" class="card" style="padding:16px;margin-top:12px;">
+        <div class="form-label">Comitè d'empresa · hores sindicals</div>
+        <p class="text-small text-muted" style="margin:0 0 8px;">
+          Les {{ prev.comite.registres.length }} files de la fulla «hores sindicals» també es passen a «Comitè d'empresa».
+          Qui encara no hi consta es dona d'alta com a vocal amb {{ CREDIT_COMITE }} h al mes (ho podeu canviar després).
+        </p>
+        <table class="taula-import">
+          <thead><tr><th>Persona</th><th>Hores a l'Excel</th><th>Files</th><th>Al comitè</th></tr></thead>
+          <tbody>
+            <tr v-for="p in prev.comite.persones" :key="p.nom">
+              <td>{{ nomApp(p) }}</td>
+              <td>{{ String(p.hores).replace('.', ',') }} h</td>
+              <td>{{ p.files }}<span v-if="p.noves < p.files" class="text-muted"> ({{ p.noves }} noves)</span></td>
+              <td>
+                <span v-if="!uidDe(p)" class="etiqueta sense_persona">Sense persona (tria-la al punt 3)</span>
+                <span v-else-if="p.es_membre" class="etiqueta igual">Ja hi és</span>
+                <span v-else class="etiqueta crear">Es donarà d'alta</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
       <!-- 5. Detall i aplicar -->
       <div class="card" style="padding:16px;margin-top:12px;">
         <div class="form-label">5. Detall</div>
@@ -110,12 +134,15 @@
         </label>
 
         <div class="modal-footer" style="padding:12px 0 0;">
-          <button class="btn btn-primary" :disabled="aplicant || !aImportar" @click="aplica">
-            {{ aplicant ? 'Aplicant…' : `Aplicar (${aImportar} absències)` }}
+          <button class="btn btn-primary" :disabled="aplicant || (!aImportar && !horesComite)" @click="aplica">
+            {{ aplicant ? 'Aplicant…' : `Aplicar (${aImportar} absències${horesComite ? ` i ${horesComite} hores sindicals` : ''})` }}
           </button>
         </div>
         <div v-if="resultat" class="ok-import">
           ✅ Fet: {{ resultat.creades }} creades, {{ resultat.actualitzades }} actualitzades, {{ resultat.iguals }} ja hi eren<span v-if="resultat.saltades">, {{ resultat.saltades }} sense importar</span>.
+          <template v-if="resultat.hores_creades !== undefined">
+            <br>Comitè: {{ resultat.hores_creades }} hores sindicals noves, {{ resultat.hores_actualitzades }} actualitzades<span v-if="resultat.membres_nous">, {{ resultat.membres_nous }} persones donades d'alta</span><span v-if="resultat.hores_saltades">, {{ resultat.hores_saltades }} sense persona</span>.
+          </template>
         </div>
       </div>
     </template>
@@ -179,6 +206,9 @@ function accioDe(r) {
   return r.accio === 'sense_persona' || uidDe(r) !== r.user_id ? 'crear' : r.accio
 }
 const pendentsPersona = computed(() => (prev.value?.registres || []).filter(r => !uidDe(r)).length)
+const CREDIT_COMITE = 15
+// Hores sindicals que s'importaran al comitè: les que tenen persona.
+const horesComite = computed(() => (prev.value?.comite?.registres || []).filter(r => uidDe(r)).length)
 const aImportar = computed(() => (prev.value?.registres || []).filter(r => uidDe(r) && accioDe(r) !== 'igual').length)
 const registresFiltrats = computed(() => {
   const q = cerca.value.trim().toLowerCase()
@@ -188,13 +218,15 @@ const registresFiltrats = computed(() => {
 })
 
 async function aplica() {
-  if (!(await confirma(`S'aplicaran ${aImportar.value} absències de l'Excel. Les que l'Excel diu d'una altra manera s'actualitzaran. Continuar?`))) return
+  const comite = horesComite.value ? ` i ${horesComite.value} hores sindicals al comitè` : ''
+  if (!(await confirma(`S'aplicaran ${aImportar.value} absències de l'Excel${comite}. Les que l'Excel diu d'una altra manera s'actualitzaran. Continuar?`))) return
   aplicant.value = true; error.value = ''
   try {
     resultat.value = await api.post('/v1/absences/importa-excel/aplica', {
       registres: prev.value.registres,
       assignacions: { ...assignacions },
       amb_motiu_baixes: ambMotiuBaixes.value,
+      comite: prev.value.comite?.registres || [],
     })
     avisa(`Importació feta: ${resultat.value.creades} creades, ${resultat.value.actualitzades} actualitzades.`, 'ok')
     // Tornar a revisar: ara tot ha de sortir com «ja hi és».
