@@ -63,6 +63,7 @@
         <router-link to="/auth-codes" :class="{ active: $route.name === 'auth-codes' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           <span>Hores de més</span>
+          <span v-if="horesPerAutoritzar > 0" class="nav-badge" :title="horesPerAutoritzar + ' peticions per autoritzar'">{{ horesPerAutoritzar }}</span>
         </router-link>
       </li>
       <li v-if="authStore.canManageStaff">
@@ -302,6 +303,7 @@ const incidenciesObertes = ref(0)
 const totalSafata = ref(0)
 const absenciesPendents = ref(0)
 const excedenciesPendents = ref(0)
+const horesPerAutoritzar = ref(0)
 const esRepresentant = ref(false)
 const teApps = ref(false)
 const unreadCount = ref(0)
@@ -320,6 +322,7 @@ async function fetchCounts() {
     incidenciesObertes.value = n('incidencies')
     absenciesPendents.value = n('absencies')
     excedenciesPendents.value = n('excedencies')
+    horesPerAutoritzar.value = n('horesextra')
     totalSafata.value = cues.reduce((s, c) => s + (Number(c.n) || 0), 0)
     // unreadCount.value = await db.getTotalUnreadCount(authStore.userId)
   } catch (e) { console.error(e) }
