@@ -578,6 +578,21 @@
           </div>
         </div>
 
+        <!-- FITXATGE AUTOMÀTIC (Direcció, 20-10-2026): per a gerència, que s'oblidava de fitxar.
+             Només admin. L'app crea cada dia l'entrada i la sortida amb l'horari del dia. -->
+        <div class="form-group" v-if="editingUser && authStore.isAdmin">
+          <label class="form-label">Fitxatge automàtic</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;cursor:pointer;">
+            <input type="checkbox" :checked="fitxatgeAutomatic" :disabled="desantFitxatgeAuto" @change="canviaFitxatgeAutomatic($event)" style="width:16px;height:16px;" />
+            {{ fitxatgeAutomatic ? '🤖 Activat: no ha de fitxar' : 'Desactivat: fitxa com sempre' }}
+          </label>
+          <div class="text-small text-muted" style="margin-top:2px;">
+            Pensat per a gerència. Cada dia laborable, a les 23:30, l'app li crea l'entrada i la sortida de
+            l'horari del dia (el del quadrant o el de la fitxa), ja aprovades. Els festius, els permisos de dia
+            sencer i els dies que ja hagi fitxat la persona no es toquen.
+          </div>
+        </div>
+
         <!-- COMPTE A DOMI. L'alta individual l'aprovisiona sola, però la càrrega massiva no
              (vuitanta crides HTTP no caben en una petició web). Sense aquest bloc, després
              d'una càrrega la plantilla és a RRHH i no a domi, i no ho sap ningú. -->
@@ -1176,6 +1191,29 @@ async function desa2fa () {
   }
 }
 
+// Fitxatge automàtic (gerència): només admin; es desa en el moment, a part de la fitxa.
+const fitxatgeAutomatic = ref(false)
+const desantFitxatgeAuto = ref(false)
+async function canviaFitxatgeAutomatic(ev) {
+  const actiu = ev.target.checked
+  const nom = editingUser.value?.name
+  const missatge = actiu
+    ? `Activar el fitxatge automàtic per a ${nom}? Ja no haurà de fitxar: l'app li crearà cada dia l'entrada i la sortida del seu horari.`
+    : `Desactivar el fitxatge automàtic per a ${nom}? A partir de demà haurà de tornar a fitxar.`
+  if (!await confirma(missatge)) { ev.target.checked = !actiu; return }
+  desantFitxatgeAuto.value = true
+  try {
+    await api.put(`/v1/users/${editingUser.value.id}/fitxatge-automatic`, { actiu })
+    fitxatgeAutomatic.value = actiu
+    avisa(actiu ? '✅ Fitxatge automàtic activat.' : '✅ Fitxatge automàtic desactivat.')
+  } catch (e) {
+    ev.target.checked = !actiu
+    avisa(e?.message || "No s'ha pogut canviar.", 'error')
+  } finally {
+    desantFitxatgeAuto.value = false
+  }
+}
+
 const provisionant = ref(false)
 const provisioMsg = ref('')
 const provisioOk = ref(true)
@@ -1586,6 +1624,7 @@ async function openEditModal(user) {
         form.retribucio_pct = full.retribucio_pct != null ? Number(full.retribucio_pct) : ''
         form.lots = (full.lots || []).map(l => l.code)
         form.departments = (full.departments || []).map(d => d.code)
+        fitxatgeAutomatic.value = !!full.fitxatge_automatic
       } catch (e) { /* es queda buit */ }
   } else {
     Object.assign(form, { retribucio_pct: '', role: 'worker', entitat: 'CRIL', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: new Date().toISOString().split('T')[0], specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })

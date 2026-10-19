@@ -138,6 +138,9 @@ class User extends Authenticatable
         'domi_provisioned_at' => 'datetime',
         'totp_recovery_generated_at' => 'datetime',
         'practiques' => 'boolean',
+        // Fora de $fillable a propòsit: només ho canvia admin (UserController::fitxatgeAutomatic).
+        'fitxatge_automatic' => 'boolean',
+        'fitxatge_automatic_at' => 'datetime',
     ];
 
     // ── Relationships ──

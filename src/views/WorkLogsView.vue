@@ -152,7 +152,9 @@
                     <span v-else-if="log.status === 'rejected'">❌</span>
                     {{ t(log.status) }}
                   </span>
-                  <span v-if="log.status === 'approved' && log.auto_approved_at" class="wl-auto"
+                  <span v-if="log.fitxatge_automatic" class="wl-auto"
+                        title="Fitxatge automàtic (gerència): l'ha creat l'app amb l'horari del dia">🤖 Fitxatge automàtic</span>
+                  <span v-else-if="log.status === 'approved' && log.auto_approved_at" class="wl-auto"
                         title="L'app l'ha aprovat sola: horari, zona i hores correctes">🤖 Automàtic</span>
                   <span v-if="log.hour_status === 'in_progress'"
                         class="badge"

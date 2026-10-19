@@ -96,6 +96,8 @@ Route::prefix('v1')->group(function () {
             Route::get('sense-horari', [UserController::class, 'llistaSenseHorari'])->middleware('role:admin,hr');
             // Treure o tornar l'accés a l'app a una selecció (segueixen a la plantilla).
             Route::post('acces-app', [UserController::class, 'accesApp'])->middleware('role:admin,hr');
+            // Fitxatge automàtic (gerència): només admin.
+            Route::put('{user}/fitxatge-automatic', [UserController::class, 'fitxatgeAutomatic'])->middleware('role:admin');
             // Activar o desactivar una selecció (mateixes regles que la fitxa).
             Route::post('estat-seleccio', [\App\Http\Controllers\Api\UserEstatController::class, 'seleccio'])->middleware('role:admin,hr');
             // Fitxa d'un usuari: el propi titular o personal de gestió.

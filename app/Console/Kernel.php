@@ -25,6 +25,8 @@ class Kernel extends ConsoleKernel
         // Purga dels indicadors de rendiment als 4 anys del tancament del període (política 3.7).
         // Mensual: el termini es compta en anys i la tramesa que l'alimenta també és mensual.
         $schedule->command('rendiment:purge --apply')->monthlyOn(1, '04:00');
+        // Fitxatge automàtic de gerència: abans del segell del dia perquè hi quedi inclòs.
+        $schedule->command('worklogs:fitxatge-automatic')->dailyAt('23:30')->withoutOverlapping();
         // Segell d'integritat diari (1 crèdit FNMT/dia; engloba les firmes de totes les apps).
         $schedule->command('integrity:seal-day')->dailyAt(config('integrity.seal_at', '23:45'));
         /* Bitllet del compte de servei de domi: si caduca sense avisar, el pont entre

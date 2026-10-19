@@ -24,6 +24,7 @@ class WorkLog extends Model
         'hours_out_of_area',
         'effective_hours',
         'auto_closed',
+        'fitxatge_automatic',
         'reminder_pre_sent_at',
         'reminder1_sent_at',
         'reminder2_sent_at',
@@ -65,6 +66,7 @@ class WorkLog extends Model
         'hours_out_of_area' => 'decimal:2',
         'effective_hours' => 'decimal:2',
         'auto_closed' => 'boolean',
+        'fitxatge_automatic' => 'boolean',
         // Casts nuevos (aditivos)
         'break_start_time' => 'datetime',
         'break_end_time' => 'datetime',
