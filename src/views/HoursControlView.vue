@@ -18,7 +18,7 @@
       <div v-for="p in pendents" :key="p.id" class="hc-req">
         <div class="hc-req-info">
           <b>{{ p.user?.name || ('#'+p.user_id) }}</b>
-          <span class="pill">{{ p.hours }} h<template v-if="p.origen !== 'treballador'"> · {{ fmtFactor }}× = {{ (p.hours * params.extra_factor).toFixed(2) }} h pagades</template></span>
+          <span class="pill">{{ formatHM(p.hours) }}<template v-if="p.origen !== 'treballador'"> · {{ fmtFactor }}× = {{ (p.hours * params.extra_factor).toFixed(2) }} h pagades</template></span>
           <span v-if="p.origen === 'treballador'" class="dim">{{ p.period_from }} · demanat pel treballador des del comptador</span>
           <span v-else class="dim">{{ p.period_from }} → {{ p.period_to }} · forçat per {{ p.requested_by }}</span>
           <div v-if="p.reason" class="dim" style="font-size:.8rem;margin-top:2px">{{ p.reason }}</div>
@@ -86,6 +86,7 @@
 </template>
 
 <script setup>
+import { formatHM } from '../utils/formatHours'
 import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, onMounted } from 'vue'
 import db from '../services/db'

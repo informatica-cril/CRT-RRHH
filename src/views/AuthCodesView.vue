@@ -14,7 +14,7 @@
       <div v-for="p in pendents" :key="p.id" class="hm-peticio">
         <div class="hm-peticio-info">
           <strong>{{ p.user?.name || getUserName(p.user_id) }}</strong>
-          <span class="badge badge-warning">{{ p.hours }} h</span>
+          <span class="badge badge-warning">{{ formatHM(p.hours) }}</span>
           <span class="text-small text-muted">{{ formatDate(p.period_from) }}<template v-if="p.period_to && p.period_to !== p.period_from"> → {{ formatDate(p.period_to) }}</template>
             · {{ p.origen === 'treballador' ? 'la demana la persona' : 'forçada per ' + p.requested_by }}</span>
           <div v-if="p.reason" class="text-small text-muted">{{ p.reason }}</div>
