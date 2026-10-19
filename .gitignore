@@ -82,3 +82,6 @@ dist-ssr
 Thumbs.db
 .htaccess
 .user.ini
+
+# BD sqlite dels tests (es regenera a cada execució)
+/database/testing.sqlite*
