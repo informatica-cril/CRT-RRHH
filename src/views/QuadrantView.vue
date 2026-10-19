@@ -25,12 +25,12 @@
     </div>
 
     <div class="qd-llegenda">
-      <span v-for="p in plantillesFetes" :key="p.id" class="qd-xip" :style="estilPlantilla(p.id)">{{ p.name }}</span>
-      <span class="qd-xip qd-amida">A mida</span>
-      <span class="qd-xip qd-lliure">Lliure</span>
-      <span class="qd-xip"><span class="qd-punt"></span> Canviat al quadrant</span>
-      <span class="qd-xip qd-abs-x">Absència</span>
-      <span class="text-small text-muted">Clica o arrossega per triar dies · clica un nom per triar tot el mes · clica un dia de la capçalera per triar la columna</span>
+      <span class="qd-mostra"><i class="qd-m-fitxa">9-15</i> Horari de la fitxa</span>
+      <span class="qd-mostra"><i class="qd-m-canviat">9-15</i> Canviat al quadrant</span>
+      <span class="qd-mostra"><i class="qd-m-lliure">—</i> No treballa</span>
+      <span class="qd-mostra"><i class="qd-m-abs">Perm.</i> Permís o absència</span>
+      <span class="qd-mostra"><i class="qd-m-festiu">&nbsp;</i> Festiu</span>
+      <span class="text-small text-muted qd-ajuda">Clica o arrossega per triar dies · clica un nom per triar-li tot el mes</span>
     </div>
 
     <div class="card qd-taula-card">
@@ -56,18 +56,15 @@
               <th class="qd-nom">
                 <button type="button" class="qd-nom-btn" @click="triaFila(p)" :title="'Triar tot el mes de ' + p.name">{{ p.name }}</button>
                 <div class="qd-nom-sub">
-                  <span>{{ p.plantilla?.name || 'Sense plantilla' }}</span>
+                  <span class="qd-plantilla" :title="p.plantilla?.name || 'Sense plantilla'">{{ p.plantilla?.name || 'Sense plantilla' }}</span>
                   <button type="button" class="qd-any-btn" @click="obreAny(p)" title="Veure tot l'any">📅 Any</button>
                 </div>
               </th>
               <td v-for="d in dades.dies" :key="d" class="qd-cel"
-                :class="{ sel: seleccio.has(clau(p.id, d)), cap: esCapDeSetmana(d), festiu: dades.festius[d] }"
-                :style="estilDia(p.dies[d])"
+                :class="[classeDia(p.dies[d]), { sel: seleccio.has(clau(p.id, d)), cap: esCapDeSetmana(d), festiu: dades.festius[d] }]"
                 :title="titolDia(p, d)"
                 @mousedown.prevent="iniciaArrossega(p.id, d, $event)" @mouseenter="continuaArrossega(p.id, d)">
-                <span v-if="p.dies[d].origen === 'quadrant'" class="qd-punt"></span>
-                <span class="qd-txt">{{ textDia(p.dies[d]) }}</span>
-                <span v-if="p.dies[d].absencia" class="qd-abs">A</span>
+                {{ p.dies[d].absencia && p.dies[d].trams.length ? 'Perm.' : textDia(p.dies[d]) }}
               </td>
               <td class="qd-hores">{{ formatHM(p.minuts / 60) }}</td>
             </tr>
@@ -136,8 +133,8 @@
             <div class="qd-mini-grid">
               <span v-for="l in ['Dl','Dt','Dc','Dj','Dv','Ds','Dg']" :key="l" class="qd-mini-cap">{{ l }}</span>
               <span v-for="n in m.buits" :key="'b' + n"></span>
-              <span v-for="d in m.dies" :key="d" class="qd-mini-dia" :style="estilDia(anual.dades.persona.dies[d])"
-                :class="{ festiu: anual.dades.festius[d] }" :title="d.split('-').reverse().join('/') + ' · ' + textLlarg(anual.dades.persona.dies[d])">
+              <span v-for="d in m.dies" :key="d" class="qd-mini-dia"
+                :class="[classeDia(anual.dades.persona.dies[d]), { festiu: anual.dades.festius[d] }]" :title="d.split('-').reverse().join('/') + ' · ' + textLlarg(anual.dades.persona.dies[d])">
                 {{ Number(d.slice(8)) }}
               </span>
             </div>
@@ -199,18 +196,12 @@ const personesVisibles = computed(() => {
 })
 
 // ── Aspecte de cada dia ──
-const COLORS = [['#DBEAFE', '#1E3A8A'], ['#FFEDD5', '#9A3412'], ['#EDE9FE', '#5B21B6'], ['#DCFCE7', '#166534'],
-  ['#FCE7F3', '#9D174D'], ['#FEF9C3', '#854D0E'], ['#CFFAFE', '#155E75'], ['#E2E8F0', '#334155']]
-const colorDe = id => COLORS[(dades.value.plantilles.findIndex(p => p.id === id) + COLORS.length) % COLORS.length]
-function estilPlantilla(id) {
-  const [bg, fg] = colorDe(id)
-  return { background: bg, color: fg }
-}
-function estilDia(d) {
-  if (!d || !d.trams.length) return {}
-  // A mida = trams que no surten de cap plantilla.
-  if (d.origen === 'quadrant' && !d.work_schedule_id) return { background: '#FEF3C7', color: '#78350F' }
-  return d.work_schedule_id ? estilPlantilla(d.work_schedule_id) : {}
+// Només es ressalta el que s'ha canviat: el dia que segueix la fitxa queda discret.
+function classeDia(d) {
+  if (!d) return ''
+  if (d.absencia) return 'd-abs'
+  if (!d.trams.length) return d.origen === 'quadrant' ? 'd-lliure d-canviat-lliure' : 'd-lliure'
+  return d.origen === 'quadrant' ? 'd-canviat' : 'd-fitxa'
 }
 const hora = h => h.replace(/^0/, '').replace(/:00$/, '')
 function textDia(d) {
@@ -227,10 +218,6 @@ function titolDia(p, d) {
   const fest = dades.value.festius[d] ? ` · Festiu: ${dades.value.festius[d]}` : ''
   return `${p.name} · ${d.split('-').reverse().join('/')}\n${textLlarg(p.dies[d])}${fest}`
 }
-const plantillesFetes = computed(() => {
-  const usades = new Set(dades.value.persones.flatMap(p => Object.values(p.dies).filter(d => d.trams.length).map(d => d.work_schedule_id)))
-  return dades.value.plantilles.filter(p => usades.has(p.id))
-})
 const esCapDeSetmana = d => [0, 6].includes(new Date(`${d}T12:00:00`).getDay())
 const inicialDia = d => ['dg', 'dl', 'dt', 'dc', 'dj', 'dv', 'ds'][new Date(`${d}T12:00:00`).getDay()]
 
@@ -365,11 +352,16 @@ function vesAlMes(m) {
 .qd-mes input { width: 170px; }
 .qd-cerca { max-width: 240px; }
 .qd-llegenda { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
-.qd-xip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 99px; font-size: .74rem; font-weight: 600; background: var(--color-surface, #fff); border: 1px solid var(--color-border, #e2e8f0); }
-.qd-amida { background: #FEF3C7; color: #78350F; border-color: transparent; }
-.qd-lliure { color: #94a3b8; }
-.qd-abs-x::before { content: 'A'; font-size: .62rem; font-weight: 800; color: #fff; background: #B3352F; border-radius: 4px; padding: 0 3px; }
-.qd-punt { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #0A5C46; }
+.qd-llegenda { gap: 14px; }
+.qd-mostra { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; color: var(--color-text-secondary, #475569); }
+.qd-mostra i { font-style: normal; display: inline-block; min-width: 38px; padding: 3px 6px; border-radius: 4px; text-align: center; font-size: .7rem; border: 1px solid var(--color-border-light, #eef2f7); }
+.qd-ajuda { margin-left: auto; }
+.qd-m-fitxa, .d-fitxa { color: #64748b; font-weight: 500; }
+.qd-m-canviat, .d-canviat { background: #DBEAFE; color: #1E3A8A; font-weight: 700; }
+.qd-m-lliure, .d-lliure { color: #cbd5e1; }
+.d-canviat-lliure { background: #EEF2FF; color: #6366f1; }
+.qd-m-abs, .d-abs { background: #FDECEA; color: #B3352F; font-weight: 600; }
+.qd-m-festiu { background: #fdecea; }
 .qd-taula-card { padding: 0; overflow: hidden; }
 .qd-buit { padding: 32px; text-align: center; }
 .qd-scroll { overflow: auto; max-height: calc(100vh - 290px); }
@@ -381,6 +373,7 @@ thead .qd-nom { z-index: 3; }
 .qd-nom-btn { border: 0; background: none; padding: 0; font: inherit; font-weight: 700; font-size: .8rem; color: var(--color-text, #1e293b); cursor: pointer; text-align: left; }
 .qd-nom-btn:hover { color: var(--color-primary, #094E8C); }
 .qd-nom-sub { display: flex; justify-content: space-between; gap: 6px; color: var(--color-text-muted, #64748b); font-size: .68rem; }
+.qd-plantilla { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .qd-any-btn { border: 0; background: none; padding: 0; cursor: pointer; font-size: .68rem; color: var(--color-primary, #094E8C); white-space: nowrap; }
 .qd-dia-cap { min-width: 44px; padding: 4px 2px; text-align: center; cursor: pointer; font-weight: 700; }
 .qd-dia-cap:hover { background: #f1f5f9; }
@@ -388,11 +381,9 @@ thead .qd-nom { z-index: 3; }
 .qd-dia-cap.avui { color: var(--color-primary, #094E8C); box-shadow: inset 0 -3px 0 var(--color-primary, #094E8C); }
 .cap { background-color: #f8fafc; }
 .festiu { background-color: #fdecea; }
-.qd-cel { position: relative; height: 38px; text-align: center; cursor: pointer; white-space: nowrap; padding: 0 2px; color: #94a3b8; }
-.qd-cel .qd-txt { font-weight: 600; }
-.qd-cel .qd-punt { position: absolute; top: 3px; left: 3px; width: 5px; height: 5px; }
+.qd-cel { height: 34px; text-align: center; cursor: pointer; white-space: nowrap; padding: 0 3px; font-size: .7rem; }
+.qd-cel.cap.d-lliure, .qd-cel.festiu.d-lliure { color: transparent; }
 .qd-cel.sel { outline: 2px solid var(--color-primary, #094E8C); outline-offset: -2px; box-shadow: inset 0 0 0 40px rgba(9, 78, 140, .14); }
-.qd-abs { position: absolute; top: 2px; right: 2px; font-size: .56rem; font-weight: 800; color: #fff; background: #B3352F; border-radius: 3px; padding: 0 2px; line-height: 1.3; }
 .qd-hores { position: sticky; right: 0; background: var(--color-surface, #fff); padding: 0 8px; font-weight: 700; white-space: nowrap; text-align: right; }
 .qd-accions { position: sticky; bottom: 8px; z-index: 6; margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: var(--color-surface, #fff); border: 1px solid var(--color-primary, #094E8C); box-shadow: 0 8px 24px rgba(15, 35, 60, .18); }
 .qd-accions-cap { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; }
@@ -406,7 +397,7 @@ thead .qd-nom { z-index: 3; }
 .qd-mini-titol:hover { color: var(--color-primary, #094E8C); }
 .qd-mini-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
 .qd-mini-cap { font-size: .6rem; text-align: center; color: var(--color-text-muted, #64748b); }
-.qd-mini-dia { font-size: .66rem; text-align: center; border-radius: 4px; padding: 3px 0; color: #94a3b8; }
+.qd-mini-dia { font-size: .66rem; text-align: center; border-radius: 4px; padding: 3px 0; }
 @media (max-width: 640px) {
   .qd-nom { min-width: 130px; }
   .qd-cerca { max-width: none; flex: 1; }

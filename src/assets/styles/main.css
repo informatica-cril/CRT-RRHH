@@ -190,6 +190,7 @@ a:hover { color: var(--color-primary); }
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-width: 0; /* sense això, una taula ampla estira tota la pàgina en lloc de fer scroll dins seu */
   transition: margin-left var(--transition-normal);
   background: var(--color-bg);
 }
@@ -202,6 +203,7 @@ a:hover { color: var(--color-primary); }
   flex: 1;
   padding: var(--space-lg);
   width: 100%;
+  min-width: 0;
 }
 
 /* ---- Sidebar ---- */
