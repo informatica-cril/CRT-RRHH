@@ -18,7 +18,7 @@
         <router-link to="/safata" :class="{ active: $route.name === 'safata' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
           <span>Safata d'avisos</span>
-          <span v-if="pendingCount > 0" class="nav-badge">{{ pendingCount }}</span>
+          <span v-if="totalSafata > 0" class="nav-badge" :title="totalSafata + ' coses esperen una decisió'">{{ totalSafata }}</span>
         </router-link>
       </li>
       <li v-if="authStore.isAdmin || authStore.isHr">
@@ -49,12 +49,14 @@
         <router-link to="/absences" :class="{ active: $route.name === 'absences' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           <span>Absències i permisos</span>
+          <span v-if="absenciesPendents > 0" class="nav-badge" :title="absenciesPendents + ' permisos per aprovar'">{{ absenciesPendents }}</span>
         </router-link>
       </li>
       <li>
         <router-link to="/excedencies" :class="{ active: $route.name === 'excedencies' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="12" y1="14" x2="12" y2="18"/></svg>
           <span>{{ t('sabbatical') }}</span>
+          <span v-if="excedenciesPendents > 0" class="nav-badge">{{ excedenciesPendents }}</span>
         </router-link>
       </li>
       <li>
@@ -297,6 +299,9 @@ async function handleLogout() {
 
 const pendingCount = ref(0)
 const incidenciesObertes = ref(0)
+const totalSafata = ref(0)
+const absenciesPendents = ref(0)
+const excedenciesPendents = ref(0)
 const esRepresentant = ref(false)
 const teApps = ref(false)
 const unreadCount = ref(0)
@@ -308,8 +313,14 @@ async function fetchCounts() {
     // Recompte al servidor (només COUNTs): descarregar els fitxatges per comptar-los es quedava curt
     // amb l'històric (només en venien 500) i a més pesava cada minut.
     const r = await api.get('/v1/safata/resum')
-    pendingCount.value = (r?.cues || []).find(c => c.clau === 'fitxatges')?.n || 0
-    incidenciesObertes.value = (r?.cues || []).find(c => c.clau === 'incidencies')?.n || 0
+    const cues = r?.cues || []
+    const n = clau => cues.find(c => c.clau === clau)?.n || 0
+    // Fitxatges: els que es poden revisar (amb sortida). Safata: tot el que espera una decisió.
+    pendingCount.value = n('fitxatges')
+    incidenciesObertes.value = n('incidencies')
+    absenciesPendents.value = n('absencies')
+    excedenciesPendents.value = n('excedencies')
+    totalSafata.value = cues.reduce((s, c) => s + (Number(c.n) || 0), 0)
     // unreadCount.value = await db.getTotalUnreadCount(authStore.userId)
   } catch (e) { console.error(e) }
 }
@@ -321,6 +332,11 @@ onMounted(() => {
   // «Les meves apps» només té sentit si n'hi ha alguna concedida (a un compte d'administració, cap).
   api.get('/v1/portal/apps').then(r => { teApps.value = (r?.apps || []).length > 0 }).catch(() => {})
   const interval = setInterval(fetchCounts, 60000)
-  onUnmounted(() => clearInterval(interval))
+  // Després d'aprovar, rebutjar o demanar alguna cosa, es torna a comptar de seguida (agrupant els canvis seguits).
+  let espera = null
+  const enCanviar = () => { clearTimeout(espera); espera = setTimeout(fetchCounts, 600) }
+  window.addEventListener('cril:canvi-dades', enCanviar)
+  const treuRuta = router.afterEach(() => enCanviar())
+  onUnmounted(() => { clearInterval(interval); clearTimeout(espera); window.removeEventListener('cril:canvi-dades', enCanviar); treuRuta() })
 })
 </script>

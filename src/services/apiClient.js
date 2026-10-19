@@ -154,6 +154,11 @@ export async function apiRequest(endpoint, options = {}) {
     throw { status: response.status, message: errorData.message || response.statusText }
   }
 
+  // Un canvi fet amb èxit (aprovar, rebutjar, demanar un permís…): el menú torna a comptar els pendents.
+  if (options.method && options.method !== 'GET') {
+    window.dispatchEvent(new CustomEvent('cril:canvi-dades'))
+  }
+
   // Handle 204 No Content
   if (response.status === 204) {
     return null

@@ -246,21 +246,24 @@
             </div>
           </div>
 
-          <!-- Quadrant: l'horari de cada dia del mes, amb els canvis que hagi fet RRHH. -->
-          <ElMeuQuadrant v-if="authStore.user?.role === 'worker'" />
-
           <div class="card">
             <div class="card-header">
               <button class="btn btn-outline btn-sm" @click="prevMonth">◂</button>
               <h3 class="card-title">{{ calendarMonthName }}</h3>
               <button class="btn btn-outline btn-sm" @click="nextMonth">▸</button>
             </div>
+            <!-- Un sol calendari: l'horari de cada dia (quadrant de RRHH o el de sempre), els festius, els permisos i els fitxatges. -->
+            <div v-if="resumQuadrantCal" class="text-small text-muted" style="text-align:center;margin-top:4px;">
+              {{ resumQuadrantCal }}
+            </div>
             <div class="calendar-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:16px;">
               <div v-for="dLabel in ['DL','DT','DC','DJ','DV','DS','DG']" :key="dLabel" style="text-align:center;font-size:0.75rem;font-weight:600;color:var(--color-text-secondary);padding:6px;">{{ dLabel }}</div>
               <div v-for="day in calendarDays" :key="day.key" class="calendar-day"
                 style="min-height:70px;padding:6px;border-radius:8px;font-size:0.8rem;border:1px solid var(--color-border-light);"
-                :style="{ background: dayBackground(day), opacity: day.currentMonth ? '1' : '0.3' }">
+                :style="{ background: dayBackground(day), opacity: day.currentMonth ? '1' : '0.3', ...(diaCanviat(day) ? { borderColor: '#D9A400', boxShadow: 'inset 0 0 0 1px #D9A400' } : {}) }"
+                :title="diaCanviat(day) ? (quadrantCal[day.date].nota || 'Horari canviat per RRHH') : ''">
                 <div :style="{ fontWeight: day.isToday ? '700' : '400', color: dayColor(day) }">{{ day.dayNum }}</div>
+                <div v-if="horariCal(day)" style="font-size:0.65rem;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums;" :style="{ color: diaCanviat(day) ? '#92400E' : 'var(--color-primary)' }">{{ horariCal(day) }}</div>
                 <div v-if="day.holiday" style="font-size:0.65rem;color:var(--color-danger);margin-top:2px;">🔴 {{ day.holiday.name }}</div>
                 <div v-if="plaDelDia(day)" style="font-size:0.65rem;color:var(--color-primary);margin-top:2px;">🕔 Surt {{ plaDelDia(day).sortida?.slice(0,5) }}<template v-if="plaDelDia(day).surt_abans_min > 5"> ({{ plaDelDia(day).surt_abans_min }}′ abans)</template></div>
                 <div v-if="day.excedencia" style="font-size:0.65rem;color:#7c3aed;margin-top:2px;">🟣 Excedència</div>
@@ -844,7 +847,6 @@ import PacteComplementaries from '../components/PacteComplementaries.vue'
 import BreakTimerModal from '../components/BreakTimerModal.vue'
 import AvisSenseSortida from '../components/AvisSenseSortida.vue'
 import CalendarPdfViewer from '../components/CalendarPdfViewer.vue'
-import ElMeuQuadrant from '../components/ElMeuQuadrant.vue'
 
 // --- Break state (pausa obligatoria basada en horario configurado) ---
 // Jornades d'altres dies sense sortida i sense declarar (les omple AvisSenseSortida)
@@ -1625,6 +1627,32 @@ const calendarPeriods = computed(() => {
   return periods
 })
 
+// Horari de cada dia del mes que es veu al calendari (quadrant de RRHH o la plantilla de sempre).
+const quadrantCal = ref({})
+const minutsQuadrantCal = ref(0)
+async function carregaQuadrantCal() {
+  if (authStore.user?.role !== 'worker') return
+  const mes = `${calendarYear.value}-${String(calendarMonth.value + 1).padStart(2, '0')}`
+  try {
+    const { api } = await import('../services/apiClient')
+    const r = await api.get(`/v1/el-meu-quadrant?mes=${mes}`)
+    quadrantCal.value = r?.dies || {}
+    minutsQuadrantCal.value = r?.minuts || 0
+  } catch { quadrantCal.value = {}; minutsQuadrantCal.value = 0 }
+}
+watch([calendarMonth, calendarYear], carregaQuadrantCal, { immediate: true })
+// No es mostra l'horari els dies de festiu, permís aprovat o excedència: ja surt el motiu.
+function horariCal(day) {
+  const q = day.currentMonth && quadrantCal.value[day.date]
+  if (!q || !q.trams.length || day.holiday || day.excedencia || (day.absence && day.absence.approved === true)) return ''
+  return q.trams.map(t => `${t.start}–${t.end}`).join(' · ')
+}
+const diaCanviat = day => !!(day.currentMonth && quadrantCal.value[day.date]?.origen === 'quadrant')
+const resumQuadrantCal = computed(() => {
+  if (!minutsQuadrantCal.value) return ''
+  const canviats = Object.values(quadrantCal.value).filter(d => d.origen === 'quadrant').length
+  return `${formatHM(minutsQuadrantCal.value / 60)} previstes aquest mes` + (canviats ? ` · ${canviats} dia${canviats === 1 ? '' : 's'} amb l'horari canviat (vora groga)` : '')
+})
 function prevMonth() { if (calendarMonth.value === 0) { calendarMonth.value = 11; calendarYear.value-- } else calendarMonth.value-- }
 function nextMonth() { if (calendarMonth.value === 11) { calendarMonth.value = 0; calendarYear.value++ } else calendarMonth.value++ }
 function dayBackground(day) {
