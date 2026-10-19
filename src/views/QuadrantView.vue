@@ -7,6 +7,19 @@
       </div>
     </div>
 
+    <!-- Guia curta: es pot amagar i tornar a obrir amb «Com funciona». -->
+    <div v-if="mostraGuia" class="qd-guia">
+      <div class="qd-guia-cap">
+        <strong>Com es posa un horari</strong>
+        <button type="button" class="icon-btn" @click="amagaGuia" title="Amagar la guia">✕</button>
+      </div>
+      <ol>
+        <li><b>Tria els dies.</b> Clica'ls o arrossega amb el ratolí. Clica el nom d'una persona per triar-li tot el mes.</li>
+        <li><b>Tria l'horari</b> al panell que surt a baix: una plantilla, un horari a mida (també partit) o dia lliure.</li>
+        <li><b>Prem «Aplicar».</b> Els dies canviats queden marcats amb una ratlla fosca a l'esquerra.</li>
+      </ol>
+    </div>
+
     <div class="card qd-barra">
       <div class="qd-mes">
         <button type="button" class="btn btn-outline btn-sm" @click="mouMes(-1)" title="Mes anterior">‹</button>
@@ -22,15 +35,16 @@
         title="Les persones que es veuen tindran aquest mes igual que l'anterior, dia de la setmana per dia de la setmana">
         📋 Copiar del mes anterior
       </button>
+      <button v-if="!mostraGuia" type="button" class="btn btn-outline btn-sm" @click="mostraGuia = true">❔ Com funciona</button>
     </div>
 
     <div class="qd-llegenda">
-      <span class="qd-mostra"><i class="qd-m-fitxa">9-15</i> Horari de la fitxa</span>
-      <span class="qd-mostra"><i class="qd-m-canviat">9-15</i> Canviat al quadrant</span>
-      <span class="qd-mostra"><i class="qd-m-lliure">—</i> No treballa</span>
-      <span class="qd-mostra"><i class="qd-m-abs">Perm.</i> Permís o absència</span>
+      <span v-for="h in horesPresents" :key="h" class="qd-mostra"><i :style="colorHores(h)">{{ textHores(h) }}</i></span>
+      <span class="qd-mostra"><i class="d-canviat">9-15</i> Canviat al quadrant</span>
+      <span class="qd-mostra"><i class="d-amida">9-14</i> A mida</span>
+      <span class="qd-mostra"><i class="d-lliure">—</i> No treballa</span>
+      <span class="qd-mostra"><i class="d-abs">Perm.</i> Permís</span>
       <span class="qd-mostra"><i class="qd-m-festiu">&nbsp;</i> Festiu</span>
-      <span class="text-small text-muted qd-ajuda">Clica o arrossega per triar dies · clica un nom per triar-li tot el mes</span>
     </div>
 
     <div class="card qd-taula-card">
@@ -56,12 +70,13 @@
               <th class="qd-nom">
                 <button type="button" class="qd-nom-btn" @click="triaFila(p)" :title="'Triar tot el mes de ' + p.name">{{ p.name }}</button>
                 <div class="qd-nom-sub">
-                  <span class="qd-plantilla" :title="p.plantilla?.name || 'Sense plantilla'">{{ p.plantilla?.name || 'Sense plantilla' }}</span>
+                  <span class="qd-plantilla" :title="p.plantilla?.name || 'Sense plantilla'"><b v-if="p.plantilla && horesDe(p.plantilla.id)" class="qd-h-xip" :style="colorHores(horesDe(p.plantilla.id))">{{ textHores(horesDe(p.plantilla.id)) }}</b> {{ p.plantilla?.name || 'Sense plantilla' }}</span>
                   <button type="button" class="qd-any-btn" @click="obreAny(p)" title="Veure tot l'any">📅 Any</button>
                 </div>
               </th>
               <td v-for="d in dades.dies" :key="d" class="qd-cel"
                 :class="[classeDia(p.dies[d]), { sel: seleccio.has(clau(p.id, d)), cap: esCapDeSetmana(d), festiu: dades.festius[d] }]"
+                :style="estilDia(p.dies[d])"
                 :title="titolDia(p, d)"
                 @mousedown.prevent="iniciaArrossega(p.id, d, $event)" @mouseenter="continuaArrossega(p.id, d)">
                 {{ p.dies[d].absencia && p.dies[d].trams.length ? 'Perm.' : textDia(p.dies[d]) }}
@@ -134,7 +149,8 @@
               <span v-for="l in ['Dl','Dt','Dc','Dj','Dv','Ds','Dg']" :key="l" class="qd-mini-cap">{{ l }}</span>
               <span v-for="n in m.buits" :key="'b' + n"></span>
               <span v-for="d in m.dies" :key="d" class="qd-mini-dia"
-                :class="[classeDia(anual.dades.persona.dies[d]), { festiu: anual.dades.festius[d] }]" :title="d.split('-').reverse().join('/') + ' · ' + textLlarg(anual.dades.persona.dies[d])">
+                :class="[classeDia(anual.dades.persona.dies[d]), { festiu: anual.dades.festius[d] }]"
+                :style="estilDia(anual.dades.persona.dies[d])" :title="d.split('-').reverse().join('/') + ' · ' + textLlarg(anual.dades.persona.dies[d])">
                 {{ Number(d.slice(8)) }}
               </span>
             </div>
@@ -163,6 +179,14 @@ useEstatUrl('mes', mes)
 useEstatUrl('departament', departament, idOText)
 
 const dades = ref({ dies: [], festius: {}, plantilles: [], departaments: [], persones: [] })
+
+// Guia de 3 passos: es recorda en aquest navegador si s'ha amagat.
+const CLAU_GUIA = 'qd-guia-amagada'
+const mostraGuia = ref((() => { try { return localStorage.getItem(CLAU_GUIA) !== '1' } catch { return true } })())
+function amagaGuia() {
+  mostraGuia.value = false
+  try { localStorage.setItem(CLAU_GUIA, '1') } catch { /* sense emmagatzematge: només aquesta visita */ }
+}
 const carregant = ref(false)
 const desant = ref(false)
 
@@ -196,12 +220,47 @@ const personesVisibles = computed(() => {
 })
 
 // ── Aspecte de cada dia ──
-// Només es ressalta el que s'ha canviat: el dia que segueix la fitxa queda discret.
+// El color és el de les hores setmanals de la plantilla (totes les de 35 h, iguals; les de 20 h, d'un altre…).
+// El dia canviat al quadrant porta una ratlla fosca a l'esquerra; l'horari a mida, ratllat.
+const PALETA = [['#DBEAFE', '#1E3A8A'], ['#DCFCE7', '#166534'], ['#FFEDD5', '#9A3412'], ['#EDE9FE', '#5B21B6'],
+  ['#FCE7F3', '#9D174D'], ['#CFFAFE', '#155E75'], ['#FEF9C3', '#854D0E'], ['#FEE2E2', '#991B1B'], ['#E2E8F0', '#334155']]
+const minutsDe = h => { const [a, b] = String(h).split(':').map(Number); return a * 60 + (b || 0) }
+function horesDe(plantillaId) {
+  const p = dades.value.plantilles.find(x => x.id === plantillaId)
+  if (!p) return 0
+  let h = Number(p.total_hours_weekly) || 0
+  if (!h && Array.isArray(p.days)) {
+    h = p.days.filter(d => d && d.start && d.end && d.active !== false).reduce((s, d) => s + minutsDe(d.end) - minutsDe(d.start), 0) / 60
+  }
+  return Math.round(h * 2) / 2
+}
+// Cada nombre d'hores té sempre el mateix color: de més a menys hores, en l'ordre de la paleta.
+const totesLesHores = computed(() => [...new Set(dades.value.plantilles.map(p => horesDe(p.id)).filter(h => h > 0))].sort((a, b) => b - a))
+function colorHores(h) {
+  const i = totesLesHores.value.indexOf(h)
+  const [bg, fg] = PALETA[(i < 0 ? PALETA.length - 1 : i) % PALETA.length]
+  return { background: bg, color: fg }
+}
+const textHores = h => `${String(h).replace('.', ',')} h`
+const horesPresents = computed(() => {
+  const s = new Set()
+  for (const p of dades.value.persones) {
+    for (const d of Object.values(p.dies)) if (d.trams.length && d.work_schedule_id) s.add(horesDe(d.work_schedule_id))
+  }
+  return [...s].filter(h => h > 0).sort((a, b) => b - a)
+})
 function classeDia(d) {
   if (!d) return ''
+  const canviat = d.origen === 'quadrant' ? ' d-canviat' : ''
   if (d.absencia) return 'd-abs'
-  if (!d.trams.length) return d.origen === 'quadrant' ? 'd-lliure d-canviat-lliure' : 'd-lliure'
-  return d.origen === 'quadrant' ? 'd-canviat' : 'd-fitxa'
+  if (!d.trams.length) return 'd-lliure' + canviat
+  if (d.origen === 'quadrant' && !d.work_schedule_id) return 'd-amida d-canviat'
+  return 'd-plantilla' + canviat
+}
+function estilDia(d) {
+  if (!d || d.absencia || !d.trams.length || !d.work_schedule_id) return {}
+  const h = horesDe(d.work_schedule_id)
+  return h ? colorHores(h) : {}
 }
 const hora = h => h.replace(/^0/, '').replace(/:00$/, '')
 function textDia(d) {
@@ -339,7 +398,6 @@ const mesosAny = computed(() => {
     return { mes: m, nom: nom.charAt(0).toUpperCase() + nom.slice(1), dies: delMes, buits: (primer + 6) % 7, minuts }
   })
 })
-const minutsDe = h => { const [a, b] = h.split(':').map(Number); return a * 60 + b }
 function vesAlMes(m) {
   anual.value = null
   mes.value = m
@@ -355,12 +413,15 @@ function vesAlMes(m) {
 .qd-llegenda { gap: 14px; }
 .qd-mostra { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; color: var(--color-text-secondary, #475569); }
 .qd-mostra i { font-style: normal; display: inline-block; min-width: 38px; padding: 3px 6px; border-radius: 4px; text-align: center; font-size: .7rem; border: 1px solid var(--color-border-light, #eef2f7); }
-.qd-ajuda { margin-left: auto; }
-.qd-m-fitxa, .d-fitxa { color: #64748b; font-weight: 500; }
-.qd-m-canviat, .d-canviat { background: #DBEAFE; color: #1E3A8A; font-weight: 700; }
-.qd-m-lliure, .d-lliure { color: #cbd5e1; }
-.d-canviat-lliure { background: #EEF2FF; color: #6366f1; }
-.qd-m-abs, .d-abs { background: #FDECEA; color: #B3352F; font-weight: 600; }
+.d-plantilla { font-weight: 500; }
+.d-canviat { font-weight: 800; box-shadow: inset 3px 0 0 #0f172a; }
+.d-amida { background: repeating-linear-gradient(45deg, #fff, #fff 4px, #f1f5f9 4px, #f1f5f9 8px); color: #0f172a; }
+.d-lliure { color: #cbd5e1; }
+.d-abs { background: #FDECEA; color: #B3352F; font-weight: 600; }
+.qd-h-xip { display: inline-block; padding: 0 5px; border-radius: 4px; font-size: .64rem; margin-right: 2px; }
+.qd-guia { margin-bottom: 10px; padding: 10px 14px; border-radius: 12px; background: #EFF6FF; border: 1px solid #BFDBFE; color: #1E3A8A; font-size: .84rem; }
+.qd-guia-cap { display: flex; justify-content: space-between; align-items: center; }
+.qd-guia ol { margin: 6px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 3px; }
 .qd-m-festiu { background: #fdecea; }
 .qd-taula-card { padding: 0; overflow: hidden; }
 .qd-buit { padding: 32px; text-align: center; }

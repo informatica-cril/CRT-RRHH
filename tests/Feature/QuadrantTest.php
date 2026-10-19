@@ -151,6 +151,26 @@ class QuadrantTest extends TestCase
         $this->assertSame(1, QuadrantDia::whereBetween('dia', ['2026-11-01', '2026-11-30'])->count());
     }
 
+    public function test_el_personal_d_administracio_surt_al_quadrant_encara_que_no_sigui_treballador(): void
+    {
+        $admin = \App\Models\Department::where('code', 'ADMIN')->firstOrFail();
+        // (Coordinació es desa com a treballador: per provar un altre rol, RRHH.)
+        $administrativa = $this->gestio('hr');
+        $administrativa->departments()->attach($admin->id);
+        $senseDepartament = $this->gestio('hr');
+        $fisio = $this->fisio();
+
+        Sanctum::actingAs($this->gestio('hr'));
+        $tots = collect($this->getJson('/api/v1/quadrant?mes=2026-10')->assertOk()->json('persones'))->pluck('id');
+        $this->assertTrue($tots->contains($administrativa->id));
+        $this->assertTrue($tots->contains($fisio->id));
+        $this->assertFalse($tots->contains($senseDepartament->id));
+
+        $r = $this->getJson("/api/v1/quadrant?mes=2026-10&department_id={$admin->id}")->assertOk();
+        $this->assertSame([$administrativa->id], collect($r->json('persones'))->pluck('id')->all());
+        $this->assertContains('Administració', collect($r->json('departaments'))->pluck('name')->all());
+    }
+
     public function test_el_treballador_veu_el_seu_quadrant_i_ningu_mes_hi_toca(): void
     {
         $w = $this->fisio();

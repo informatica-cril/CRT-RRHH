@@ -37,9 +37,13 @@ class QuadrantController extends Controller
         ]);
         [$inici, $fi] = $this->limitsMes($data['mes']);
 
+        // Els treballadors i, encara que tinguin un altre rol, qui és d'algun departament (p. ex. el
+        // personal d'Administració). Amb un departament triat, tota la gent d'aquell departament.
         $persones = User::with('workSchedule:id,name,days')
-            ->where('active', true)->where('role', 'worker')
-            ->when(! empty($data['department_id']), fn ($q) => $q->whereHas('departments', fn ($d) => $d->where('departments.id', $data['department_id'])))
+            ->where('active', true)->where('role', '!=', 'service')
+            ->when(! empty($data['department_id']),
+                fn ($q) => $q->whereHas('departments', fn ($d) => $d->where('departments.id', $data['department_id'])),
+                fn ($q) => $q->where(fn ($w) => $w->where('role', 'worker')->orWhereHas('departments')))
             ->orderBy('name')->get(['id', 'name', 'work_schedule_id']);
 
         $files = QuadrantDia::whereIn('user_id', $persones->pluck('id'))->whereBetween('dia', [$inici, $fi])->get()
@@ -52,8 +56,8 @@ class QuadrantController extends Controller
             'dies' => $dies,
             'festius' => Holiday::whereBetween('date', [$inici, $fi])->get()
                 ->mapWithKeys(fn ($h) => [substr((string) $h->getRawOriginal('date'), 0, 10) => $h->name]),
-            'plantilles' => WorkSchedule::orderBy('name')->get(['id', 'name', 'days']),
-            'departaments' => Department::orderBy('name')->get(['id', 'name']),
+            'plantilles' => WorkSchedule::orderBy('name')->get(['id', 'name', 'days', 'total_hours_weekly']),
+            'departaments' => Department::where('active', true)->orderBy('sort')->get(['id', 'name']),
             'persones' => $persones->map(fn (User $u) => $this->fila($u, $dies, $files->get($u->id, collect()), $absencies[$u->id] ?? [])),
         ]);
     }
@@ -75,7 +79,7 @@ class QuadrantController extends Controller
             'any' => (int) $data['any'],
             'festius' => Holiday::whereBetween('date', [$inici, $fi])->get()
                 ->mapWithKeys(fn ($h) => [substr((string) $h->getRawOriginal('date'), 0, 10) => $h->name]),
-            'plantilles' => WorkSchedule::orderBy('name')->get(['id', 'name']),
+            'plantilles' => WorkSchedule::orderBy('name')->get(['id', 'name', 'days', 'total_hours_weekly']),
             'persona' => $this->fila($u, $this->dies($inici, $fi), $files, $absencies[$u->id] ?? []),
         ]);
     }
