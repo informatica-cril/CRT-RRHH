@@ -105,27 +105,18 @@
                   {{ formatHM(log.effective_hours ?? log.total_hours_worked) }}
                 </strong>
                 <span v-else>—</span>
-                <span v-if="log.segmented && Number(log.effective_hours) !== Number(log.total_hours_worked)" class="badge badge-warning" style="font-size:0.7rem; margin-left:4px;" :title="'Fitxat en total: ' + formatHM(log.total_hours_worked) + '. Només compta el temps aprovat; la resta s\'ha de revisar al detall.'">{{ formatHM(Number(log.total_hours_worked) - Number(log.effective_hours)) }} per revisar</span>
+                <div v-if="Number(log.extra_hours_authorized || 0) > 0" class="wl-nota">inclou +{{ formatHM(log.extra_hours_authorized) }} d'extra aprovades</div>
                 <div v-if="sortidaAltreDia(log)" class="sortida-altre-dia" :title="'La jornada es va iniciar el ' + String(log.date).slice(0, 10).split('-').reverse().join('/') + ' i la sortida no es va fitxar fins al ' + sortidaAltreDia(log).data">
                     ⚠ Sortida fitxada el {{ sortidaAltreDia(log).data }}<span v-if="sortidaAltreDia(log).dies > 1"> (+{{ sortidaAltreDia(log).dies }} dies)</span>
                   </div>
               </td>
               <td>
-                <div style="display:flex;flex-direction:column;gap:2px;">
-                  <span v-if="Number(log.extra_hours_authorized || 0) > 0" class="badge badge-success" title="Hores Extres Autoritzades">
-                    +{{ formatHM(log.extra_hours_authorized) }} ✓
-                  </span>
-                  <span v-if="Number(log.extra_hours_unauthorized || 0) > 0" class="badge badge-warning" title="Hores Extres No Autoritzades">
-                    +{{ formatHM(log.extra_hours_unauthorized) }} (pendent)
-                  </span>
-                  <span v-if="Number(log.hours_out_of_area || 0) > 0" class="badge badge-danger" title="Hores Fora de Zona Descomptades">
-                    -{{ formatHM(log.hours_out_of_area) }} (Fora Zona)
-                  </span>
-                  <span v-if="horesForaHorari(log) > 0" class="badge badge-warning" title="Temps fet fora de l'horari: no compta fins que s'aprova al detall">
-                    +{{ formatHM(horesForaHorari(log)) }} fora d'horari (per revisar)
-                  </span>
-                  <span v-if="!Number(log.extra_hours_authorized) && !Number(log.extra_hours_unauthorized) && !Number(log.hours_out_of_area) && !horesForaHorari(log)">—</span>
-                </div>
+                <!-- Una sola llista del que cal mirar, en frases curtes; si no hi ha res, es diu clarament. -->
+                <ul v-if="avisos(log).length" class="wl-avisos">
+                  <li v-for="a in avisos(log)" :key="a.text" :class="'wl-avis-' + a.to" :title="a.ajuda">{{ a.text }}</li>
+                </ul>
+                <span v-else-if="log.status === 'pending' && log.end_time" class="wl-ok">✓ Tot quadra</span>
+                <span v-else class="text-muted">—</span>
               </td>
               <td>
                 <div style="display:flex;gap:6px;flex-direction:column;align-items:flex-start;">
@@ -137,7 +128,7 @@
                   </span>
                   <span v-if="log.status === 'approved' && log.auto_approved_at" class="wl-auto"
                         title="L'app l'ha aprovat sola: horari, zona i hores correctes">🤖 Automàtic</span>
-                  <span v-if="log.hour_status && log.hour_status !== 'ok'"
+                  <span v-if="log.hour_status === 'in_progress'"
                         class="badge"
                         style="font-size:0.75rem; display:flex; align-items:center; gap:4px;"
                         :class="log.hour_status === 'out_of_area' ? 'badge-danger' : 'badge-warning'">
@@ -316,6 +307,21 @@ function horesForaHorari(l) {
   return Number(l.minuts_fora_horari_pendents || 0) / 60
 }
 
+// El que gestió ha de mirar d'un fitxatge, en llenguatge clar.
+function avisos(l) {
+  const a = []
+  if (Number(l.extra_hours_unauthorized || 0) > 0) {
+    a.push({ text: `${formatHM(l.extra_hours_unauthorized)} extra sense aprovar`, to: 'groc', ajuda: "Hores per sobre de la jornada que encara no s'han autoritzat" })
+  }
+  if (horesForaHorari(l) > 0) {
+    a.push({ text: `${formatHM(horesForaHorari(l))} fora d'horari`, to: 'groc', ajuda: "Temps fet fora de l'horari del servei: no compta fins que s'aprova al detall" })
+  }
+  if (Number(l.hours_out_of_area || 0) > 0) {
+    a.push({ text: `${formatHM(l.hours_out_of_area)} fora de zona (no compten)`, to: 'vermell', ajuda: "Temps fitxat lluny de la zona assignada; es descompta" })
+  }
+  return a
+}
+
 // Més de 14 h: gairebé sempre una sortida que no es va fitxar a temps (molts venen de l'app antiga).
 function esLlarg(l) {
   return l.start_time && l.end_time && (new Date(l.end_time) - new Date(l.start_time)) > 14 * 3600 * 1000
@@ -441,7 +447,7 @@ const columnes = [
   { clau: 'inici', text: 'Entrada' },
   { clau: 'fi', text: 'Sortida' },
   { clau: 'hores', text: 'Hores que compten' },
-  { clau: 'extres', text: 'Hores extra' },
+  { clau: 'extres', text: 'Què cal revisar' },
   { clau: 'estat', text: 'Estat' },
 ]
 const ordre = ref({ col: 'data', dir: 'desc' })
@@ -533,6 +539,12 @@ function statusBadge(s) { return { 'badge-pending': s === 'pending', 'badge-succ
 .wl-auto-form label { display: flex; align-items: center; gap: 6px; }
 .wl-auto-accions { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
 .wl-auto-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; padding: 10px 14px; border-radius: 12px; background: #E8F8F2; border: 1px solid #9fdcc8; color: #0A5C46; font-size: .86rem; }
+.wl-nota { font-size: .72rem; color: var(--color-text-muted, #6b7280); margin-top: 2px; }
+.wl-avisos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: .78rem; font-weight: 500; }
+.wl-avisos li::before { content: '•'; margin-right: 6px; }
+.wl-avis-groc { color: #b45309; }
+.wl-avis-vermell { color: #b91c1c; }
+.wl-ok { font-size: .78rem; color: #15803d; }
 .wl-auto { font-size: .7rem; padding: 2px 8px; border-radius: 99px; background: #eef2ff; color: #3730a3; }
 .wl-check { width: 34px; text-align: center; }
 .wl-check input { width: 17px; height: 17px; cursor: pointer; }
