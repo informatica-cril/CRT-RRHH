@@ -98,7 +98,7 @@ final class AprovacioAutomatica
     }
 
     /** Trams de l'horari d'aquell dia [inici, fi] en hora de Madrid sense zona, com segmentWorkLog. */
-    private static function finestres(WorkLog $log, string $dia): array
+    public static function finestres(WorkLog $log, string $dia): array
     {
         $horari = $log->user?->workSchedule;
         if (! $horari) return [];

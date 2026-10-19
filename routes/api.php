@@ -612,6 +612,8 @@ Route::prefix('v1')->group(function () {
         // Aprovació automàtica dels fitxatges correctes: interruptor i marge de minuts.
         Route::get('aprovacio-automatica', [\App\Http\Controllers\Api\AprovacioAutomaticaController::class, 'show'])->middleware('role:admin,coordinator,hr');
         Route::put('aprovacio-automatica', [\App\Http\Controllers\Api\AprovacioAutomaticaController::class, 'update'])->middleware('role:admin,hr');
+        Route::get('avisos-marge', [\App\Http\Controllers\Api\AvisMargeController::class, 'index'])->middleware('role:admin,hr');
+        Route::post('avisos-marge/{user}/descarta', [\App\Http\Controllers\Api\AvisMargeController::class, 'descarta'])->middleware('role:admin,hr');
 
         // Configuració de correu (admin) + enviament de prova
         Route::middleware('role:admin')->group(function () {

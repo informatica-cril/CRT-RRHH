@@ -22,7 +22,7 @@
          Fora de zona es revisa amb la DISTÀNCIA a la zona, mai amb la posició (les coordenades
          no viatgen al llistat). -->
     <div v-if="authStore.isStaff" class="wl-filtres">
-      <button v-for="f in filtres" :key="f.clau" type="button" class="wl-filtre"
+      <button v-for="f in filtres.filter(f => f.clau !== 'marge' || authStore.canManageStaff)" :key="f.clau" type="button" class="wl-filtre"
         :class="[f.to, { actiu: vista === f.clau, buit: !recomptes[f.clau] && f.clau !== 'tots' }]"
         @click="vista = f.clau">
         <span>{{ f.icona }}</span> {{ f.nom }}
@@ -64,6 +64,19 @@
         <button type="button" class="btn btn-primary btn-sm" @click="desaAuto">Desa</button>
         <button type="button" class="btn btn-outline btn-sm" @click="editantAuto = null">Cancel·la</button>
       </div>
+    </div>
+
+        <!-- Avís de marge: només RRHH i admin. Informatiu: no bloqueja cap aprovació. -->
+    <div v-if="authStore.canManageStaff && avisosMarge.length" class="wl-marge">
+      ⚠️ <strong>{{ avisosMarge.length }} persona{{ avisosMarge.length === 1 ? '' : 'es' }} porta{{ avisosMarge.length === 1 ? '' : 'en' }} 2 setmanes o més fitxant al límit del marge</strong>
+      <ul>
+        <li v-for="a in avisosMarge" :key="a.user_id">
+          <strong>{{ a.nom }}</strong>: {{ a.dies }} dies seguits des del {{ dataCurta(a.inici) }}
+          ({{ a.entrades_tard }} entrades tard, {{ a.sortides_abans }} sortides abans)
+          <button type="button" class="btn btn-outline btn-sm" @click="selectedUser = a.user_id; vista = 'marge'">Veure</button>
+          <button type="button" class="btn btn-outline btn-sm" @click="descartaAvisMarge(a)">Descartar</button>
+        </li>
+      </ul>
     </div>
 
     <!-- Pendents d'altres mesos: el comptador del menú els suma tots i aquí només es veu el mes triat -->
@@ -348,6 +361,25 @@ function esLlarg(l) {
   return l.start_time && l.end_time && (new Date(l.end_time) - new Date(l.start_time)) > 14 * 3600 * 1000
 }
 
+// ── Avís: persones que porten 2 setmanes fitxant al límit del marge (només RRHH i admin) ──
+const avisosMarge = ref([])
+async function carregaAvisosMarge() {
+  if (!authStore.canManageStaff) return
+  try { avisosMarge.value = await api.get('/v1/avisos-marge') } catch { avisosMarge.value = [] }
+}
+onMounted(carregaAvisosMarge)
+const idsMarge = computed(() => new Set(avisosMarge.value.flatMap(a => a.log_ids)))
+async function descartaAvisMarge(a) {
+  if (!await confirma(`Descartar l'avís de ${a.nom}? Només tornarà a sortir si comença una ratxa nova.`)) return
+  try {
+    await api.post(`/v1/avisos-marge/${a.user_id}/descarta`, { inici: a.inici })
+    await carregaAvisosMarge()
+  } catch (e) {
+    alert(e?.message || "No s'ha pogut descartar.")
+  }
+}
+const dataCurta = d => String(d).slice(0, 10).split('-').reverse().slice(0, 2).join('/')
+
 // Gestió entra directament al que cal revisar: pendents ja tancats (els «En curs» encara no es poden aprovar).
 const vista = ref(authStore.isStaff ? 'perrevisar' : 'tots')
 useEstatUrl('vista', vista)
@@ -358,6 +390,7 @@ const filtres = [
   { clau: 'forazona', nom: 'Fora de zona', icona: '📍', to: 'vermell', fn: esForaZona },
   { clau: 'forahorari', nom: "Fora d'horari per revisar", icona: '🕘', to: 'taronja', fn: l => horesForaHorari(l) > 0 },
   { clau: 'extra', nom: 'Hores extra sense aprovar', icona: '⏱', to: 'taronja', fn: l => Number(l.extra_hours_unauthorized || 0) > 0 },
+  { clau: 'marge', nom: 'Al límit del marge', icona: '⏰', to: 'taronja', fn: l => idsMarge.value.has(l.id) },
   { clau: 'sensesortida', nom: "Sense sortida d'altres dies", icona: '🕒', to: 'taronja', fn: l => !l.end_time && diaDe(l) < avui() },
   { clau: 'llargs', nom: 'Més de 14 h', icona: '⚠️', to: 'vermell', fn: esLlarg },
   { clau: 'aprovats', nom: 'Aprovats', icona: '✅', to: 'verd', fn: l => l.status === 'approved' },
@@ -558,6 +591,9 @@ function statusBadge(s) { return { 'badge-pending': s === 'pending', 'badge-succ
 
 <style scoped>
 /* Jornada tancada un altre dia (sortida oblidada): s'ha de veure d'un cop d'ull. */
+.wl-marge { margin-bottom: 12px; padding: 10px 14px; border-radius: 12px; background: #FFF7E6; border: 1px solid #F5C77E; color: #7A4B00; font-size: .86rem; }
+.wl-marge ul { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.wl-marge li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .sortida-altre-dia { margin-top: 3px; font-size: .74rem; font-weight: 700; color: var(--color-danger, #B3352F); white-space: nowrap; }
 .wl-altres-mesos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; padding: 10px 14px; border-radius: 12px; background: #fff7e0; border: 1px solid #f0d58a; color: #6b5100; font-size: .86rem; }
 .wl-mes-xip { border: 1px solid #e0c060; background: #fff; color: #6b5100; border-radius: 99px; padding: 3px 12px; cursor: pointer; font-size: .82rem; }
