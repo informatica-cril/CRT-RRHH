@@ -75,6 +75,53 @@ class AutoritzacioHoresTest extends TestCase
         $this->assertFalse(AuthorizationCode::find($r->json('id'))->used);   // en queden 0,5 h
     }
 
+    public function test_gestio_accepta_les_hores_de_mes_d_un_fitxatge(): void
+    {
+        // Jornada completa: les hores de més són extraordinàries.
+        $horari = \App\Models\WorkSchedule::create(['name' => 'Completa', 'total_hours_weekly' => 37.5,
+            'days' => collect([1, 2, 3, 4, 5])->map(fn ($d) => ['day' => $d, 'start' => '08:00', 'end' => '15:30'])->all()]);
+        $u = $this->persona();
+        $u->update(['work_schedule_id' => $horari->id]);
+        $log = $this->fitxatge($u, '2026-10-16', 4.15);   // ha cobert el torn d'una companya
+
+        Sanctum::actingAs($this->hr);
+        $this->postJson("/api/v1/work-logs/{$log->id}/accepta-hores-de-mes", ['motiu' => "Ha cobert el torn d'una companya"])
+            ->assertOk()->assertJsonPath('aplicades', 4.15)->assertJsonPath('pendents', 0);
+
+        $log->refresh();
+        $this->assertEquals(4.15, $log->extra_hours_authorized);
+        $codi = AuthorizationCode::where('code', $log->authorized_extra_code)->first();
+        $this->assertSame('extraordinaria', $codi->type);
+        $this->assertSame($u->id, $codi->user_id);
+
+        // Ja no en queden: tornar-hi diu que no hi ha res per acceptar.
+        $this->postJson("/api/v1/work-logs/{$log->id}/accepta-hores-de-mes")->assertStatus(422);
+    }
+
+    public function test_si_ja_hi_havia_una_autoritzacio_d_aquell_dia_s_aplica_aquella(): void
+    {
+        $u = $this->persona();
+        $log = $this->fitxatge($u, '2026-10-16', 2);
+        // Una autorització d'aquell dia que ningú no va fer servir (abans calia escriure el codi).
+        $vella = AuthorizationCode::create(['code' => 'VELLA-1', 'concept' => 'Substitució 16/10', 'authorized_hours' => 5.67,
+            'type' => 'complementaria', 'factor' => 1, 'user_id' => $u->id, 'generated_by' => $this->hr->id,
+            'time_slot_start' => '06:00', 'time_slot_end' => '22:00',
+            'valid_from' => '2026-10-16 00:00:00', 'valid_to' => '2026-10-16 23:59:59']);
+
+        Sanctum::actingAs($this->hr);
+        $this->postJson("/api/v1/work-logs/{$log->id}/accepta-hores-de-mes")->assertOk()->assertJsonPath('de_autoritzacio_existent', true);
+        $this->assertSame('VELLA-1', $log->fresh()->authorized_extra_code);
+        $this->assertSame(1, AuthorizationCode::count());
+    }
+
+    public function test_coordinacio_i_treballadors_no_accepten_hores(): void
+    {
+        $u = $this->persona();
+        $log = $this->fitxatge($u, '2026-10-16', 2);
+        Sanctum::actingAs($u);
+        $this->postJson("/api/v1/work-logs/{$log->id}/accepta-hores-de-mes")->assertForbidden();
+    }
+
     public function test_en_fitxar_la_sortida_s_aplica_el_que_queda_i_despres_s_esgota(): void
     {
         $u = $this->persona();

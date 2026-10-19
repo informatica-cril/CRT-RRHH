@@ -27,61 +27,39 @@
     </div>
 
     <div class="card">
-      <div class="table-container">
-        <table>
+      <div class="card-header">
+        <h3 class="card-title">Autoritzacions</h3>
+        <label class="text-small hm-toggle">
+          <input type="checkbox" v-model="veureAcabades" /> Veure també les acabades ({{ acabades }})
+        </label>
+      </div>
+      <div v-if="!codesVisibles.length" class="text-muted hm-buit">
+        {{ veureAcabades ? 'Encara no hi ha cap autorització.' : 'Ara mateix no hi ha cap autorització vigent.' }}
+      </div>
+      <div v-else class="table-container">
+        <table class="hm-taula">
           <thead>
-            <tr>
-              <th>Persona</th>
-              <th>Tipus</th>
-              <th>Concepte</th>
-              <th>Hores</th>
-              <th>Consum (registre)</th>
-              <th>S'esgota</th>
-              <th>Validesa</th>
-              <th>{{ t('status') }}</th>
-              <th v-if="authStore.isStaff">{{ t('actions') }}</th>
-            </tr>
+            <tr><th>Persona</th><th>Tipus</th><th>Motiu</th><th>Dies</th><th>Fetes / queden</th><th>Estat</th><th v-if="authStore.isStaff"></th></tr>
           </thead>
           <tbody>
-            <tr v-for="code in codes" :key="code.id">
-              <td><strong>{{ code.user_id ? getUserName(code.user_id) : 'Qualsevol (codi antic)' }}</strong><div class="text-small text-muted">Ref. {{ code.code }}</div></td>
-              <td>
-                <span class="badge" :class="code.type === 'extraordinaria' ? 'badge-warning' : 'badge-info'" style="white-space:nowrap;">
-                  {{ code.type === 'extraordinaria' ? '⚡ Extra 1,25×' : '✋ Compl. 1,00×' }}
-                </span>
+            <tr v-for="code in codesVisibles" :key="code.id" :class="{ 'hm-acabada': !esVigent(code) }">
+              <td :title="'Referència ' + code.code + (code.notification_sent ? ' · avisada per correu' : '')">
+                <strong>{{ code.user_id ? getUserName(code.user_id) : 'Qualsevol (antiga)' }}</strong>
               </td>
-              <td>{{ code.concept || '—' }}</td>
-              <td><strong>{{ code.authorized_hours }}h</strong></td>
-              <td style="min-width:130px;">
-                <template v-if="code.consum">
-                  <div style="display:flex;align-items:center;gap:6px;">
-                    <div style="flex:1;height:8px;border-radius:4px;background:var(--color-bg);overflow:hidden;min-width:50px;">
-                      <div :style="{width: Math.min(100, code.consum.pct||0)+'%', height:'100%',
-                                    background: (code.consum.pct||0) >= 100 ? '#dc3545' : (code.consum.pct||0) >= 85 ? '#D9A400' : '#0DAF83'}"></div>
-                    </div>
-                    <span class="text-small" style="white-space:nowrap;"><b>{{ code.consum.usat_h }}h</b> · {{ code.consum.pct ?? 0 }}%</span>
-                  </div>
+              <td><span class="hm-tipus" :class="code.type">{{ code.type === 'extraordinaria' ? 'Extra ×1,25' : 'Complementària' }}</span></td>
+              <td class="hm-motiu">{{ code.concept || '—' }}</td>
+              <td class="text-small hm-dies">{{ dies(code) }}</td>
+              <td class="hm-consum">
+                <div class="hm-barra"><div :style="{ width: Math.min(100, code.consum?.pct || 0) + '%' }"></div></div>
+                <span class="text-small"><strong>{{ formatHM(code.consum?.usat_h || 0) }}</strong> de {{ formatHM(code.authorized_hours) }}
+                  <template v-if="esVigent(code)"> · queden {{ formatHM(code.queden_h ?? 0) }}</template></span>
+              </td>
+              <td><span class="hm-estat" :class="code.estat">{{ NOMS_ESTAT[code.estat] || code.estat }}</span></td>
+              <td v-if="authStore.isStaff" class="hm-accions">
+                <template v-if="esVigent(code)">
+                  <button class="btn btn-outline btn-sm" @click="renovarCode(code)" title="Allargar-la o posar-hi més hores">↻ Renovar</button>
+                  <button class="btn btn-outline btn-sm hm-anul" @click="revokeCode(code)">Anul·lar</button>
                 </template>
-              </td>
-              <td class="text-small">
-                <template v-if="code.consum?.esgota === 'esgotat'"><span style="color:#dc3545;font-weight:700;">Esgotat</span></template>
-                <template v-else-if="code.consum?.esgota">
-                  {{ formatDate(code.consum.esgota) }}
-                  <div v-if="code.consum.dins_validesa === false" style="color:#0A7C5E;">fora de la validesa: caduca abans</div>
-                  <div v-else style="color:#96600F;">al ritme actual del registre</div>
-                </template>
-                <template v-else><span class="text-muted">sense consum imputat</span></template>
-              </td>
-              <td><span class="text-small">{{ formatDate(code.valid_from) }} → {{ formatDate(code.valid_to) }}</span></td>
-              <td>
-                <span class="badge" :class="codeBadge(code)">{{ codeStatusText(code) }}</span>
-              </td>
-              <td v-if="authStore.isStaff">
-                <div style="display:flex;gap:4px;flex-wrap:wrap;">
-                  <button v-if="!code.revoked && !code.used" class="btn btn-outline btn-sm" @click="renovarCode(code)">↻ Renovar</button>
-                  <button v-if="!code.revoked && !code.used" class="btn btn-danger btn-sm" @click="revokeCode(code)">⊘ Anul·lar</button>
-                  <span v-if="code.notification_sent" class="badge badge-info" style="font-size:0.65rem;">📧 Enviat</span>
-                </div>
               </td>
             </tr>
           </tbody>
@@ -472,6 +450,22 @@ async function confirmRevoke() {
   }
 }
 
+// Estats en paraules (els calcula el servidor amb les hores realment aplicades als fitxatges).
+const NOMS_ESTAT = { activa: 'Activa', propera: 'Comença més endavant', esgotada: 'Esgotada', caducada: 'Caducada', anullada: 'Anul·lada' }
+const veureAcabades = ref(false)
+const esVigent = c => ['activa', 'propera'].includes(c.estat)
+const codesVisibles = computed(() => [...codes.value]
+  .filter(c => veureAcabades.value || esVigent(c))
+  .sort((a, b) => Number(esVigent(b)) - Number(esVigent(a)) || String(b.valid_from).localeCompare(String(a.valid_from))))
+const acabades = computed(() => codes.value.filter(c => !esVigent(c)).length)
+function dies(c) {
+  const d1 = formatDate(c.valid_from), d2 = formatDate(c.valid_to)
+  return d1 === d2 ? d1 : `${d1} → ${d2}`
+}
+function formatHM(h) {
+  const m = Math.round(Number(h || 0) * 60)
+  return `${Math.floor(m / 60)}h${m % 60 ? ' ' + (m % 60) + 'min' : ''}`
+}
 function getUserName(id) { return users.value.find(u => u.id === id)?.name || '—' }
 function formatDate(d) { return new Date(d).toLocaleDateString('ca-ES', { day: '2-digit', month: 'short', year: 'numeric' }) }
 function codeBadge(c) { return c.revoked ? 'badge-danger' : c.used ? 'badge-warning' : isExpired(c) ? 'badge-warning' : 'badge-success' }
@@ -480,6 +474,23 @@ function isExpired(c) { return new Date() > new Date(c.valid_to) }
 </script>
 
 <style scoped>
+.hm-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.hm-buit { padding: 24px; text-align: center; }
+.hm-taula td { vertical-align: middle; }
+.hm-acabada { opacity: .6; }
+.hm-tipus { font-size: .74rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; white-space: nowrap; background: #DBEAFE; color: #1E3A8A; }
+.hm-tipus.extraordinaria { background: #FEF3C7; color: #92400E; }
+.hm-motiu { max-width: 320px; }
+.hm-dies { white-space: nowrap; }
+.hm-consum { min-width: 170px; }
+.hm-barra { height: 6px; border-radius: 99px; background: var(--color-border-light, #eef2f7); overflow: hidden; margin-bottom: 3px; }
+.hm-barra div { height: 100%; background: #0DAF83; }
+.hm-estat { font-size: .74rem; font-weight: 700; padding: 2px 9px; border-radius: 99px; white-space: nowrap; background: #e2e8f0; color: #475569; }
+.hm-estat.activa { background: #DCFCE7; color: #166534; }
+.hm-estat.propera { background: #DBEAFE; color: #1E3A8A; }
+.hm-estat.anullada { background: #FDECEA; color: #B3352F; }
+.hm-accions { white-space: nowrap; }
+.hm-anul { color: var(--color-danger, #B3352F); }
 .hm-pendents { border-left: 4px solid #D9A400; }
 .hm-peticio { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--color-border-light, #eef2f7); }
 .hm-peticio-info { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

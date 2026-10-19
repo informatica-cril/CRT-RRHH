@@ -285,6 +285,8 @@ Route::prefix('v1')->group(function () {
             // Excel del que es veu a la pantalla de registres (mes, persona i vista).
             Route::get('export', [\App\Http\Controllers\Api\WorkLogExportController::class, 'export'])->middleware('role:admin,coordinator,hr');
             // Aprovar una selecció de fitxatges d'una sola vegada.
+            // Acceptar les hores de més d'un fitxatge (p. ex. ha cobert un torn): RRHH i admin.
+            Route::post('{workLog}/accepta-hores-de-mes', [\App\Http\Controllers\Api\AuthCodeController::class, 'acceptaHoresDeMes'])->middleware('role:admin,hr');
             Route::post('aprova-seleccionats', [\App\Http\Controllers\Api\WorkLogBulkController::class, 'aprova'])->middleware('role:admin,coordinator,hr');
             // «Aprovar tots els correctes»: els pendents que compleixen la regla d'aprovació automàtica.
             Route::post('aprova-correctes', [\App\Http\Controllers\Api\AprovacioAutomaticaController::class, 'aprovaCorrectes'])->middleware('role:admin,coordinator,hr');

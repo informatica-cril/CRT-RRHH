@@ -64,6 +64,15 @@ class AuthCodeController extends Controller
             $arr = $c->toArray();
             $arr['consum'] = ['usat_h' => $usat, 'pct' => $pct,
                               'esgota' => $esgota, 'dins_validesa' => $dinsValidesa];
+            // Per a la pantalla «Hores de més»: el que queda i l'estat en paraules.
+            $arr['queden_h'] = max(0.0, round($tot - $usat, 2));
+            $arr['estat'] = match (true) {
+                (bool) $c->revoked => 'anullada',
+                ($tot > 0 && $usat >= $tot) || (bool) $c->used => 'esgotada',
+                $c->valid_to && Carbon::parse($c->valid_to)->lt(now()) => 'caducada',
+                $c->valid_from && Carbon::parse($c->valid_from)->gt(now()) => 'propera',
+                default => 'activa',
+            };
             return $arr;
         });
 
@@ -498,7 +507,9 @@ class AuthCodeController extends Controller
             return response()->json(['error' => "la sol·licitud ja està {$overtimeRequest->status}"], 409);
         }
         $treballador = User::find($overtimeRequest->user_id);
-        $esComplementaria = $overtimeRequest->origen === 'treballador' && $treballador && ! $treballador->isFullTime();
+        // Les demanades per la persona o acceptades per gestió en revisar el fitxatge: a temps parcial
+        // són complementàries; a jornada completa, extraordinàries. Les forçades des de domi, extraordinàries.
+        $esComplementaria = in_array($overtimeRequest->origen, ['treballador', 'gestio'], true) && $treballador && ! $treballador->isFullTime();
         $hores = (float) $overtimeRequest->hours;
         $year = (int) Carbon::parse($overtimeRequest->period_from)->year;
 
@@ -523,9 +534,10 @@ class AuthCodeController extends Controller
             }
         }
 
-        $concepte = $overtimeRequest->origen === 'treballador'
+        $concepte = in_array($overtimeRequest->origen, ['treballador', 'gestio'], true)
             ? ($esComplementaria ? 'Hores complementàries (art. 12.5 ET)' : 'Hores extraordinàries (art. 20 conveni)')
-                . ' · demanades pel treballador' . ($overtimeRequest->reason ? ': ' . $overtimeRequest->reason : '')
+                . ($overtimeRequest->origen === 'gestio' ? ' · acceptades per gestió' : ' · demanades pel treballador')
+                . ($overtimeRequest->reason ? ': ' . $overtimeRequest->reason : '')
             : 'Hores extraordinàries (art. 20 conveni) · forçat des de Coordinació: ' . $overtimeRequest->requested_by;
 
         $code = AuthorizationCode::create([
@@ -590,6 +602,48 @@ class AuthCodeController extends Controller
         $code->markUsed();
 
         return $aplicades;
+    }
+
+    /**
+     * POST /api/v1/work-logs/{workLog}/accepta-hores-de-mes { motiu? } — RRHH i admin.
+     * En revisar un fitxatge amb hores de més sense autoritzar (p. ex. ha cobert el torn d'una
+     * companya), gestió les accepta d'un clic: primer s'hi aplica qualsevol autorització d'aquell dia
+     * que ja existís (encara que no s'hagués fet servir), i el que falti s'autoritza ara amb les
+     * mateixes regles que una petició (tipus segons la jornada, topalls legals).
+     */
+    public function acceptaHoresDeMes(Request $request, \App\Models\WorkLog $workLog)
+    {
+        $data = $request->validate(['motiu' => 'nullable|string|max:500']);
+        if (! $workLog->getRawOriginal('end_time') || (float) $workLog->extra_hours_unauthorized <= 0) {
+            return response()->json(['message' => 'Aquest fitxatge no té hores de més per acceptar.'], 422);
+        }
+        $jaHiEren = \App\Services\AutoritzacioHores::aplica($workLog);
+        $workLog->refresh();
+        $falten = round((float) $workLog->extra_hours_unauthorized, 2);
+        if ($falten <= 0 || $workLog->authorized_extra_code) {
+            return response()->json(['ok' => true, 'aplicades' => $jaHiEren, 'de_autoritzacio_existent' => true,
+                'pendents' => $falten]);
+        }
+
+        $dia = substr((string) $workLog->getRawOriginal('date'), 0, 10);
+        $peticio = \App\Models\OvertimeRequest::create([
+            'user_id' => $workLog->user_id, 'hours' => $falten,
+            'reason' => trim($data['motiu'] ?? '') ?: 'Acceptades en revisar el fitxatge',
+            'period_from' => $dia, 'period_to' => $dia, 'requested_by' => $request->user()->name,
+            'origen' => 'gestio', 'work_log_id' => $workLog->id, 'status' => 'pending',
+        ]);
+        $resposta = $this->authorizeOvertime($request, $peticio);
+        if ($resposta->getStatusCode() !== 200) {
+            // Si un topall legal ho impedeix, no queda cap petició a mitges.
+            $peticio->delete();
+            $error = $resposta->getData(true);
+
+            return response()->json(['message' => $error['error'] ?? $error['message'] ?? "No s'han pogut acceptar."], 422);
+        }
+        $r = $resposta->getData(true);
+
+        return response()->json(['ok' => true, 'aplicades' => round($jaHiEren + (float) ($r['aplicades'] ?? 0), 2),
+            'pendents' => round((float) $workLog->fresh()->extra_hours_unauthorized, 2)]);
     }
 
     /** POST /api/v1/overtime-requests/{req}/deny — el motiu és obligatori. */

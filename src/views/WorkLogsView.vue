@@ -139,6 +139,12 @@
                 <ul v-if="avisos(log).length" class="wl-avisos">
                   <li v-for="a in avisos(log)" :key="a.text" :class="'wl-avis-' + a.to" :title="a.ajuda">{{ a.text }}</li>
                 </ul>
+                <!-- Hores de més sense autoritzar (p. ex. ha cobert un torn): RRHH i admin les accepten aquí mateix. -->
+                <button v-if="authStore.canManageStaff && log.end_time && Number(log.extra_hours_unauthorized || 0) > 0"
+                  type="button" class="btn btn-outline btn-sm wl-accepta" :disabled="acceptant === log.id" @click="acceptaHoresDeMes(log)"
+                  title="Les compta com a hores de més autoritzades (extra o complementàries segons la jornada)">
+                  ✔ Acceptar {{ formatHM(log.extra_hours_unauthorized) }} de més
+                </button>
                 <span v-else-if="log.status === 'pending' && log.end_time && log.motiu_no_auto" class="wl-avis-groc wl-motiu" title="Per això no s'ha aprovat sol">• {{ etiqueta('noAuto', log.motiu_no_auto) }}</span>
                 <span v-else-if="log.status === 'pending' && log.end_time && 'motiu_no_auto' in log" class="wl-ok" title="Compleix les condicions: s'aprova amb «Aprovar els correctes»">✓ Tot quadra</span>
                 <span v-else-if="log.status === 'pending' && log.end_time" class="text-muted">—</span>
@@ -230,6 +236,7 @@ import api, { apiFetchRaw } from '../services/apiClient'
 import { i18n } from '../i18n'
 import { formatHM } from '../utils/formatHours'
 import { etiqueta } from '../utils/etiquetes'
+import { avisa } from '../utils/avisos'
 import { sortidaAltreDia } from '../utils/sortidaAltreDia'
 import { useEstatUrl, idOText } from '../composables/useEstatUrl'
 
@@ -356,6 +363,26 @@ function avisos(l) {
     a.push({ text: `${formatHM(l.hours_out_of_area)} fora de zona (no compten)`, to: 'vermell', ajuda: "Temps fitxat lluny de la zona assignada; es descompta" })
   }
   return a
+}
+
+// Acceptar les hores de més d'un fitxatge: s'aplica qualsevol autorització d'aquell dia que ja hi hagués
+// i el que falti s'autoritza ara (mateixes regles i topalls que una petició).
+const acceptant = ref(null)
+async function acceptaHoresDeMes(log) {
+  const nom = getUserName(log.user_id)
+  const motiu = await demana(`Acceptar ${formatHM(log.extra_hours_unauthorized)} de més de ${nom} el ${formatDate(log.date)}?
+Motiu (opcional): p. ex. ha cobert el torn d'una companya.`, { obligatori: false })
+  if (motiu === null) return
+  acceptant.value = log.id
+  try {
+    const r = await api.post(`/v1/work-logs/${log.id}/accepta-hores-de-mes`, { motiu: motiu.trim() || null })
+    avisa(`✅ ${formatHM(r.aplicades || 0)} de més acceptades${r.pendents > 0 ? ` (en queden ${formatHM(r.pendents)} sense autoritzar)` : ''}.`)
+    await workLogStore.loadLogs()
+  } catch (e) {
+    avisa(e?.message || "No s'han pogut acceptar.", 'error')
+  } finally {
+    acceptant.value = null
+  }
 }
 
 // Més de 14 h: gairebé sempre una sortida que no es va fitxar a temps (molts venen de l'app antiga).
@@ -617,6 +644,7 @@ function statusBadge(s) { return { 'badge-pending': s === 'pending', 'badge-succ
 .wl-avis-vermell { color: #b91c1c; }
 .wl-ok { font-size: .78rem; color: #15803d; }
 .wl-motiu { font-size: .78rem; font-weight: 500; }
+.wl-accepta { margin-top: 6px; font-size: .74rem; padding: 3px 9px; }
 .wl-auto { font-size: .7rem; padding: 2px 8px; border-radius: 99px; background: #eef2ff; color: #3730a3; }
 .wl-check { width: 34px; text-align: center; }
 .wl-check input { width: 17px; height: 17px; cursor: pointer; }
