@@ -17,7 +17,7 @@
           <div><strong>Entrada:</strong> {{ formatDateTime(workLog.start_time) }}</div>
           <div><strong>Sortida:</strong> {{ workLog.end_time ? formatDateTime(workLog.end_time) : 'Encara treballant' }}</div>
           <div><strong>Temps total entre entrada i sortida:</strong> {{ formatHM(workLog.total_hours_worked) }}</div>
-          <div><strong>Minuts per sobre de 8 h:</strong> {{ workLog.complementary_minutes || 0 }} min</div>
+          <div><strong>Per sobre de 8 h:</strong> {{ formatHM((Number(workLog.complementary_minutes) || 0) / 60) }}</div>
           <div><strong>Estat:</strong> {{ etiqueta('fitxatge', workLog.status) }}</div>
           
         </div>
@@ -27,6 +27,18 @@
           <span v-if="workLog.segmented && pendingCount > 0" class="effective-note">
             · {{ pendingCount }} {{ pendingCount === 1 ? 'part està' : 'parts estan' }} per revisar i encara no {{ pendingCount === 1 ? 'compta' : 'compten' }}
           </span>
+        </div>
+
+        <!-- Hores de més sense autoritzar (p. ex. ha cobert un torn): RRHH i admin les accepten aquí. -->
+        <div v-if="workLog.end_time && (Number(workLog.extra_hours_unauthorized || 0) > 0 || Number(workLog.extra_hours_authorized || 0) > 0)" class="hores-mes">
+          <div>
+            <strong>Hores de més:</strong>
+            <span v-if="Number(workLog.extra_hours_authorized || 0) > 0" class="hm-ok">{{ formatHM(workLog.extra_hours_authorized) }} acceptades</span>
+            <span v-if="Number(workLog.extra_hours_unauthorized || 0) > 0" class="hm-pend">{{ formatHM(workLog.extra_hours_unauthorized) }} sense autoritzar</span>
+          </div>
+          <button v-if="potReobrir && Number(workLog.extra_hours_unauthorized || 0) > 0" class="btn btn-success btn-sm" :disabled="acceptant" @click="acceptaHoresDeMes">
+            ✔ Acceptar {{ formatHM(workLog.extra_hours_unauthorized) }} de més
+          </button>
         </div>
 
         <!-- «Corregir hora»: RRHH i admin (p. ex. una sortida oblidada fitxada l'endemà) -->
@@ -119,7 +131,7 @@
             <div class="segment-details">
               <div><strong>Des de:</strong> {{ formatDateTime(seg.start_time) }}</div>
               <div><strong>Fins a:</strong> {{ formatDateTime(seg.end_time) }}</div>
-              <div><strong>Durada:</strong> {{ seg.duration_minutes }} min</div>
+              <div><strong>Durada:</strong> {{ formatHM((Number(seg.duration_minutes) || 0) / 60) }}</div>
               <div>
                 <strong>Zona:</strong>
                 <span :class="seg.in_zone ? 'tag-ok' : 'tag-ko'">{{ seg.in_zone ? 'Dins de la zona' : 'Fora de la zona' }}</span>
@@ -368,6 +380,23 @@ async function rejectSegment(seg) {
 // ── Audiència prèvia: al·legació del titular ──
 const esTitular = computed(() => authStore.user?.id === workLog.value?.user_id)
 const potReobrir = computed(() => ['admin', 'hr'].includes(authStore.user?.role))
+// Acceptar les hores de més (mateix camí que el botó de la llista de fitxatges).
+const acceptant = ref(false)
+async function acceptaHoresDeMes() {
+  const motiu = await demana(`Acceptar ${formatHM(workLog.value.extra_hours_unauthorized)} de més?
+Motiu (opcional): p. ex. ha cobert el torn d'una companya.`, { obligatori: false })
+  if (motiu === null) return
+  acceptant.value = true
+  try {
+    const r = await api.post(`/v1/work-logs/${workLog.value.id}/accepta-hores-de-mes`, { motiu: motiu.trim() || null })
+    alert(`${formatHM(r.aplicades || 0)} de més acceptades.` + (r.pendents > 0 ? ` En queden ${formatHM(r.pendents)} sense autoritzar.` : ''))
+    await loadData()
+  } catch (e) {
+    alert(e?.message || "No s'han pogut acceptar.")
+  } finally {
+    acceptant.value = false
+  }
+}
 async function reobrirTram(seg) {
   const motiu = await demana(`Per què cal tornar a revisar la part ${seg.segment_number}? (mínim 10 caràcters)\nQuedarà registrat a la traçabilitat.`, { frases: 'revisar_de_nou' })
   if (motiu === null) return
@@ -459,6 +488,9 @@ async function sendAllegation(seg) {
 </script>
 
 <style scoped>
+.hores-mes { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: #FFF7E6; border: 1px solid #F5C77E; }
+.hm-ok { margin-left: 8px; color: #166534; font-weight: 600; }
+.hm-pend { margin-left: 8px; color: #b45309; font-weight: 600; }
 .work-log-detail { padding: 20px; max-width: 900px; margin: 0 auto; }
 .header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
 .back-btn { padding: 8px 16px; border: none; background: #e0e0e0; border-radius: 6px; cursor: pointer; }
