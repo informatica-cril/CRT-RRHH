@@ -105,7 +105,7 @@
                   {{ formatHM(log.effective_hours ?? log.total_hours_worked) }}
                 </strong>
                 <span v-else>—</span>
-                <span v-if="log.segmented && Number(log.effective_hours) !== Number(log.total_hours_worked)" class="badge badge-warning" style="font-size:0.7rem; margin-left:4px;" title="Només compta el temps aprovat; la resta està per revisar al detall. Temps efectiu segons trams aprovats">de {{ formatHM(log.total_hours_worked) }}</span>
+                <span v-if="log.segmented && Number(log.effective_hours) !== Number(log.total_hours_worked)" class="badge badge-warning" style="font-size:0.7rem; margin-left:4px;" :title="'Fitxat en total: ' + formatHM(log.total_hours_worked) + '. Només compta el temps aprovat; la resta s\'ha de revisar al detall.'">{{ formatHM(Number(log.total_hours_worked) - Number(log.effective_hours)) }} per revisar</span>
                 <div v-if="sortidaAltreDia(log)" class="sortida-altre-dia" :title="'La jornada es va iniciar el ' + String(log.date).slice(0, 10).split('-').reverse().join('/') + ' i la sortida no es va fitxar fins al ' + sortidaAltreDia(log).data">
                     ⚠ Sortida fitxada el {{ sortidaAltreDia(log).data }}<span v-if="sortidaAltreDia(log).dies > 1"> (+{{ sortidaAltreDia(log).dies }} dies)</span>
                   </div>
