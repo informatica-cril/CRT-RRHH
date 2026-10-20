@@ -369,7 +369,7 @@ class DisponibilitatTest extends TestCase
     {
         $this->assertSame(['B1', 'B9'], \App\Models\Lot::orderBy('sort')->pluck('code')->all());
         $this->assertSame(
-            ['RHB_DOMI', 'RHB_AMBU', 'LOGO_DOMI', 'LOGO_AMBU', 'TO_DOMI', 'ADMIN'],   // Administració: 19-10-2026
+            ['RHB_DOMI', 'RHB_AMBU', 'LOGO_DOMI', 'LOGO_AMBU', 'TO_DOMI', 'HOSP_BCN', 'ADMIN'],   // Administració: 19-10-2026; HOSP_BCN només a CRT
             \App\Models\Department::orderBy('sort')->pluck('code')->all()
         );
     }
