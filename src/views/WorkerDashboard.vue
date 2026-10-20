@@ -3,6 +3,15 @@
     <!-- Alert Banner (alertas molestas) -->
     <WorkLogAlertBanner />
 
+    <!-- 3 fitxatges seguits fora de l'horari (de més o de menys): el mateix avís que veu RRHH -->
+    <div v-if="avisMarge" class="avis-sense-horari avis-marge" role="status">
+      <span class="ash-ico">⏰</span>
+      <div>
+        <strong>Portes {{ avisMarge.dies }} fitxatges seguits fora del teu horari.</strong>
+        <div>{{ resumAvisMarge }}. Intenta entrar i sortir a l'hora del teu horari; si hi ha algun motiu, parla-ho amb RRHH.</div>
+      </div>
+    </div>
+
     <!-- Sense horari assignat: no es poden calcular hores fora d'horari, extres ni la pausa -->
     <div v-if="senseHorari" class="avis-sense-horari" role="alert">
       <span class="ash-ico">🗓️</span>
@@ -1044,6 +1053,16 @@ const t = (key) => i18n.t(key)
 const workerSchedule = ref(null)
 // Persona que fitxa sense horari assignat (els autònoms no fan registre de jornada).
 // Un horari sense cap dia actiu és com no tenir-ne.
+// Avís de fitxatges seguits fora d'horari (servidor: App\Services\AvisMarge).
+const avisMarge = ref(null)
+import('../services/apiClient').then(({ api }) => api.get('/v1/el-meu-avis-marge')).then(r => { avisMarge.value = r?.avis || null }).catch(() => {})
+const resumAvisMarge = computed(() => {
+  const a = avisMarge.value
+  if (!a) return ''
+  return [[a.entrades_tard, 'entrades tard'], [a.sortides_abans, 'sortides abans'],
+    [a.entrades_aviat, "entrades abans d'hora"], [a.sortides_tard, 'sortides més tard']]
+    .filter(([n]) => n > 0).map(([n, t]) => `${n} ${t}`).join(', ').replace(/^./, c => c.toUpperCase())
+})
 const senseHorari = computed(() => {
   const u = authStore.user
   if (!u || u.role !== 'worker' || u.relacio === 'autonom') return false
@@ -2123,6 +2142,7 @@ watch(() => activeTab.value, async (tab) => {
 .avis-sense-horari { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 16px; padding: 12px 16px;
   border-radius: 12px; background: #fff4d6; border: 1px solid #f0d58a; border-left: 5px solid #D9A400; color: #5c4400; font-size: .9rem; line-height: 1.4; }
 .avis-sense-horari strong { display: block; margin-bottom: 2px; }
+.avis-marge { background: #FFF7E6; border-color: #F5C77E; color: #7A4B00; }
 .ash-ico { font-size: 1.4rem; line-height: 1; }
 
 /* Temps fora d'horari dins del comptador (fons fosc) */

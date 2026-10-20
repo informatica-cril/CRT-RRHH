@@ -631,6 +631,7 @@ Route::prefix('v1')->group(function () {
         Route::post('plantilles-horari/esborra-sense-us', [\App\Http\Controllers\Api\PlantillesHorariController::class, 'esborraSenseUs'])->middleware('role:admin,hr');
         Route::post('plantilles-horari/{workSchedule}/ajunta', [\App\Http\Controllers\Api\PlantillesHorariController::class, 'ajunta'])->middleware('role:admin,hr');
         Route::delete('plantilles-horari/{workSchedule}', [\App\Http\Controllers\Api\PlantillesHorariController::class, 'destroy'])->middleware('role:admin,hr');
+        Route::get('el-meu-avis-marge', [\App\Http\Controllers\Api\AvisMargeController::class, 'meu']);
         Route::get('avisos-marge', [\App\Http\Controllers\Api\AvisMargeController::class, 'index'])->middleware('role:admin,hr');
         Route::post('avisos-marge/{user}/descarta', [\App\Http\Controllers\Api\AvisMargeController::class, 'descarta'])->middleware('role:admin,hr');
 
