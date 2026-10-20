@@ -2,8 +2,8 @@
   <div>
     <div class="page-header">
       <div>
-        <h1 class="page-title">📄 Gestió documental</h1>
-        <p class="page-subtitle">Distribució, control de lectura i firma electrònica</p>
+        <h1 class="page-title">📄 Documents</h1>
+        <p class="page-subtitle">Envia documents a la plantilla i mira qui els ha llegit i qui els ha signat.</p>
       </div>
       <div class="page-actions">
         <button class="btn btn-primary" @click="openCreateModal">+ Nou document</button>
@@ -606,7 +606,8 @@ async function assignProfile(userId, profileId) {
   const user = workers.value.find(u => u.id === userId)
   if (user) {
     try {
-      await db.updateUser({ ...user, onboarding_profile_id: pid, onboarding_completed: pid ? false : true })
+      // Només els camps d'onboarding: amb l'usuari sencer es reenviava la data d'alta en UTC i perdia un dia.
+      await db.updateUser({ id: user.id, onboarding_profile_id: pid, onboarding_completed: pid ? false : true })
       if (pid) {
         await db.initOnboardingStatus(userId, pid)
         const profile = await db.getOnboardingProfile(pid)

@@ -2,8 +2,8 @@
   <div>
     <div class="page-header">
       <div>
-        <h1 class="page-title">🔍 Supervisió del Xat Corporatiu</h1>
-        <p class="page-subtitle">Panel de control, alertes forenses i configuració de paraules clau</p>
+        <h1 class="page-title">🔍 Supervisió del xat</h1>
+        <p class="page-subtitle">Els avisos del xat de l'empresa i les paraules que fan saltar una alerta.</p>
       </div>
       <div class="page-actions" style="display:flex;gap:8px;">
         <button class="btn btn-outline" @click="showSettingsModal = true">⚙️ Configuració</button>

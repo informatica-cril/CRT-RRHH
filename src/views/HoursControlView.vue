@@ -2,23 +2,25 @@
   <div class="hc">
     <div class="hc-head">
       <div>
-        <h1 class="page-title">⏱ Control d'hores · complementàries i extraordinàries</h1>
-        <p class="page-subtitle">Els dos comptadors per treballador. Les complementàries són pactades (parcials); les extraordinàries (jornada completa) computen a {{ fmtFactor }}× amb un topall de {{ params.extra_cap_h }} h/any (art. 20.1 del conveni). Cada hora és un compromís de pagament autoritzat.</p>
+        <h1 class="page-title">⏱ Control d'hores</h1>
+        <p class="page-subtitle">Quantes hores de més fa cada persona: les complementàries (pactades amb qui treballa a temps parcial) i les extres (per sobre de la jornada). Cada hora extra compta {{ fmtFactor }} vegades i se'n poden fer com a màxim {{ params.extra_cap_h }} h l'any (conveni, art. 20).</p>
       </div>
       <select v-model="year" @change="load" class="hc-year">
         <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
       </select>
     </div>
 
-    <!-- Sol·licituds d'extraordinàries forçades des de domi, pendents d'autoritzar -->
+    <!-- Sol·licituds d'hores per sobre del contracte pendents d'autoritzar: les força coordinació
+         des de domi o les demana el mateix treballador des del comptador en passar de l'hora de sortida. -->
     <div v-if="pendents.length" class="hc-pend">
-      <h2 style="margin:0 0 8px">⚠ {{ pendents.length }} sol·licitud(s) d'extraordinàries a autoritzar</h2>
-      <p class="dim" style="font-size:.84rem;margin:0 0 12px">Coordinació ha forçat aquestes hores per sobre del contracte. Fins que no les autoritzis (compromís de pagament), domi no les programa.</p>
+      <h2 style="margin:0 0 8px">⚠ {{ pendents.length }} sol·licitud(s) d'hores fora d'horari a autoritzar</h2>
+      <p class="dim" style="font-size:.84rem;margin:0 0 12px">Cada hora autoritzada és un compromís de pagament. Les de jornada completa són extraordinàries ({{ fmtFactor }}×); les que demana una persona a temps parcial són complementàries. Si la jornada ja s'ha tancat, el codi s'aplica sol al fitxatge.</p>
       <div v-for="p in pendents" :key="p.id" class="hc-req">
         <div class="hc-req-info">
           <b>{{ p.user?.name || ('#'+p.user_id) }}</b>
-          <span class="pill">{{ p.hours }} h · {{ fmtFactor }}× = {{ (p.hours * params.extra_factor).toFixed(2) }} h pagades</span>
-          <span class="dim">{{ p.period_from }} → {{ p.period_to }} · forçat per {{ p.requested_by }}</span>
+          <span class="pill">{{ formatHM(p.hours) }}<template v-if="p.origen !== 'treballador'"> · {{ fmtFactor }}× = {{ (p.hours * params.extra_factor).toFixed(2) }} h pagades</template></span>
+          <span v-if="p.origen === 'treballador'" class="dim">{{ p.period_from }} · demanat pel treballador des del comptador</span>
+          <span v-else class="dim">{{ p.period_from }} → {{ p.period_to }} · forçat per {{ p.requested_by }}</span>
           <div v-if="p.reason" class="dim" style="font-size:.8rem;margin-top:2px">{{ p.reason }}</div>
         </div>
         <div class="hc-req-acc">
@@ -33,14 +35,14 @@
       <table class="hc-t">
         <thead>
           <tr>
-            <th>Treballador</th><th>Règim</th>
+            <th>Persona</th><th>Jornada</th>
             <th colspan="2">Complementàries pactades</th>
             <th colspan="2">Extraordinàries ({{ params.extra_cap_h }} h · {{ fmtFactor }}×)</th>
           </tr>
           <tr class="hc-sub">
             <th></th><th></th>
-            <th>Usades / topall</th><th style="min-width:160px">Ocupació</th>
-            <th>Usades / {{ params.extra_cap_h }}</th><th style="min-width:160px">Ocupació</th>
+            <th>Fetes / màxim</th><th style="min-width:160px">Quant n'ha gastat</th>
+            <th>Fetes / {{ params.extra_cap_h }} h</th><th style="min-width:160px">Quant n'ha gastat</th>
           </tr>
         </thead>
         <tbody>
@@ -84,6 +86,7 @@
 </template>
 
 <script setup>
+import { formatHM } from '../utils/formatHours'
 import { confirma, demana } from '../utils/dialegs'
 import { ref, computed, onMounted } from 'vue'
 import db from '../services/db'

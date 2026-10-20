@@ -16,12 +16,13 @@ class StoreUserRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users',
+            'email' => 'required|email|max:255|unique:users',
             'password' => 'required|string|min:6',
             'role' => 'in:admin,coordinator,worker,hr',
             'work_type' => 'nullable|string|in:DOMICILIARIA,DOMICILIARIA_VALLES,AMBULATORIA',
-            'job_profile' => 'nullable|string',
-            'dni' => 'nullable|string',
+            'job_profile' => 'nullable|string|max:255',
+            // La columna és varchar(20): sense límit, MySQL tallava el desat amb un 500.
+            'dni' => 'nullable|string|max:20',
             'device_phone' => 'nullable|string|max:20',
             'pacte_complementaries' => 'boolean',
             // Tipus de relació. OBJECTIU: required a l'alta ("la pantalla d'alta sí que
@@ -31,6 +32,8 @@ class StoreUserRequest extends FormRequest
             'relacio' => 'nullable|in:laboral,autonom',
             'entitat' => 'nullable|in:CRIL,CRT,CRIL_CRT',
             'disponibilitat_setmanal' => 'nullable|numeric|min:0|max:99',
+            // % de retribució: només informatiu (la jornada va per l'historial de /users/{id}/jornada).
+            'retribucio_pct' => 'nullable|numeric|min:0|max:100',
             'work_schedule_id' => 'nullable|exists:work_schedules,id',
             'active' => 'boolean',
             'seniority_date' => 'nullable|date',
@@ -62,6 +65,15 @@ class StoreUserRequest extends FormRequest
             'entitat.in' => 'L\'entitat no és vàlida (CRIL, CRT o totes dues).',
             'work_schedule_id.exists' => 'L\'horari triat no existeix.',
             'seniority_date.date' => 'La data d\'alta no és vàlida.',
+            'dni.max' => 'El DNI / NIE no pot tenir més de :max caràcters.',
+            'device_phone.max' => 'El telèfon no pot tenir més de :max caràcters.',
+            'name.max' => 'El nom no pot tenir més de :max caràcters.',
+            'email.max' => 'El correu electrònic no pot tenir més de :max caràcters.',
+            'job_profile.max' => 'El lloc de treball no pot tenir més de :max caràcters.',
+            'postal_code_assigned.max' => 'El codi postal no pot tenir més de :max caràcters.',
+            'retribucio_pct.numeric' => 'El percentatge de retribució ha de ser un número.',
+            'retribucio_pct.min' => 'El percentatge de retribució no pot ser negatiu.',
+            'retribucio_pct.max' => 'El percentatge de retribució no pot passar del 100%.',
         ];
     }
 }

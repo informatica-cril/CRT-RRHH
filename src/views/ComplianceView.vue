@@ -4,8 +4,8 @@
       <div style="display:flex;align-items:center;gap:14px;">
         <img src="/assets/crt-logo.png" alt="CRT" style="height:40px;" />
         <div>
-          <h1 class="page-title">Compliment i governança</h1>
-          <p class="page-subtitle">Publicació i constància d'acusament dels documents que habiliten el control laboral (art. 90 LOPDGDD, gestió algorítmica, RoPA)</p>
+          <h1 class="page-title">Compliment</h1>
+          <p class="page-subtitle">Publica les normes que la plantilla ha de conèixer i mira qui ha confirmat que les ha llegides.</p>
         </div>
       </div>
       <div class="page-actions">

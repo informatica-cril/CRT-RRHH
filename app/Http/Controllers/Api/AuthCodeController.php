@@ -64,6 +64,15 @@ class AuthCodeController extends Controller
             $arr = $c->toArray();
             $arr['consum'] = ['usat_h' => $usat, 'pct' => $pct,
                               'esgota' => $esgota, 'dins_validesa' => $dinsValidesa];
+            // Per a la pantalla «Hores de més»: el que queda i l'estat en paraules.
+            $arr['queden_h'] = max(0.0, round($tot - $usat, 2));
+            $arr['estat'] = match (true) {
+                (bool) $c->revoked => 'anullada',
+                ($tot > 0 && $usat >= $tot) || (bool) $c->used => 'esgotada',
+                $c->valid_to && Carbon::parse($c->valid_to)->lt(now()) => 'caducada',
+                $c->valid_from && Carbon::parse($c->valid_from)->gt(now()) => 'propera',
+                default => 'activa',
+            };
             return $arr;
         });
 
@@ -163,6 +172,7 @@ class AuthCodeController extends Controller
     public function store(StoreAuthCodeRequest $request)
     {
         $data = $request->validated();
+        $data['code'] = $data['code'] ?? strtoupper(bin2hex(random_bytes(4)));
 
         // El multiplicador el posa el servidor, mai el formulari: una hora
         // extraordinària val 1,25× (art. 20.1 conveni XII) i una complementària 1,00×.
@@ -235,6 +245,8 @@ class AuthCodeController extends Controller
         }
 
         $authCode = AuthorizationCode::create($data);
+        // S'aplica sola als fitxatges ja tancats d'aquells dies que tenien hores de més.
+        $aplicades = \App\Services\AutoritzacioHores::aplicaAlsTancats($authCode);
 
         if ($authCode->user_id) {
             $this->registraDecisio($request, 'AUTHCODE_ISSUED', 'authorization_code', $authCode->id,
@@ -265,7 +277,7 @@ class AuthCodeController extends Controller
             }
         }
 
-        return response()->json($authCode, 201);
+        return response()->json(array_merge($authCode->fresh()->toArray(), ['aplicades' => $aplicades]), 201);
     }
 
     public function revoke(AuthorizationCode $authCode)
@@ -413,52 +425,225 @@ class AuthCodeController extends Controller
     }
 
     /**
+     * GET /api/v1/overtime-requests/meves
+     * Les sol·licituds del treballador (les darreres), amb el codi si ja està autoritzada,
+     * perquè el comptador sàpiga si l'hora de més ja té permís.
+     */
+    public function myOvertimeRequests(Request $request)
+    {
+        $llista = \App\Models\OvertimeRequest::where('user_id', $request->user()->id)
+            ->latest()->limit(20)->get()
+            ->map(function ($r) {
+                $codi = $r->authorization_code_id ? AuthorizationCode::find($r->authorization_code_id) : null;
+                return [
+                    'id' => $r->id, 'hours' => (float) $r->hours, 'status' => $r->status,
+                    'period_from' => $r->period_from?->toDateString(), 'reason' => $r->reason,
+                    'origen' => $r->origen, 'work_log_id' => $r->work_log_id,
+                    'denial_reason' => $r->denial_reason,
+                    'code' => $codi?->code, 'code_used' => (bool) $codi?->used, 'type' => $codi?->type,
+                    'created_at' => $r->created_at?->toDateTimeString(),
+                ];
+            });
+
+        return response()->json($llista);
+    }
+
+    /**
+     * POST /api/v1/overtime-requests/meves
+     * El treballador ha passat de l'hora de sortida i demana autorització des del comptador.
+     * Una sola sol·licitud pendent per jornada: si en torna a demanar, s'actualitza la mateixa.
+     */
+    public function requestMyOvertime(Request $request)
+    {
+        $data = $request->validate([
+            'hours' => 'required|numeric|min:0.25|max:12',
+            'reason' => 'required|string|min:5|max:500',
+            'work_log_id' => 'nullable|integer',
+        ]);
+        $jo = $request->user();
+        if ($jo->esAutonom()) {
+            return response()->json(['message' => 'Com a col·laborador autònom no et cal autorització d\'hores.'], 409);
+        }
+
+        // Només una jornada pròpia i oberta (o la d'avui) pot lligar-se a la sol·licitud.
+        $logId = null;
+        if (! empty($data['work_log_id'])) {
+            $log = \App\Models\WorkLog::where('id', $data['work_log_id'])->where('user_id', $jo->id)->first();
+            $logId = $log?->id;
+        }
+
+        $avui = now('Europe/Madrid')->toDateString();
+        $req = \App\Models\OvertimeRequest::where('user_id', $jo->id)->where('status', 'pending')
+            ->where('origen', 'treballador')->whereDate('period_from', $avui)->first();
+        $camps = [
+            'hours' => $data['hours'], 'reason' => trim($data['reason']),
+            'work_log_id' => $logId ?? $req?->work_log_id,
+        ];
+        if ($req) {
+            $req->update($camps);
+        } else {
+            $req = \App\Models\OvertimeRequest::create($camps + [
+                'user_id' => $jo->id, 'period_from' => $avui, 'period_to' => $avui,
+                'requested_by' => $jo->name, 'origen' => 'treballador', 'status' => 'pending',
+            ]);
+        }
+
+        return response()->json([
+            'ok' => true, 'id' => $req->id, 'status' => $req->status,
+            'missatge' => 'Sol·licitud enviada a RRHH. Pots continuar treballant: quan l\'autoritzin, s\'aplicarà sola a aquesta jornada.',
+        ], 201);
+    }
+
+    /**
      * POST /api/v1/overtime-requests/{req}/authorize
-     * RRHH autoritza (compromís de pagament): emet el codi d'autorització (1,25×,
-     * type=extraordinaria) i marca la sol·licitud com autoritzada. Comprova el tope de 80 h/any.
+     * RRHH autoritza (compromís de pagament) i s'emet el codi d'autorització. Les de domi i les
+     * de jornada completa són extraordinàries (1,25×, topall 80 h/any, art. 20 conveni); les que
+     * demana un treballador a temps parcial són complementàries (art. 12.5 ET), amb el seu topall.
+     * Si la sol·licitud va lligada a una jornada ja tancada, el codi s'hi aplica directament.
      */
     public function authorizeOvertime(Request $request, \App\Models\OvertimeRequest $overtimeRequest)
     {
         if ($overtimeRequest->status !== 'pending') {
             return response()->json(['error' => "la sol·licitud ja està {$overtimeRequest->status}"], 409);
         }
+        $treballador = User::find($overtimeRequest->user_id);
+        // Les demanades per la persona o acceptades per gestió en revisar el fitxatge: a temps parcial
+        // són complementàries; a jornada completa, extraordinàries. Les forçades des de domi, extraordinàries.
+        $esComplementaria = in_array($overtimeRequest->origen, ['treballador', 'gestio'], true) && $treballador && ! $treballador->isFullTime();
+        $hores = (float) $overtimeRequest->hours;
         $year = (int) Carbon::parse($overtimeRequest->period_from)->year;
-        $jaExtra = round((float) AuthorizationCode::where('user_id', $overtimeRequest->user_id)
-            ->where('type', 'extraordinaria')->where('revoked', false)
-            ->whereYear('valid_from', $year)->sum('authorized_hours'), 2);
-        if ($jaExtra + (float) $overtimeRequest->hours > self::EXTRA_ANNUAL_CAP + 0.001) {
-            return response()->json(['error' => sprintf(
-                'Superaria el tope anual d\'extraordinàries: ja n\'hi ha %.2f h de %d, i se\'n demanen %.2f més.',
-                $jaExtra, (int) self::EXTRA_ANNUAL_CAP, (float) $overtimeRequest->hours)], 422);
+
+        if ($esComplementaria) {
+            $cap = $this->complementaryCap($overtimeRequest->user_id, $overtimeRequest->period_from);
+            if (! $cap['calculable']) {
+                return response()->json(['error' => 'No es pot calcular el topall d\'hores complementàries: ' . $cap['motiu']], 422);
+            }
+            if ($cap['already'] + $hores > $cap['cap'] + 0.01) {
+                return response()->json(['error' => sprintf(
+                    'Superaria el topall anual d\'hores complementàries: ja n\'hi ha %.2f h de %.2f, i se\'n demanen %.2f més.',
+                    $cap['already'], $cap['cap'], $hores)], 422);
+            }
+        } else {
+            $jaExtra = round((float) AuthorizationCode::where('user_id', $overtimeRequest->user_id)
+                ->where('type', 'extraordinaria')->where('revoked', false)
+                ->whereYear('valid_from', $year)->sum('authorized_hours'), 2);
+            if ($jaExtra + $hores > self::EXTRA_ANNUAL_CAP + 0.001) {
+                return response()->json(['error' => sprintf(
+                    'Superaria el tope anual d\'extraordinàries: ja n\'hi ha %.2f h de %d, i se\'n demanen %.2f més.',
+                    $jaExtra, (int) self::EXTRA_ANNUAL_CAP, $hores)], 422);
+            }
         }
+
+        $concepte = in_array($overtimeRequest->origen, ['treballador', 'gestio'], true)
+            ? ($esComplementaria ? 'Hores complementàries (art. 12.5 ET)' : 'Hores extraordinàries (art. 20 conveni)')
+                . ($overtimeRequest->origen === 'gestio' ? ' · acceptades per gestió' : ' · demanades pel treballador')
+                . ($overtimeRequest->reason ? ': ' . $overtimeRequest->reason : '')
+            : 'Hores extraordinàries (art. 20 conveni) · forçat des de Coordinació: ' . $overtimeRequest->requested_by;
 
         $code = AuthorizationCode::create([
             'code' => strtoupper(bin2hex(random_bytes(4))),
-            'concept' => 'Hores extraordinàries (art. 20.1) · forçat des de Coordinació: ' . $overtimeRequest->requested_by,
-            'authorized_hours' => $overtimeRequest->hours,
-            'type' => 'extraordinaria',
-            'factor' => self::EXTRA_FACTOR,
+            'concept' => mb_substr($concepte, 0, 255),
+            'authorized_hours' => $hores,
+            'type' => $esComplementaria ? 'complementaria' : 'extraordinaria',
+            'factor' => $esComplementaria ? 1.00 : self::EXTRA_FACTOR,
             'domi_origen' => $overtimeRequest->domi_ref,
             'generated_by' => $request->user()->id,
             'user_id' => $overtimeRequest->user_id,
-            'valid_from' => $overtimeRequest->period_from,
-            'valid_to' => $overtimeRequest->period_to,
+            // Franja diürna permesa (06:00–22:00): les columnes no admeten nul.
+            'time_slot_start' => '06:00',
+            'time_slot_end' => '22:00',
+            'valid_from' => Carbon::parse($overtimeRequest->period_from)->startOfDay(),
+            // Fins al final del dia: amb la data sola, el codi caducava a les 00:00 del darrer dia.
+            'valid_to' => Carbon::parse($overtimeRequest->period_to)->endOfDay(),
         ]);
         $overtimeRequest->update([
             'status' => 'authorized', 'authorized_by' => $request->user()->id,
             'authorized_at' => now(), 'authorization_code_id' => $code->id,
         ]);
 
-        $this->registraDecisio($request, 'OVERTIME_AUTHORIZED', 'overtime_request', $overtimeRequest->id,
-            sprintf('%.2f h extraordinàries AUTORITZADES per %s (codi %s)',
-                (float) $overtimeRequest->hours, $request->user()->name, $code->code));
-        $this->avisaTreballador($overtimeRequest->user_id, sprintf(
-            'Se t\'han AUTORITZAT %.2f h extraordinàries (codi %s) del %s al %s.',
-            (float) $overtimeRequest->hours, $code->code,
-            Carbon::parse($overtimeRequest->period_from)->toDateString(),
-            Carbon::parse($overtimeRequest->period_to)->toDateString()));
+        $aplicades = $this->aplicaAJornadaTancada($overtimeRequest, $code);
+        // I a qualsevol altre fitxatge tancat d'aquells dies amb hores de més (sense codi a escriure).
+        $altres = \App\Services\AutoritzacioHores::aplicaAlsTancats($code->fresh());
+        if ($altres > 0) $aplicades = round(($aplicades ?? 0) + $altres, 2);
+        $nomTipus = $esComplementaria ? 'complementàries' : 'extraordinàries';
 
-        return response()->json(['ok' => true, 'code' => $code->code, 'code_id' => $code->id]);
+        $this->registraDecisio($request, 'OVERTIME_AUTHORIZED', 'overtime_request', $overtimeRequest->id,
+            sprintf('%.2f h %s AUTORITZADES per %s (codi %s)', $hores, $nomTipus, $request->user()->name, $code->code));
+        $this->avisaTreballador($overtimeRequest->user_id, $aplicades !== null
+            ? sprintf('Se t\'han AUTORITZAT %.2f h %s (codi %s) i ja s\'han aplicat al fitxatge del %s.',
+                $aplicades, $nomTipus, $code->code, Carbon::parse($overtimeRequest->period_from)->toDateString())
+            : sprintf('Se t\'han AUTORITZAT %.2f h %s (codi %s) del %s al %s.',
+                $hores, $nomTipus, $code->code,
+                Carbon::parse($overtimeRequest->period_from)->toDateString(),
+                Carbon::parse($overtimeRequest->period_to)->toDateString()));
+
+        return response()->json(['ok' => true, 'code' => $code->code, 'code_id' => $code->id, 'aplicades' => $aplicades]);
+    }
+
+    /**
+     * Si la sol·licitud del treballador va lligada a una jornada que ja s'ha tancat amb hores
+     * no autoritzades, el codi s'hi aplica ara (fins a les hores autoritzades) i queda gastat.
+     * Si la jornada encara és oberta, ho farà l'app en fitxar la sortida. Retorna les hores aplicades.
+     */
+    private function aplicaAJornadaTancada(\App\Models\OvertimeRequest $req, AuthorizationCode $code): ?float
+    {
+        if (! $req->work_log_id) return null;
+        $log = \App\Models\WorkLog::find($req->work_log_id);
+        if (! $log || ! $log->getRawOriginal('end_time')) return null;
+        $pendents = (float) $log->extra_hours_unauthorized;
+        if ($pendents <= 0) return null;
+
+        $aplicades = round(min($pendents, (float) $code->authorized_hours), 2);
+        $log->update([
+            'authorized_extra_code' => $code->code,
+            'extra_hours_authorized' => round((float) $log->extra_hours_authorized + $aplicades, 2),
+            'extra_hours_unauthorized' => round($pendents - $aplicades, 2),
+        ]);
+        $code->markUsed();
+
+        return $aplicades;
+    }
+
+    /**
+     * POST /api/v1/work-logs/{workLog}/accepta-hores-de-mes { motiu? } — RRHH i admin.
+     * En revisar un fitxatge amb hores de més sense autoritzar (p. ex. ha cobert el torn d'una
+     * companya), gestió les accepta d'un clic: primer s'hi aplica qualsevol autorització d'aquell dia
+     * que ja existís (encara que no s'hagués fet servir), i el que falti s'autoritza ara amb les
+     * mateixes regles que una petició (tipus segons la jornada, topalls legals).
+     */
+    public function acceptaHoresDeMes(Request $request, \App\Models\WorkLog $workLog)
+    {
+        $data = $request->validate(['motiu' => 'nullable|string|max:500']);
+        if (! $workLog->getRawOriginal('end_time') || (float) $workLog->extra_hours_unauthorized <= 0) {
+            return response()->json(['message' => 'Aquest fitxatge no té hores de més per acceptar.'], 422);
+        }
+        $jaHiEren = \App\Services\AutoritzacioHores::aplica($workLog);
+        $workLog->refresh();
+        $falten = round((float) $workLog->extra_hours_unauthorized, 2);
+        if ($falten <= 0 || $workLog->authorized_extra_code) {
+            return response()->json(['ok' => true, 'aplicades' => $jaHiEren, 'de_autoritzacio_existent' => true,
+                'pendents' => $falten]);
+        }
+
+        $dia = substr((string) $workLog->getRawOriginal('date'), 0, 10);
+        $peticio = \App\Models\OvertimeRequest::create([
+            'user_id' => $workLog->user_id, 'hours' => $falten,
+            'reason' => trim($data['motiu'] ?? '') ?: 'Acceptades en revisar el fitxatge',
+            'period_from' => $dia, 'period_to' => $dia, 'requested_by' => $request->user()->name,
+            'origen' => 'gestio', 'work_log_id' => $workLog->id, 'status' => 'pending',
+        ]);
+        $resposta = $this->authorizeOvertime($request, $peticio);
+        if ($resposta->getStatusCode() !== 200) {
+            // Si un topall legal ho impedeix, no queda cap petició a mitges.
+            $peticio->delete();
+            $error = $resposta->getData(true);
+
+            return response()->json(['message' => $error['error'] ?? $error['message'] ?? "No s'han pogut acceptar."], 422);
+        }
+        $r = $resposta->getData(true);
+
+        return response()->json(['ok' => true, 'aplicades' => round($jaHiEren + (float) ($r['aplicades'] ?? 0), 2),
+            'pendents' => round((float) $workLog->fresh()->extra_hours_unauthorized, 2)]);
     }
 
     /** POST /api/v1/overtime-requests/{req}/deny — el motiu és obligatori. */

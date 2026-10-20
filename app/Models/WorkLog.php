@@ -24,6 +24,7 @@ class WorkLog extends Model
         'hours_out_of_area',
         'effective_hours',
         'auto_closed',
+        'fitxatge_automatic',
         'reminder_pre_sent_at',
         'reminder1_sent_at',
         'reminder2_sent_at',
@@ -39,12 +40,14 @@ class WorkLog extends Model
         'home_verification',
         'out_of_schedule',
         'coords_purged_at',
+        'auto_approved_at',
     ];
 
     protected $casts = [
         'date' => 'date',
         'start_time' => 'datetime',
         'end_time' => 'datetime',
+        'auto_approved_at' => 'datetime',
         // Coordenades crues xifrades AES en repòs (es desxifren de forma transparent al llegir).
         // El geovallat i el mapa segueixen funcionant: els booleans i distàncies estan en clar.
         'start_location_lat' => 'encrypted',
@@ -63,6 +66,7 @@ class WorkLog extends Model
         'hours_out_of_area' => 'decimal:2',
         'effective_hours' => 'decimal:2',
         'auto_closed' => 'boolean',
+        'fitxatge_automatic' => 'boolean',
         // Casts nuevos (aditivos)
         'break_start_time' => 'datetime',
         'break_end_time' => 'datetime',

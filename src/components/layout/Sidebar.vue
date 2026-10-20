@@ -4,21 +4,21 @@
       <img src="/assets/crt-logo-white.png" alt="CRT - Centre de Rehabilitació Terapèutica" style="width:150px;height:auto;border-radius:0;" />
     </div>
 
-    <!-- Menú agrupat per tasques. Les condicions de rol de cada entrada són les de sempre; una secció
-         només surt si el rol en pot veure alguna entrada. -->
-    <div class="sidebar-section-title">Dia a dia</div>
+    <!-- Menú agrupat per tasques, de la més diària a la menys. Les condicions de rol de cada entrada
+         són les de sempre; una secció només surt si el rol en pot veure alguna entrada. -->
+    <div class="sidebar-section-title">Avui</div>
     <ul class="sidebar-nav">
       <li>
         <router-link to="/" :class="{ active: $route.name === 'dashboard' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-          <span>{{ t('dashboard') }}</span>
+          <span>Inici</span>
         </router-link>
       </li>
       <li v-if="authStore.isStaff">
         <router-link to="/safata" :class="{ active: $route.name === 'safata' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-          <span>📥 Safata</span>
-          <span v-if="pendingCount > 0" class="nav-badge">{{ pendingCount }}</span>
+          <span>Safata d'avisos</span>
+          <span v-if="totalSafata > 0" class="nav-badge" :title="totalSafata + ' coses esperen una decisió'">{{ totalSafata }}</span>
         </router-link>
       </li>
       <li v-if="authStore.isAdmin || authStore.isHr">
@@ -28,10 +28,14 @@
           <span v-if="incidenciesObertes > 0" class="nav-badge">{{ incidenciesObertes }}</span>
         </router-link>
       </li>
+    </ul>
+
+    <div class="sidebar-section-title">Temps de treball</div>
+    <ul class="sidebar-nav">
       <li>
         <router-link to="/work-logs" :class="{ active: $route.name === 'work-logs' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
-          <span>{{ t('work_logs') }}</span>
+          <span>Fitxatges</span>
           <span v-if="pendingCount > 0" class="nav-badge">{{ pendingCount }}</span>
         </router-link>
       </li>
@@ -44,41 +48,44 @@
       <li>
         <router-link to="/absences" :class="{ active: $route.name === 'absences' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          <span>{{ t('absences') }}</span>
+          <span>Absències i permisos</span>
+          <span v-if="absenciesPendents > 0" class="nav-badge" :title="absenciesPendents + ' permisos per aprovar'">{{ absenciesPendents }}</span>
         </router-link>
       </li>
       <li>
         <router-link to="/excedencies" :class="{ active: $route.name === 'excedencies' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="12" y1="14" x2="12" y2="18"/></svg>
           <span>{{ t('sabbatical') }}</span>
+          <span v-if="excedenciesPendents > 0" class="nav-badge">{{ excedenciesPendents }}</span>
         </router-link>
       </li>
       <li>
         <router-link to="/auth-codes" :class="{ active: $route.name === 'auth-codes' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          <span>{{ t('auth_codes') }}</span>
+          <span>Hores de més</span>
+          <span v-if="horesPerAutoritzar > 0" class="nav-badge" :title="horesPerAutoritzar + ' peticions per autoritzar'">{{ horesPerAutoritzar }}</span>
         </router-link>
       </li>
-      <li>
-        <router-link to="/reports" :class="{ active: $route.name === 'reports' }">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          <span>{{ t('reports') }}</span>
-        </router-link>
-      </li>
-    </ul>
-
-    <div class="sidebar-section-title" v-if="authStore.canManageStaff || esRepresentant">Persones</div>
-    <ul class="sidebar-nav" v-if="authStore.canManageStaff || esRepresentant">
       <li v-if="authStore.canManageStaff">
-        <router-link to="/employees" :class="{ active: $route.name === 'employees' }">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          <span>{{ t('employees') }}</span>
+        <router-link to="/quadrant" :class="{ active: $route.name === 'quadrant' }">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h2M14 14h2M8 18h2M14 18h2"/></svg>
+          <span>Quadrant</span>
         </router-link>
       </li>
       <li v-if="authStore.canManageStaff && ['admin','hr'].includes(authStore.user?.role)">
         <router-link to="/disponibilitat" :class="{ active: $route.name === 'disponibilitat' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
           <span>Disponibilitat</span>
+        </router-link>
+      </li>
+    </ul>
+
+    <div class="sidebar-section-title" v-if="authStore.isStaff">Persones</div>
+    <ul class="sidebar-nav" v-if="authStore.isStaff">
+      <li v-if="authStore.canManageStaff">
+        <router-link to="/employees" :class="{ active: $route.name === 'employees' }">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Treballadors</span>
         </router-link>
       </li>
       <li v-if="authStore.isAdmin">
@@ -90,7 +97,7 @@
       <li v-if="authStore.isAdmin">
         <router-link to="/documents" :class="{ active: $route.name === 'documents' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-          <span>{{ t('documentation') }}</span>
+          <span>Documents</span>
         </router-link>
       </li>
       <li v-if="authStore.isStaff">
@@ -99,6 +106,10 @@
           <span>Biblioteca</span>
         </router-link>
       </li>
+    </ul>
+
+    <div class="sidebar-section-title" v-if="authStore.canManageStaff || esRepresentant">Representació dels treballadors</div>
+    <ul class="sidebar-nav" v-if="authStore.canManageStaff || esRepresentant">
       <li v-if="authStore.canManageStaff">
         <router-link to="/comite" :class="{ active: $route.name === 'comite' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><path d="M16 3.5l2 2"/></svg>
@@ -119,12 +130,12 @@
       </li>
     </ul>
 
-    <div class="sidebar-section-title" v-if="authStore.canManageStaff">Expedient i compliment</div>
+    <div class="sidebar-section-title" v-if="authStore.canManageStaff">Expedients i compliment</div>
     <ul class="sidebar-nav" v-if="authStore.canManageStaff">
       <li v-if="authStore.canManageStaff">
         <a href="#" @click.prevent="expedientObert = !expedientObert" :class="{ active: ['expedient','disciplinary'].includes($route.name) && !expedientObert }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          <span>Expedient</span>
+          <span>Expedients</span>
           <svg class="nav-icon" style="width:14px;height:14px;margin-left:auto;transition:transform .2s;" :style="expedientObert ? 'transform:rotate(90deg)' : ''" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
         </a>
       </li>
@@ -164,10 +175,38 @@
           <span>Comunicació certificada</span>
         </router-link>
       </li>
+    </ul>
+
+    <div class="sidebar-section-title">Informes i control</div>
+    <ul class="sidebar-nav">
+      <li>
+        <router-link to="/reports" :class="{ active: $route.name === 'reports' }">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>{{ t('reports') }}</span>
+        </router-link>
+      </li>
+      <li v-if="authStore.isAdmin">
+        <router-link to="/audit" :class="{ active: $route.name === 'audit' }">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>{{ t('audit') }}</span>
+        </router-link>
+      </li>
+      <li v-if="authStore.canManageStaff && authStore.user?.role !== 'hr'">
+        <router-link to="/integrity" :class="{ active: $route.name === 'integrity' }">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span>Integritat</span>
+        </router-link>
+      </li>
+      <li v-if="authStore.isAdmin">
+        <router-link to="/chat-admin" :class="{ active: $route.name === 'chat-admin' }">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>Supervisió del xat</span>
+        </router-link>
+      </li>
       <li v-if="authStore.canManageStaff">
         <router-link to="/millores" :class="{ active: $route.name === 'millores' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg>
-          <span>Millores</span>
+          <span>Propostes de millora</span>
         </router-link>
       </li>
     </ul>
@@ -177,13 +216,19 @@
       <li v-if="authStore.canManageStaff">
         <router-link to="/permisos-config" :class="{ active: $route.name === 'permisos-config' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
-          <span>{{ t('permissions_config') }}</span>
+          <span>Tipus de permisos</span>
+        </router-link>
+      </li>
+      <li v-if="authStore.canManageStaff">
+        <router-link to="/plantilles-horari" :class="{ active: $route.name === 'plantilles-horari' }">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 14h8M8 18h5"/></svg>
+          <span>Plantilles d'horari</span>
         </router-link>
       </li>
       <li v-if="authStore.canManageStaff">
         <router-link to="/break-settings" :class="{ active: $route.name === 'break-settings' }">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          <span>Pausa Obligatòria</span>
+          <span>Pausa obligatòria</span>
         </router-link>
       </li>
       <li v-if="authStore.user?.role === 'admin'">
@@ -198,28 +243,9 @@
           <span>Accessos a apps</span>
         </router-link>
       </li>
-      <li v-if="authStore.canManageStaff && authStore.user?.role !== 'hr'">
-        <router-link to="/integrity" :class="{ active: $route.name === 'integrity' }">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          <span>Integritat</span>
-        </router-link>
-      </li>
-      <li v-if="authStore.isAdmin">
-        <router-link to="/audit" :class="{ active: $route.name === 'audit' }">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          <span>{{ t('audit') }}</span>
-        </router-link>
-      </li>
-      <li v-if="authStore.isAdmin">
-        <router-link to="/chat-admin" :class="{ active: $route.name === 'chat-admin' }">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          <span>{{ t('chat') }} (Supervisió)</span>
-        </router-link>
-      </li>
     </ul>
 
-
-    <div class="sidebar-section-title">{{ t('general') }}</div>
+    <div class="sidebar-section-title">El meu compte</div>
     <ul class="sidebar-nav">
       <li v-if="teApps">
         <router-link to="/portal" :class="{ active: $route.name === 'portal' }">
@@ -274,6 +300,10 @@ async function handleLogout() {
 
 const pendingCount = ref(0)
 const incidenciesObertes = ref(0)
+const totalSafata = ref(0)
+const absenciesPendents = ref(0)
+const excedenciesPendents = ref(0)
+const horesPerAutoritzar = ref(0)
 const esRepresentant = ref(false)
 const teApps = ref(false)
 const unreadCount = ref(0)
@@ -285,8 +315,15 @@ async function fetchCounts() {
     // Recompte al servidor (només COUNTs): descarregar els fitxatges per comptar-los es quedava curt
     // amb l'històric (només en venien 500) i a més pesava cada minut.
     const r = await api.get('/v1/safata/resum')
-    pendingCount.value = (r?.cues || []).find(c => c.clau === 'fitxatges')?.n || 0
-    incidenciesObertes.value = (r?.cues || []).find(c => c.clau === 'incidencies')?.n || 0
+    const cues = r?.cues || []
+    const n = clau => cues.find(c => c.clau === clau)?.n || 0
+    // Fitxatges: els que es poden revisar (amb sortida). Safata: tot el que espera una decisió.
+    pendingCount.value = n('fitxatges')
+    incidenciesObertes.value = n('incidencies')
+    absenciesPendents.value = n('absencies')
+    excedenciesPendents.value = n('excedencies')
+    horesPerAutoritzar.value = n('horesextra')
+    totalSafata.value = cues.reduce((s, c) => s + (Number(c.n) || 0), 0)
     // unreadCount.value = await db.getTotalUnreadCount(authStore.userId)
   } catch (e) { console.error(e) }
 }
@@ -298,6 +335,11 @@ onMounted(() => {
   // «Les meves apps» només té sentit si n'hi ha alguna concedida (a un compte d'administració, cap).
   api.get('/v1/portal/apps').then(r => { teApps.value = (r?.apps || []).length > 0 }).catch(() => {})
   const interval = setInterval(fetchCounts, 60000)
-  onUnmounted(() => clearInterval(interval))
+  // Després d'aprovar, rebutjar o demanar alguna cosa, es torna a comptar de seguida (agrupant els canvis seguits).
+  let espera = null
+  const enCanviar = () => { clearTimeout(espera); espera = setTimeout(fetchCounts, 600) }
+  window.addEventListener('crt:canvi-dades', enCanviar)
+  const treuRuta = router.afterEach(() => enCanviar())
+  onUnmounted(() => { clearInterval(interval); clearTimeout(espera); window.removeEventListener('crt:canvi-dades', enCanviar); treuRuta() })
 })
 </script>

@@ -2,7 +2,7 @@
   <div class="inc">
     <div class="page-header">
       <div>
-        <h1 class="page-title">🛎️ Incidències</h1>
+        <h1 class="page-title">🛎️ Tinc un problema</h1>
         <p class="page-subtitle">Explica què passa i RRHH se n'encarregarà. La resposta la veuràs aquí mateix.</p>
       </div>
     </div>
@@ -121,7 +121,7 @@ onMounted(carrega)
 </script>
 
 <style scoped>
-.inc-form { max-width: 720px; padding: 24px; }
+.inc-form { max-width: 100px; padding: 24px; }
 .inc-tipus { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 18px; }
 .inc-xip { border: 1px solid var(--color-border); background: var(--color-bg-card); color: var(--color-text); border-radius: 999px; padding: 8px 14px; font-size: 0.88rem; cursor: pointer; }
 .inc-xip:hover { background: var(--color-bg-hover); }

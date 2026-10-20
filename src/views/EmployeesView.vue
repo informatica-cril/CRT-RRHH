@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="page-header">
-      <div><h1 class="page-title">{{ t('employees') }}</h1></div>
+      <div><h1 class="page-title">Treballadors</h1><p class="page-subtitle">La fitxa de cada persona: dades, horari, zona, jornada i accés a l'app.</p></div>
       <div class="page-actions">
         <!-- Eines poc freqüents, agrupades en un desplegable -->
         <div class="eines" ref="einesRef" @keydown.esc="einesObertes = false">
@@ -32,7 +32,7 @@
                 @click="provisionaTanda">
           {{ provisionantTanda ? 'Creant comptes…' : `🔗 Crear ${pendentsDomi} compte(s) a domi` }}
         </button>
-        <button class="btn btn-primary" @click="openEditModal(null)">+ {{ t('create') }}</button>
+        <button class="btn btn-primary" @click="openEditModal(null)">+ Nou treballador</button>
       </div>
     </div>
 
@@ -155,13 +155,14 @@
                 </div>
               </td>
               <td>
-                <div style="display:flex;gap:4px;flex-wrap:wrap;">
-                  <button class="btn btn-outline btn-sm" @click="openEditModal(user)">✎</button>
-                  <button v-if="user.work_type === 'DOMICILIARIA'" class="btn btn-outline btn-sm" @click="openCpModal(user)">📍 CP</button>
-                  <button v-if="user.work_type === 'DOMICILIARIA_VALLES'" class="btn btn-outline btn-sm" @click="openMuniModal(user)" style="color:rgba(147,51,234,1);">🏘️ Munis</button>
-                  <button v-if="user.work_type === 'AMBULATORIA'" class="btn btn-outline btn-sm" @click="openPointsModal(user)" style="color:var(--color-primary);">📍 Punts</button>
-                  <button class="btn btn-outline btn-sm" @click="openScheduleModal(user)">📅</button>
-                  <button class="btn btn-outline btn-sm" @click="openCalendarModal(user)" title="Calendari laboral">📆</button>
+                <!-- Sempre un botó sota l'altre, tots de la mateixa amplada: abans s'anaven partint en files de 2 i 1. -->
+                <div class="emp-accions">
+                  <button class="btn btn-outline btn-sm" @click="openEditModal(user)" title="Obrir la fitxa: dades, jornada i accés">✎ Fitxa</button>
+                  <button v-if="user.work_type === 'DOMICILIARIA'" class="btn btn-outline btn-sm" @click="openCpModal(user)" title="Codis postals on treballa">📍 Zona</button>
+                  <button v-if="user.work_type === 'DOMICILIARIA_VALLES'" class="btn btn-outline btn-sm" @click="openMuniModal(user)" style="color:rgba(147,51,234,1);" title="Municipis on treballa">🏘️ Municipis</button>
+                  <button v-if="user.work_type === 'AMBULATORIA'" class="btn btn-outline btn-sm" @click="openPointsModal(user)" style="color:var(--color-primary);" title="Centres i punts on pot fitxar">📍 Centres</button>
+                  <button class="btn btn-outline btn-sm" @click="openScheduleModal(user)" title="Horari de cada dia de la setmana">📅 Horari</button>
+                  <button class="btn btn-outline btn-sm" @click="openCalendarModal(user)" title="Calendari laboral: festius, vacances i dies treballats">📆 Calendari</button>
                 </div>
               </td>
             </tr>
@@ -185,23 +186,27 @@
         <div v-show="pestanyaFitxa === 'dades'">
         <div class="form-group">
           <label class="form-label">{{ t('name') }}</label>
-          <input class="form-input" v-model="form.name" :disabled="isSaving" />
+          <input :class="{ 'camp-error': errorsCamp.name }" class="form-input" v-model="form.name" :disabled="isSaving" />
+          <div v-if="errorsCamp.name" class="text-small error-camp">{{ errorsCamp.name }}</div>
         </div>
           <div class="fitxa-graella">
           <div class="form-group">
             <label class="form-label">{{ t('email') }}</label>
-            <input class="form-input" type="email" v-model="form.email" :disabled="isSaving" />
+            <input :class="{ 'camp-error': errorsCamp.email }" class="form-input" type="email" v-model="form.email" :disabled="isSaving" />
+            <div v-if="errorsCamp.email" class="text-small error-camp">{{ errorsCamp.email }}</div>
           </div>
           <div class="form-group">
             <label class="form-label">DNI / NIE</label>
-            <input class="form-input" v-model="form.dni" placeholder="12345678A" style="font-family:monospace;" :disabled="isSaving" />
+            <input :class="{ 'camp-error': errorsCamp.dni }" class="form-input" v-model="form.dni" placeholder="12345678A" style="font-family:monospace;" :disabled="isSaving" />
+            <div v-if="errorsCamp.dni" class="text-small error-camp">{{ errorsCamp.dni }}</div>
           </div>
           <div class="form-group">
             <label class="form-label">Telèfon corporatiu (SIM de tauleta o fix del lloc de treball)</label>
-            <input class="form-input" v-model="form.device_phone" placeholder="+34600000000 o 934000000" style="font-family:monospace;" :disabled="isSaving" />
+            <input :class="{ 'camp-error': errorsCamp.device_phone }" class="form-input" v-model="form.device_phone" placeholder="+34600000000 o 934000000" style="font-family:monospace;" :disabled="isSaving" />
+            <div v-if="errorsCamp.device_phone" class="text-small error-camp">{{ errorsCamp.device_phone }}</div>
           </div>
           <div class="form-group">
-            <label class="form-label">Data alta (antiguitat)</label>
+            <label class="form-label">Data d'alta (compta per a l'antiguitat)</label>
             <input class="form-input" type="date" v-model="form.seniority_date" :disabled="isSaving" />
           </div>
           <div class="form-group">
@@ -240,7 +245,7 @@
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label">Perfil / Lloc</label>
+            <label class="form-label">Lloc de treball</label>
             <select class="form-select" v-model="form.job_profile" :disabled="isSaving">
               <option value="Fisioterapeuta">Fisioterapeuta</option>
               <option value="Logopeda">Logopeda</option>
@@ -316,12 +321,98 @@
           ℹ️ <strong>Ambulatori:</strong> Podeu configurar punts geolocalitzats específics per aquest treballador después de crear-lo (botó 📍 Punts).
         </div>
         <div v-if="form.work_type === 'DOMICILIARIA_VALLES'" style="background:rgba(147,51,234,0.06);border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.82rem;">
-          ℹ️ <strong>Domiciliari Vallès:</strong> El fichatge geolocalitzat és vàlid en qualsevol punt dels termes municipals assignats. Configureu-los amb el botó 🏘️ Munis.
+          ℹ️ <strong>Domiciliari Vallès:</strong> El fitxatge amb GPS és vàlid en qualsevol punt dels termes municipals assignats. Configureu-los amb el botó 🏘️ Munis.
         </div>
 
         </div>
 
         <div v-show="pestanyaFitxa === 'jornada'">
+          <!-- Saldo de l'any a la vista: avisos, diferència per mes i detall per trams -->
+          <ResumJornada v-if="editingUser && (jornadaAny?.trams?.length || jornadaAny?.sense_contracte)" :jornada="jornadaAny" />
+          <!-- % de jornada del CONTRACTE amb historial: mana la jornada màxima anual del conveni
+               (1726 h × %). Cada ampliació o reducció es guarda amb la seva data d'efecte. -->
+          <div class="fitxa-bloc">
+            <div class="form-label" style="margin-bottom:6px;">Percentatge de jornada del contracte</div>
+            <div v-if="!editingUser" class="text-small text-muted">Deseu primer la fitxa per posar-hi el % de jornada.</div>
+            <template v-else>
+              <div v-if="jornadaAny?.vigent" style="font-size:0.95rem;">
+                Vigent: <strong>{{ fmtPct(jornadaAny.vigent.pct) }}%</strong> des del {{ fmtData(jornadaAny.vigent.valid_from) }}
+              </div>
+              <div v-else-if="jornadaAny" class="text-small text-muted">
+                Sense % de contracte: es dedueix de l'horari ({{ pctHorari != null ? fmtPct(pctHorari) + '%' : 'sense horari' }}).
+              </div>
+              <div v-if="avisHorariPct" class="text-small" style="color:#92400e;margin-top:4px;">⚠️ {{ avisHorariPct }}</div>
+
+              <div v-if="modulJornada" class="modul-jornada">
+                <div class="modul-titol">{{ fmtPct(modulJornada.pct) }}% de jornada · {{ modulJornada.any }}<span v-if="nouPct" class="text-muted" style="font-weight:400;"> (previsualització del canvi)</span></div>
+                <div class="modul-graella">
+                  <div><span class="text-muted">Màxim anual</span><strong>{{ fmtMin(modulJornada.maxim_anual_min) }}</strong></div>
+                  <div><span class="text-muted">Mòdul diari</span><strong>{{ fmtMin(modulJornada.modul_diari_min) }}</strong></div>
+                  <div><span class="text-muted">Setmana de referència</span><strong>{{ fmtMin(modulJornada.setmana_referencia_min) }}</strong></div>
+                  <div><span class="text-muted">Minuts per repartir a l'any</span><strong>{{ modulJornada.resta_min }} min</strong></div>
+                </div>
+                <div class="text-small text-muted" style="margin-top:6px;">
+                  {{ modulJornada.jornada_anual_completa_h }} h (art. 31.2) × {{ fmtPct(modulJornada.pct) }}% ·
+                  {{ modulJornada.dies_laborables }} dies laborables ({{ modulJornada.festius_entre_setmana }} festius entre setmana)
+                  − {{ modulJornada.vacances_laborables }} de vacances = {{ modulJornada.moduls }} mòduls.
+                  Els minuts per repartir no són excés: falten per col·locar algun dia.
+                </div>
+                <div v-if="modulJornada.avis" class="text-small" style="color:#92400e;margin-top:4px;">⚠️ {{ modulJornada.avis }}</div>
+              </div>
+
+              <!-- Canvi de % amb data d'efecte -->
+              <div class="canvi-jornada">
+                <div class="text-small" style="font-weight:600;">Canviar el % (ampliació o reducció)</div>
+                <div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;margin-top:4px;">
+                  <label class="text-small">Hores/setmana<br>
+                    <input class="form-input" type="number" min="0.5" max="37.5" step="0.01" :value="nouHores" @input="posaHores($event.target.value)" placeholder="p. ex. 20" style="width:100px;" :disabled="desantJornada" />
+                  </label>
+                  <span class="text-small text-muted" style="padding-bottom:9px;">o bé</span>
+                  <label class="text-small">Nou %<br>
+                    <input class="form-input" type="number" min="1" max="100" step="0.01" list="pcts-jornada" v-model="nouPct" placeholder="p. ex. 75" style="width:100px;" :disabled="desantJornada" />
+                  </label>
+                  <datalist id="pcts-jornada"><option v-for="p in PCTS_JORNADA" :key="p" :value="p" /></datalist>
+                  <label class="text-small">Des del<br>
+                    <input class="form-input" type="date" v-model="nouDesDe" style="width:150px;" :disabled="desantJornada" />
+                  </label>
+                  <label class="text-small" style="flex:1;min-width:160px;">Motiu (opcional)<br>
+                    <input class="form-input" v-model="nouMotiu" maxlength="255" placeholder="p. ex. Ampliació de jornada" :disabled="desantJornada" />
+                  </label>
+                  <button type="button" class="btn btn-primary btn-sm" :disabled="desantJornada || !nouPct || !nouDesDe" @click="desaCanviJornada">
+                    {{ desantJornada ? 'Desant…' : 'Desa el canvi' }}
+                  </button>
+                </div>
+                <div class="text-small text-muted" style="margin-top:4px;">Es guarda a l'historial: l'any es calcula per períodes, cadascun amb el seu %.</div>
+                <div v-if="modulError" class="text-small error-camp">{{ modulError }}</div>
+              </div>
+
+              <!-- Historial -->
+              <div v-if="jornadaAny?.historial?.length" style="margin-top:10px;">
+                <div class="text-small" style="font-weight:600;">Historial</div>
+                <table class="taula-jornada">
+                  <tr v-for="h in [...jornadaAny.historial].reverse()" :key="h.id">
+                    <td><strong>{{ fmtPct(h.pct) }}%</strong> <span class="text-muted">({{ fmtHores(Math.round(h.pct * 37.5) / 100) }})</span></td>
+                    <td>des del {{ fmtData(h.valid_from) }}<span v-if="h.futur" class="text-muted"> (pendent)</span></td>
+                    <td class="text-muted">{{ h.motiu || '' }}</td>
+                    <td class="text-muted">{{ h.autor || '' }}</td>
+                    <td><button type="button" class="icon-btn" title="Treure aquest canvi (entrat per error)" @click="esborraCanviJornada(h)">✕</button></td>
+                  </tr>
+                </table>
+              </div>
+
+            </template>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">% de retribució (només informatiu)</label>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input class="form-input" type="number" min="0" max="100" step="0.01" v-model="form.retribucio_pct" placeholder="p. ex. 81,25" style="width:110px;"
+                     :class="{ 'camp-error': errorsCamp.retribucio_pct }" :disabled="isSaving" />
+              <span style="font-weight:700;">%</span>
+            </div>
+            <small style="color:#6b7280;">No afecta la jornada ni cap càlcul d'hores. Es desa amb la fitxa.</small>
+            <div v-if="errorsCamp.retribucio_pct" class="text-small error-camp">{{ errorsCamp.retribucio_pct }}</div>
+          </div>
           <div class="form-group">
             <label class="form-label" style="display:flex;align-items:center;gap:8px;">
               <input type="checkbox" v-model="form.pacte_complementaries" :disabled="isSaving" />
@@ -487,6 +578,21 @@
           </div>
         </div>
 
+        <!-- FITXATGE AUTOMÀTIC (Direcció, 20-10-2026): per a gerència, que s'oblidava de fitxar.
+             Només admin. L'app crea cada dia l'entrada i la sortida amb l'horari del dia. -->
+        <div class="form-group" v-if="editingUser && authStore.isAdmin">
+          <label class="form-label">Fitxatge automàtic</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;cursor:pointer;">
+            <input type="checkbox" :checked="fitxatgeAutomatic" :disabled="desantFitxatgeAuto" @change="canviaFitxatgeAutomatic($event)" style="width:16px;height:16px;" />
+            {{ fitxatgeAutomatic ? '🤖 Activat: no ha de fitxar' : 'Desactivat: fitxa com sempre' }}
+          </label>
+          <div class="text-small text-muted" style="margin-top:2px;">
+            Pensat per a gerència. Cada dia laborable, a les 23:30, l'app li crea l'entrada i la sortida de
+            l'horari del dia (el del quadrant o el de la fitxa), ja aprovades. Els festius, els permisos de dia
+            sencer i els dies que ja hagi fitxat la persona no es toquen.
+          </div>
+        </div>
+
         <!-- COMPTE A DOMI. L'alta individual l'aprovisiona sola, però la càrrega massiva no
              (vuitanta crides HTTP no caben en una petició web). Sense aquest bloc, després
              d'una càrrega la plantilla és a RRHH i no a domi, i no ho sap ningú. -->
@@ -511,6 +617,13 @@
           </div>
         </div>
 
+        </div>
+        <!-- Error en desar: fora de les pestanyes perquè es vegi sempre, sigui on sigui el camp. -->
+        <div v-if="errorDesar" class="error-desar" role="alert">
+          <strong>{{ errorDesar }}</strong>
+          <ul v-if="Object.keys(errorsCamp).length">
+            <li v-for="(msg, camp) in errorsCamp" :key="camp">{{ nomCamp(camp) }}: {{ msg }}</li>
+          </ul>
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline" @click="showEditModal = false" :disabled="isSaving">{{ t('cancel') }}</button>
@@ -552,7 +665,10 @@
           <div class="form-group" style="display:flex;gap:8px;align-items:flex-end;">
             <div style="flex:1;">
               <label class="form-label">Nom de la nova plantilla</label>
-              <input class="form-input" v-model="newScheduleName" placeholder="Ex: 35h Dl-Dv 09:00-16:00" />
+              <!-- El nom surt sol de l'horari: així no hi ha dues maneres d'escriure el mateix. -->
+              <div class="form-input" style="background:var(--color-bg);" :style="{ color: nomNovaPlantilla ? 'var(--color-text)' : 'var(--color-text-muted)' }">
+                {{ nomNovaPlantilla || 'Es posarà sol quan omplis l\'horari' }}
+              </div>
             </div>
             <button class="btn btn-outline btn-sm" style="white-space:nowrap;margin-bottom:1px;" @click="isNewSchedule = false">← Plantilles</button>
           </div>
@@ -587,18 +703,18 @@
           <input v-if="d.active" class="form-input" type="time" v-model="d.end" style="width:115px;" />
           <span v-if="d.active" class="text-small text-muted">{{ formatHM(calcHours(d)) }}</span>
           <span v-else class="text-small text-muted">Descans</span>
-          <button v-if="d.active && !isExtraTramo(index)" type="button" class="btn btn-outline btn-sm" title="Afegir un segon tram (jornada partida)" @click="addTramo(index)">+ tram</button>
-          <button v-if="isExtraTramo(index)" type="button" class="btn btn-outline btn-sm" style="color:var(--color-danger);" title="Treure aquest tram" @click="removeTramo(index)">✕</button>
+          <button v-if="d.active" type="button" class="btn btn-outline btn-sm" title="Afegir una altra franja horària a aquest dia (jornada partida)" @click="addTramo(index)">+ franja</button>
+          <button v-if="isExtraTramo(index)" type="button" class="btn btn-outline btn-sm" style="color:var(--color-danger);" title="Treure aquesta franja" @click="removeTramo(index)">✕</button>
         </div>
 
         <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
           <span class="text-small"><strong>Total setmanal:</strong> {{ formatHM(totalWeeklyHours) }}</span>
-          <span class="text-small text-muted">Anual estimat: {{ (totalWeeklyHours * 46.5).toFixed(0) }}h</span>
+          <span class="text-small text-muted">Anual estimat: {{ (totalWeeklyHours / 37.5 * 1726).toFixed(0) }}h</span>
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline" @click="showScheduleModal = false">{{ t('cancel') }}</button>
-          <button class="btn btn-primary" @click="saveSchedule">
-            {{ isNewSchedule ? 'Crear i assignar' : t('save') + ' horari' }}
+          <button class="btn btn-primary" @click="saveSchedule" :disabled="desantHorari">
+            {{ desantHorari ? 'Desant…' : (isNewSchedule ? 'Crear i assignar' : t('save') + ' horari') }}
           </button>
         </div>
       </div>
@@ -745,7 +861,7 @@
       <div class="modal" style="max-width:650px;">
         <div class="modal-header" style="background:linear-gradient(135deg,rgba(59,130,246,0.06),rgba(16,185,129,0.04));border-radius:12px 12px 0 0;">
           <div>
-            <h3 class="modal-title">📍 Ubicacions de Fichatge — {{ pointsUser?.name }}</h3>
+            <h3 class="modal-title">📍 On pot fitxar — {{ pointsUser?.name }}</h3>
             <div class="text-small text-muted">Treballador ambulatori · {{ pointsUser?.job_profile }}</div>
           </div>
           <button class="icon-btn" @click="showPointsModal = false">✕</button>
@@ -753,51 +869,51 @@
 
         <!-- Current Centers -->
         <div v-if="userCenters.length" style="padding:16px 16px 0;">
-          <h4 style="font-size:0.85rem;margin-bottom:8px;">🏢 Centros Asignados ({{ userCenters.length }})</h4>
+          <h4 style="font-size:0.85rem;margin-bottom:8px;">🏢 Centres assignats ({{ userCenters.length }})</h4>
           <div v-for="center in userCenters" :key="center.id" style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--color-border-light);border-radius:8px;margin-bottom:8px;background:rgba(59,130,246,0.04);">
             <div style="font-size:1.2rem;">🏢</div>
             <div style="flex:1;">
               <div style="font-weight:600;font-size:0.85rem;">{{ center.name }}</div>
-              <div class="text-small text-muted">{{ center.work_locations?.length || 0 }} puntos válidos dentro del centro</div>
+              <div class="text-small text-muted">{{ center.work_locations?.length || 0 }} punts on pot fitxar dins del centre</div>
             </div>
-            <button class="btn btn-danger btn-sm" @click="removeCenter(center.id)" title="Quitar centro">✕</button>
+            <button class="btn btn-danger btn-sm" @click="removeCenter(center.id)" title="Treure aquest centre">✕</button>
           </div>
         </div>
 
         <!-- Current Points -->
         <div v-if="userPoints.length" style="padding:16px 16px 0;">
-          <h4 style="font-size:0.85rem;margin-bottom:8px;">📍 Puntos Manuales Aislados ({{ userPoints.length }})</h4>
+          <h4 style="font-size:0.85rem;margin-bottom:8px;">📍 Altres punts on pot fitxar ({{ userPoints.length }})</h4>
           <div v-for="pt in userPoints" :key="pt.id" style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--color-border-light);border-radius:8px;margin-bottom:8px;background:rgba(76,175,80,0.03);">
             <div style="font-size:1.2rem;">📍</div>
             <div style="flex:1;">
               <div style="font-weight:600;font-size:0.85rem;">{{ pt.name }}</div>
               <div class="text-small text-muted" style="font-family:monospace;">{{ Number(pt.lat).toFixed(6) }}, {{ Number(pt.lng).toFixed(6) }} · ⊘ {{ pt.radius }}m</div>
             </div>
-            <button class="btn btn-danger btn-sm" @click="removePoint(pt.id)" title="Desactivar">✕</button>
+            <button class="btn btn-danger btn-sm" @click="removePoint(pt.id)" title="Treure aquest punt">✕</button>
           </div>
         </div>
         
         <div v-if="!userPoints.length && !userCenters.length" style="padding:16px;text-align:center;" class="text-muted">
-          No hay ninguna ubicación configurada. Añada un centro o punto manual a continuación.
+          Encara no hi ha cap lloc on pugui fitxar. Afegeix-hi un centre o un punt aquí sota.
         </div>
 
         <div style="padding:0 16px; margin-top:16px;">
           <div style="display:flex;flex-wrap:wrap;gap:12px;border-bottom:2px solid var(--color-border-light);margin-bottom:12px;">
-            <button :style="{padding:'8px 12px', background:'none', border:'none', cursor:'pointer', fontWeight:'600', color: pointsTab === 'center' ? 'var(--color-primary)' : 'var(--color-muted)', borderBottom: pointsTab === 'center' ? '3px solid var(--color-primary)' : 'none', marginBottom:'-2px'}" @click="pointsTab = 'center'">🏢 Centro Existente</button>
-            <button :style="{padding:'8px 12px', background:'none', border:'none', cursor:'pointer', fontWeight:'600', color: pointsTab === 'manual' ? 'var(--color-primary)' : 'var(--color-muted)', borderBottom: pointsTab === 'manual' ? '3px solid var(--color-primary)' : 'none', marginBottom:'-2px'}" @click="pointsTab = 'manual'">📍 Punto Manual</button>
+            <button :style="{padding:'8px 12px', background:'none', border:'none', cursor:'pointer', fontWeight:'600', color: pointsTab === 'center' ? 'var(--color-primary)' : 'var(--color-muted)', borderBottom: pointsTab === 'center' ? '3px solid var(--color-primary)' : 'none', marginBottom:'-2px'}" @click="pointsTab = 'center'">🏢 Un centre de la llista</button>
+            <button :style="{padding:'8px 12px', background:'none', border:'none', cursor:'pointer', fontWeight:'600', color: pointsTab === 'manual' ? 'var(--color-primary)' : 'var(--color-muted)', borderBottom: pointsTab === 'manual' ? '3px solid var(--color-primary)' : 'none', marginBottom:'-2px'}" @click="pointsTab = 'manual'">📍 Un altre punt</button>
           </div>
         </div>
 
         <!-- Add Center Tab -->
         <div v-if="pointsTab === 'center'" style="padding:0 16px 16px;">
           <div class="form-group">
-            <label class="form-label">Seleccione un Centro Ambulatorio</label>
+            <label class="form-label">Tria un centre ambulatori</label>
             <select class="form-select" v-model="newCenterId">
-              <option value="">-- Seleccionar Centro --</option>
+              <option value="">— Tria un centre —</option>
               <option v-for="c in ambulatoryCentersList" :key="c.id" :value="c.id">{{ c.name }} ({{ c.work_locations?.length || 0 }} coords)</option>
             </select>
           </div>
-          <button class="btn btn-primary" @click="addCenter" :disabled="!newCenterId">+ Asignar Centro</button>
+          <button class="btn btn-primary" @click="addCenter" :disabled="!newCenterId">+ Assignar el centre</button>
         </div>
 
         <!-- Add Manual Point Tab -->
@@ -816,14 +932,14 @@
               <input class="form-input" type="number" step="0.000001" v-model.number="newPoint.lng" />
             </div>
             <div class="form-group" style="flex:1 1 80px;">
-              <label class="form-label">Radi (m)</label>
+              <label class="form-label">Distància permesa (metres)</label>
               <input class="form-input" type="number" v-model.number="newPoint.radius" min="50" max="1000" />
             </div>
           </div>
           <div class="text-small text-muted" style="margin-bottom:12px;">
             💡 Podeu obtenir coordenades des de Google Maps (clic dret → coordenades). Radi recomanat: 50-200m.
           </div>
-          <button class="btn btn-primary" @click="addPoint" :disabled="!newPoint.name || !newPoint.lat || !newPoint.lng">+ Afegir Punt Manual</button>
+          <button class="btn btn-primary" @click="addPoint" :disabled="!newPoint.name || !newPoint.lat || !newPoint.lng">+ Afegir el punt</button>
         </div>
       </div>
     </div>
@@ -834,7 +950,7 @@
         <div class="modal-header" style="background:linear-gradient(135deg,rgba(147,51,234,0.06),rgba(59,130,246,0.04));border-radius:12px 12px 0 0;">
           <div>
             <h3 class="modal-title">🏘️ Termes Municipals — {{ muniUser?.name }}</h3>
-            <div class="text-small text-muted">Domiciliari del Vallès · El fichatge és vàlid en qualsevol punt del terme municipal</div>
+            <div class="text-small text-muted">Domiciliari del Vallès · El fitxatge és vàlid en qualsevol punt del terme municipal</div>
           </div>
           <button class="icon-btn" @click="showMuniModal = false">✕</button>
         </div>
@@ -888,6 +1004,8 @@
 <script setup>
 import FrasesRapides from '../components/FrasesRapides.vue'
 import { confirma, demana } from '../utils/dialegs'
+import { avisa } from '../utils/avisos'
+import { nomHorari } from '../utils/nomHorari'
 import { ref, computed, reactive, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useEstatUrl } from '../composables/useEstatUrl'
@@ -902,6 +1020,7 @@ import { reavaluaZonaPersona, textReavaluats } from '../utils/reavaluaZona'
 import CalendarPdfViewer from '../components/CalendarPdfViewer.vue'
 import RevisarNomsModal from '../components/RevisarNomsModal.vue'
 import CpEnBlocModal from '../components/CpEnBlocModal.vue'
+import ResumJornada from '../components/ResumJornada.vue'
 import { formatHM } from '../utils/formatHours'
 
 const authStore = useAuthStore()
@@ -919,6 +1038,62 @@ const esJornadaCompleta = computed(() => {
   const sch = schedules.value.find(s => s.id === form.work_schedule_id)
   return !!sch && Number(sch.total_hours_weekly) >= 37.5 - 0.01
 })
+// ── % de jornada del contracte (historial, trams i saldo mensual; ho calcula el servidor) ──
+const PCTS_JORNADA = Array.from({ length: 21 }, (_, i) => 50 + i * 2.5)
+const jornadaAny = ref(null), modulPrevi = ref(null), modulError = ref('')
+const nouPct = ref(''), nouDesDe = ref(''), nouMotiu = ref(''), desantJornada = ref(false)
+// Es pot escriure en hores setmanals: 20 h ÷ 37,5 h = 53,33%.
+const nouHores = computed(() => (nouPct.value === '' || nouPct.value == null ? '' : Math.round(Number(nouPct.value) * 37.5) / 100))
+function posaHores(h) {
+  const n = Number(h)
+  nouPct.value = h === '' || !(n > 0) ? '' : Math.round(n / 37.5 * 10000) / 100
+}
+const fmtHores = (h) => `${Number(h).toLocaleString('ca-ES', { maximumFractionDigits: 2 })} h`
+// El recuadre ensenya el % que s'està escrivint; si no, el vigent.
+const modulJornada = computed(() => (nouPct.value ? modulPrevi.value : null) || jornadaAny.value?.modul || null)
+const fmtPct = (p) => Number(p).toLocaleString('ca-ES', { maximumFractionDigits: 2 })
+const fmtMin = (m) => `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')} min`
+const fmtData = (d) => (d ? d.split('-').reverse().join('/') : '')
+const avuiMadrid = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Madrid' })
+// El % que es dedueix de l'horari assignat (hores setmanals ÷ 37,5), com fins ara.
+const pctHorari = computed(() => {
+  const sch = schedules.value.find(s => s.id === form.work_schedule_id)
+  return sch ? Math.round(Number(sch.total_hours_weekly) / 37.5 * 1000) / 10 : null
+})
+const avisHorariPct = computed(() => {
+  const pct = jornadaAny.value?.vigent?.pct
+  if (pct == null || pctHorari.value == null || Math.abs(pctHorari.value - pct) < 1) return ''
+  return `L'horari assignat equival al ${fmtPct(pctHorari.value)}% i el contracte és del ${fmtPct(pct)}%. Reviseu l'horari.`
+})
+async function carregaJornadaAny(userId) {
+  jornadaAny.value = null
+  try { jornadaAny.value = await db.getJornadaUsuari(userId, new Date().getFullYear()) } catch (e) { /* sense dades, es queda buit */ }
+}
+async function desaCanviJornada() {
+  modulError.value = ''
+  desantJornada.value = true
+  try {
+    await db.addJornadaUsuari(editingUser.value.id, { pct: Number(nouPct.value), valid_from: nouDesDe.value, motiu: nouMotiu.value || null })
+    auditLog(authStore.userId, 'JORNADA_CONTRACTE', 'user', editingUser.value.id, `Jornada ${nouPct.value}% des del ${nouDesDe.value}`)
+    nouPct.value = ''; nouMotiu.value = ''; nouDesDe.value = avuiMadrid()
+    await carregaJornadaAny(editingUser.value.id)
+    avisa('Canvi de jornada desat.', 'ok')
+  } catch (e) {
+    modulError.value = `No s'ha desat el canvi de jornada: ${e?.message || 'error del servidor.'}`
+    avisa(modulError.value, 'error')
+  } finally {
+    desantJornada.value = false
+  }
+}
+async function esborraCanviJornada(h) {
+  if (!(await confirma(`Treure el canvi al ${fmtPct(h.pct)}% des del ${fmtData(h.valid_from)}? Feu-ho només si es va entrar per error.`))) return
+  try {
+    await db.removeJornadaUsuari(editingUser.value.id, h.id)
+    await carregaJornadaAny(editingUser.value.id)
+  } catch (e) {
+    avisa(`No s'ha pogut treure el canvi: ${e?.message || 'error del servidor.'}`, 'error')
+  }
+}
 async function carregaJornadaTope(userId){
   try {
     const r = await api.get(`/v1/pacte-complementaries/info/${userId}`)
@@ -1013,6 +1188,29 @@ async function desa2fa () {
     msg2fa.value = e?.data?.message || e?.message || 'No s\'ha pogut canviar el segon factor.'
   } finally {
     desant2fa.value = false
+  }
+}
+
+// Fitxatge automàtic (gerència): només admin; es desa en el moment, a part de la fitxa.
+const fitxatgeAutomatic = ref(false)
+const desantFitxatgeAuto = ref(false)
+async function canviaFitxatgeAutomatic(ev) {
+  const actiu = ev.target.checked
+  const nom = editingUser.value?.name
+  const missatge = actiu
+    ? `Activar el fitxatge automàtic per a ${nom}? Ja no haurà de fitxar: l'app li crearà cada dia l'entrada i la sortida del seu horari.`
+    : `Desactivar el fitxatge automàtic per a ${nom}? A partir de demà haurà de tornar a fitxar.`
+  if (!await confirma(missatge)) { ev.target.checked = !actiu; return }
+  desantFitxatgeAuto.value = true
+  try {
+    await api.put(`/v1/users/${editingUser.value.id}/fitxatge-automatic`, { actiu })
+    fitxatgeAutomatic.value = actiu
+    avisa(actiu ? '✅ Fitxatge automàtic activat.' : '✅ Fitxatge automàtic desactivat.')
+  } catch (e) {
+    ev.target.checked = !actiu
+    avisa(e?.message || "No s'ha pogut canviar.", 'error')
+  } finally {
+    desantFitxatgeAuto.value = false
   }
 }
 
@@ -1223,7 +1421,25 @@ const DESC_ROL = {
   hr: 'Gestiona la plantilla: fitxes, horaris, zones, fitxatges i permisos.',
   admin: "Control total de l'aplicació, també la configuració i qui és Superior.",
 }
-const form = reactive({ role: 'worker', entitat: 'CRT', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: '', specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
+const form = reactive({ retribucio_pct: '', role: 'worker', entitat: 'CRT', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: '', specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
+// Previsualitza el mòdul del % que s'està escrivint.
+let tempsModul = null
+watch(nouPct, (pct) => {
+  clearTimeout(tempsModul)
+  modulError.value = ''
+  const n = Number(pct)
+  if (pct === '' || pct == null || !(n >= 1 && n <= 100)) { modulPrevi.value = null; return }
+  tempsModul = setTimeout(async () => {
+    try {
+      const r = await db.getModulJornada(n, new Date().getFullYear())
+      if (Number(nouPct.value) === n) modulPrevi.value = r
+    } catch (e) {
+      modulPrevi.value = null
+      modulError.value = e?.message ? `No s'ha pogut calcular la jornada: ${e.message}` : "No s'ha pogut calcular la jornada."
+    }
+  }, 300)
+})
+
 const scheduleForm = reactive({ id: 1, days: [] })
 const isNewSchedule = ref(false)
 const newScheduleName = ref('')
@@ -1338,14 +1554,56 @@ async function canviaEstat() {
   }
 }
 
+// Errors de l'últim desar de la fitxa: el motiu general i, si és un 422, el de cada camp.
+// Abans només anava a la consola i l'avís flotant passava desapercebut: no se sabia que no s'havia desat.
+const errorDesar = ref('')
+const errorsCamp = reactive({})
+const NOMS_CAMP = {
+  name: 'Nom', email: 'Correu electrònic', dni: 'DNI / NIE', device_phone: 'Telèfon corporatiu',
+  seniority_date: "Data d'alta", entitat: 'Entitat', work_type: 'Àmbit', job_profile: 'Lloc de treball',
+  work_schedule_id: 'Horari', role: 'Rol', postal_code_assigned: 'Codi postal', specialties: 'Especialitats',
+  retribucio_pct: '% de retribució', relacio: 'Relació', disponibilitat_setmanal: 'Disponibilitat setmanal', pacte_complementaries: 'Pacte de complementàries',
+}
+const nomCamp = (camp) => NOMS_CAMP[camp] || NOMS_CAMP[camp.split('.')[0]] || camp
+function netejaErrorsDesar() {
+  errorDesar.value = ''
+  for (const k of Object.keys(errorsCamp)) delete errorsCamp[k]
+}
+function mostraErrorDesar(e) {
+  netejaErrorsDesar()
+  if (e?.status === 422) {
+    // apiClient deixa a `errors` els errors per camp ({ dni: ['...'] }) o, si no n'hi ha, la resposta sencera.
+    const errs = e.errors && typeof e.errors === 'object' && !('message' in e.errors) ? e.errors : {}
+    for (const [camp, msgs] of Object.entries(errs)) errorsCamp[camp] = Array.isArray(msgs) ? msgs[0] : String(msgs)
+    errorDesar.value = Object.keys(errorsCamp).length
+      ? "No s'han desat els canvis. Reviseu aquests camps:"
+      : `No s'han desat els canvis: ${e.message || 'dades no vàlides.'}`
+  } else if (e?.status === 403) {
+    errorDesar.value = `No s'han desat els canvis: ${e.message && e.message !== 'Forbidden' ? e.message : 'no teniu permís per editar aquesta fitxa.'}`
+  } else if (e?.status) {
+    errorDesar.value = "No s'han desat els canvis: hi ha hagut un error al servidor. Torneu-ho a provar i, si continua passant, aviseu informàtica."
+  } else {
+    errorDesar.value = "No s'han desat els canvis: no s'ha pogut connectar amb el servidor. Comproveu la connexió i torneu-ho a provar."
+  }
+  // També com a avís (es queda fins que el tanquen), per si el recuadre de la fitxa no es veu.
+  const detall = Object.entries(errorsCamp).map(([camp, msg]) => `• ${nomCamp(camp)}: ${msg}`).join('\n')
+  avisa(detall ? `${errorDesar.value}\n${detall}` : errorDesar.value, 'error')
+}
+
 async function openEditModal(user) {
+  netejaErrorsDesar()
   editingUser.value = user
   estatActiu.value = user ? user.active !== false && user.active !== 0 : true
   pestanyaFitxa.value = 'dades'
   if (user) carregaPractiques(user.id)
+  nouPct.value = ''; nouMotiu.value = ''; nouDesDe.value = avuiMadrid(); modulError.value = ''
+  jornadaAny.value = null
+  if (user) carregaJornadaAny(user.id)
   if (user) {
-    const sDate = user.seniority_date ? user.seniority_date.split('T')[0] : ''
-    Object.assign(form, { role: user.role || 'worker', entitat: user.entitat || 'CRT', name: user.name, email: user.email, dni: user.dni || '', device_phone: user.device_phone || '', pacte_complementaries: !!user.pacte_complementaries,  work_type: user.work_type || 'DOMICILIARIA', job_profile: user.job_profile || 'Fisioterapeuta', postal_code_assigned: user.postal_code_assigned, work_schedule_id: user.work_schedule_id, seniority_date: sDate, specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
+    // L'API serialitza la data en UTC (2020-03-01 surt com 2020-02-29T23:00:00Z): tallar per la T
+    // mostrava i desava el dia anterior. Es llegeix en hora de Madrid.
+    const sDate = user.seniority_date ? new Date(user.seniority_date).toLocaleDateString('en-CA', { timeZone: 'Europe/Madrid' }) : ''
+    Object.assign(form, { retribucio_pct: '', role: user.role || 'worker', entitat: user.entitat || 'CRT', name: user.name, email: user.email, dni: user.dni || '', device_phone: user.device_phone || '', pacte_complementaries: !!user.pacte_complementaries,  work_type: user.work_type || 'DOMICILIARIA', job_profile: user.job_profile || 'Fisioterapeuta', postal_code_assigned: user.postal_code_assigned, work_schedule_id: user.work_schedule_id, seniority_date: sDate, specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
     ratioActual.value = Number(user.complementary_ratio ?? 0.30)
     ratioPct.value = Math.round(ratioActual.value * 100)
     ratioPendent.value = user.complementary_ratio_pending != null ? Number(user.complementary_ratio_pending) : null
@@ -1361,17 +1619,22 @@ async function openEditModal(user) {
         form.totp_confirmed = !!full.totp_confirmed
         form.domi_username = full.domi_username || ''
         form.domi_provisioned_at = full.domi_provisioned_at || null
+        // La llista no porta l'entitat: sense això, desar una fitxa CRT o CRIL_CRT la tornava a CRIL.
+        if (full.entitat) form.entitat = full.entitat
+        form.retribucio_pct = full.retribucio_pct != null ? Number(full.retribucio_pct) : ''
         form.lots = (full.lots || []).map(l => l.code)
         form.departments = (full.departments || []).map(d => d.code)
+        fitxatgeAutomatic.value = !!full.fitxatge_automatic
       } catch (e) { /* es queda buit */ }
   } else {
-    Object.assign(form, { role: 'worker', entitat: 'CRT', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: new Date().toISOString().split('T')[0], specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
+    Object.assign(form, { retribucio_pct: '', role: 'worker', entitat: 'CRT', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: new Date().toISOString().split('T')[0], specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
     showEditModal.value = true
   }
 }
 
 async function saveUser() {
   if (!form.name || !form.email) return alert('El nom i email són obligatoris.')
+  netejaErrorsDesar()
   isSaving.value = true
   try {
     if (editingUser.value) {
@@ -1389,7 +1652,7 @@ async function saveUser() {
     showEditModal.value = false; editingUser.value = null
   } catch (e) {
     console.error(e)
-    alert(`Error en desar: ${e.message || 'Error desconegut'}\n\nSi persisteix, revisi els camps (DNI duplicat, email invàlid, etc).`)
+    mostraErrorDesar(e)
   } finally {
     isSaving.value = false
   }
@@ -1399,9 +1662,10 @@ async function openScheduleModal(user) {
   scheduleUser.value = user
   isNewSchedule.value = false
   newScheduleName.value = ''
-  const sched = await db.getWorkSchedule(user.work_schedule_id) || schedules.value[0]
+  // Sense horari assignat no es demana /work-schedules/null (404 i el modal no s'obria).
+  const sched = (user.work_schedule_id ? await db.getWorkSchedule(user.work_schedule_id).catch(() => null) : null) || schedules.value[0]
   scheduleForm.id = sched.id
-  scheduleForm.days = JSON.parse(JSON.stringify(sched.days))
+  scheduleForm.days = senseTramsBuits(JSON.parse(JSON.stringify(sched.days)))
   showScheduleModal.value = true
 }
 
@@ -1413,13 +1677,31 @@ function startNewSchedule() {
 
 async function loadScheduleTemplate() {
   const sched = await db.getWorkSchedule(scheduleForm.id)
-  if (sched) scheduleForm.days = JSON.parse(JSON.stringify(sched.days))
+  if (sched) scheduleForm.days = senseTramsBuits(JSON.parse(JSON.stringify(sched.days)))
 }
 
 function calcHours(d) {
   if (!d.start || !d.end) return 0
   const [sh, sm] = d.start.split(':').map(Number); const [eh, em] = d.end.split(':').map(Number)
-  return ((eh * 60 + em - sh * 60 - sm) / 60).toFixed(1)
+  return (eh * 60 + em - sh * 60 - sm) / 60
+}
+
+// Els trams extra van amb el dia: si el dia és de descans, tampoc compten.
+function diaActiu(day) {
+  const primer = scheduleForm.days.find(x => x.day === day)
+  return !!primer?.active
+}
+// El que es desa: trams extra buits fora i, si el dia és de descans, els seus trams també.
+// Nom automàtic de la plantilla a partir de l'horari que s'està editant (src/utils/nomHorari.js).
+const nomNovaPlantilla = computed(() => nomHorari(diesPerDesar().filter(d => diaActiu(d.day))))
+function diesPerDesar() {
+  return scheduleForm.days
+    .filter((d, i) => !(isExtraTramo(i) && !d.start && !d.end))
+    .map((d, i, arr) => (arr.slice(0, i).some(x => x.day === d.day) ? { ...d, active: diaActiu(d.day) && !!d.start && !!d.end } : d))
+}
+// En carregar una plantilla, els trams extra buits que s'hagin desat no es poden omplir (surten com a descans): fora.
+function senseTramsBuits(days) {
+  return days.filter((d, i) => !(days.slice(0, i).some(x => x.day === d.day) && !d.start && !d.end))
 }
 
 // ── Jornades partides: diversos trams (entrades) amb el mateix `day` ──
@@ -1452,52 +1734,66 @@ function applyBulkSchedule(dayNumbers) {
   }
 }
 
-const totalWeeklyHours = computed(() => scheduleForm.days.filter(d => d.active).reduce((s, d) => s + parseFloat(calcHours(d)), 0).toFixed(1))
+const totalWeeklyHours = computed(() => scheduleForm.days.filter(d => d.active && diaActiu(d.day)).reduce((s, d) => s + calcHours(d), 0).toFixed(2))
 
 // Altres persones actives amb la plantilla triada (sense comptar la de la fitxa).
 const altresAmbPlantilla = computed(() => workers.value.filter(w => w.active && w.id !== scheduleUser.value?.id
   && w.work_schedule_id === scheduleForm.id).length)
 
+const desantHorari = ref(false)
 async function saveSchedule() {
+  if (desantHorari.value) return
+  desantHorari.value = true
   try {
     let scheduleId = scheduleForm.id
     let recalculats = 0
     if (isNewSchedule.value) {
-      if (!newScheduleName.value.trim()) { alert('Cal indicar un nom per a la nova plantilla'); return }
+      if (!nomNovaPlantilla.value) { alert("Omple l'horari d'algun dia abans de crear la plantilla."); return }
       const created = await db.addWorkSchedule({
-        name: newScheduleName.value.trim(),
+        name: nomNovaPlantilla.value,
         total_hours_weekly: parseFloat(totalWeeklyHours.value),
-        days: scheduleForm.days
+        days: diesPerDesar()
       })
       scheduleId = created.id
-      auditLog(authStore.userId, 'CREATE_SCHEDULE', 'work_schedule', created.id, `Nova plantilla "${created.name}" creada per ${scheduleUser.value.name}`)
+      if (created.reutilitzada) avisa(`Ja hi havia una plantilla amb aquest horari («${created.name}»): s'ha fet servir aquesta en lloc de crear-ne una de nova.`)
+      else auditLog(authStore.userId, 'CREATE_SCHEDULE', 'work_schedule', created.id, `Nova plantilla "${created.name}" creada per ${scheduleUser.value.name}`)
     } else {
       const originalSched = await db.getWorkSchedule(scheduleForm.id)
-      const canviat = JSON.stringify(originalSched?.days || []) !== JSON.stringify(scheduleForm.days)
+      const canviat = JSON.stringify(originalSched?.days || []) !== JSON.stringify(diesPerDesar())
       if (canviat && altresAmbPlantilla.value > 0) {
         // Plantilla compartida: abans es reescrivia i canviava l'horari de tothom qui la tenia.
         const created = await db.addWorkSchedule({
-          name: `${originalSched.name} · ${scheduleUser.value.name}`.slice(0, 250),
+          name: nomNovaPlantilla.value,
           total_hours_weekly: parseFloat(totalWeeklyHours.value),
-          days: scheduleForm.days
+          days: diesPerDesar()
         })
         scheduleId = created.id
-        auditLog(authStore.userId, 'CREATE_SCHEDULE', 'work_schedule', created.id, `Plantilla pròpia "${created.name}" (la compartida no es toca)`)
+        if (created.reutilitzada) avisa(`Ja hi havia una plantilla amb aquest horari («${created.name}»): s'ha fet servir aquesta.`)
+        else auditLog(authStore.userId, 'CREATE_SCHEDULE', 'work_schedule', created.id, `Plantilla pròpia "${created.name}" (la compartida no es toca)`)
       } else if (canviat) {
-        const sched = { ...originalSched, days: scheduleForm.days, total_hours_weekly: parseFloat(totalWeeklyHours.value) }
+        const sched = { ...originalSched, days: diesPerDesar(), total_hours_weekly: parseFloat(totalWeeklyHours.value) }
         const rSched = await db.updateWorkSchedule(sched)
         recalculats += rSched?.trams_recalculats || 0
         auditLog(authStore.userId, 'UPDATE_SCHEDULE', 'work_schedule', scheduleForm.id, `Horari actualitzat per ${scheduleUser.value.name}`)
       }
     }
-    const rUser = await db.updateUser({ ...scheduleUser.value, work_schedule_id: scheduleId })
+    // Només l'horari: amb l'usuari sencer de la llista es reenviava la data d'alta en UTC i perdia un dia.
+    const rUser = await db.updateUser({ id: scheduleUser.value.id, work_schedule_id: scheduleId })
     recalculats += rUser?.trams_recalculats || 0
     await fetchData()
     showScheduleModal.value = false
     isNewSchedule.value = false
     // El servidor torna a calcular els trams dels fitxatges pendents amb l'horari nou.
-    if (recalculats > 0) alert(`Horari desat. S'han tornat a calcular els trams de ${recalculats} fitxatge${recalculats === 1 ? '' : 's'} pendent${recalculats === 1 ? '' : 's'} amb l'horari nou (les hores d'entrada i sortida no canvien).`)
-  } catch (e) { console.error(e) }
+    if (recalculats > 0) alert(`Horari desat. S'han tornat a calcular les parts de ${recalculats} fitxatge${recalculats === 1 ? '' : 's'} pendent${recalculats === 1 ? '' : 's'} amb l'horari nou (les hores d'entrada i sortida no canvien).`)
+  } catch (e) {
+    // Abans només console.error: el modal es quedava obert i no se sabia que no s'havia desat.
+    console.error(e)
+    alert(e?.status === 422 || e?.status === 403
+      ? `No s'ha desat l'horari: ${e.message}`
+      : "No s'ha desat l'horari: hi ha hagut un error al servidor. Torneu-ho a provar i, si continua passant, aviseu informàtica.")
+  } finally {
+    desantHorari.value = false
+  }
 }
 
 function handleFileSelect(e) { parseCsv(e.target.files[0]) }
@@ -1783,6 +2079,20 @@ async function saveMuniAssignment() {
 </script>
 
 <style scoped>
+.emp-accions { display: flex; flex-direction: column; gap: 4px; width: max-content; min-width: 120px; }
+.emp-accions .btn { justify-content: flex-start; width: 100%; white-space: nowrap; }
+.error-desar { margin: 12px 0 0; padding: 10px 12px; border: 1px solid #fecdd3; border-radius: 8px; background: #fff1f2; color: #be123c; font-size: 0.85rem; }
+.error-desar ul { margin: 6px 0 0; padding-left: 18px; }
+.error-camp { color: #be123c; margin-top: 4px; }
+.modul-jornada { margin: 4px 0 14px; padding: 10px 12px; border: 1px solid var(--color-border-light, #e5e7eb); border-radius: 8px; background: var(--color-bg, #f8fafc); }
+.modul-titol { font-weight: 700; margin-bottom: 8px; }
+.modul-graella { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.modul-graella > div { display: flex; flex-direction: column; font-size: 0.85rem; }
+.modul-graella strong { font-size: 1rem; }
+.canvi-jornada { margin-top: 8px; padding: 8px 10px; border: 1px dashed var(--color-border-light, #e5e7eb); border-radius: 8px; }
+.taula-jornada { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.taula-jornada th, .taula-jornada td { padding: 3px 6px; border-bottom: 1px solid var(--color-border-light, #e5e7eb); text-align: left; white-space: nowrap; }
+.camp-error { border-color: #be123c !important; }
 .eines { position: relative; }
 .eines-fletxa { display: inline-block; margin-left: 4px; transition: transform 0.15s; }
 .eines-fletxa.oberta { transform: rotate(180deg); }

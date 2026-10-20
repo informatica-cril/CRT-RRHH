@@ -223,6 +223,9 @@ class ComiteController extends Controller
         if ($request->filled('mes')) {
             [$desde, $fins] = $this->limitsMes($this->mes($request));
             $q->whereBetween('data', [$desde, $fins]);
+        } elseif (preg_match('/^\d{4}$/', (string) $request->query('any'))) {
+            // Tot l'any: les hores importades de l'Excel de RRHH són de molts mesos.
+            $q->whereBetween('data', [$request->query('any') . '-01-01', $request->query('any') . '-12-31']);
         }
         if ($request->filled('user_id')) {
             $q->where('user_id', (int) $request->query('user_id'));
@@ -301,7 +304,13 @@ class ComiteController extends Controller
         $validades = $suma('validada', true);
         $pendents = $suma('pendent', true);
 
+        // Validades de tot l'any (consumeixen crèdit), per veure d'un cop d'ull el que porta gastat.
+        $any = substr($mes, 0, 4);
+        $anyValidades = round(ComiteHora::where('user_id', $userId)->where('estat', 'validada')->where('consumeix_credit', true)
+            ->whereBetween('data', ["{$any}-01-01", "{$any}-12-31"])->sum('minuts') / 60, 2);
+
         return [
+            'any_validades'    => $anyValidades,
             'credit'           => $credit,
             'validades'        => $validades,
             'pendents'         => $pendents,

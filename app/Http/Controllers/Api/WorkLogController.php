@@ -34,8 +34,7 @@ class WorkLogController extends Controller
         // y seleccionar solo las columnas necesarias de la relación user.
         // MINIMITZACIÓ (EIPD §6.3): el llistat MAI inclou coordenades — només el
         // detall, i sota les condicions de coordsVisibles().
-        return response()->json(
-            WorkLog::with('user:id,name')
+        $logs = WorkLog::with('user:id,name')
                 // Temps fet fora de l'horari que encara no s'ha resolt (no compta a l'efectiu):
                 // la llista el mostra perquè no quedi amagat.
                 ->withSum(['segments as minuts_fora_horari_pendents' => fn ($q) => $q
@@ -49,8 +48,21 @@ class WorkLogController extends Controller
                 ->each(fn ($w) => $w->makeHidden([
                     'start_location_lat', 'start_location_lng',
                     'end_location_lat', 'end_location_lng',
-                ]))
-        );
+                ]));
+
+        // Per què un pendent tancat no s'ha aprovat sol (camp nou: l'app mòbil l'ignora). Es calcula
+        // a part, amb l'horari carregat, per no posar l'horari ni més dades de la persona al llistat.
+        $pendents = $logs->filter(fn ($w) => $w->status === 'pending' && $w->getRawOriginal('end_time'))->pluck('id');
+        if ($pendents->isNotEmpty()) {
+            $marge = \App\Models\AprovacioAutomaticaSetting::getSettings()->marge_minuts;
+            $motius = WorkLog::with('user.workSchedule')->whereIn('id', $pendents)->get()
+                ->mapWithKeys(fn ($l) => [$l->id => \App\Services\AprovacioAutomatica::motiu($l, $marge)]);
+            $logs->each(function ($w) use ($motius) {
+                if ($motius->has($w->id)) $w->setAttribute('motiu_no_auto', $motius[$w->id]);
+            });
+        }
+
+        return response()->json($logs);
     }
 
     /**
@@ -275,6 +287,10 @@ class WorkLogController extends Controller
         // Segmentación automática al cerrar fichaje
         if (array_key_exists('end_time', $data) && $data['end_time'] !== null && !$workLog->segmented) {
             $this->workLogs->segmentWorkLog($workLog, $request->user());
+            // Les hores de més autoritzades per a aquell dia s'apliquen soles (sense codi a escriure).
+            \App\Services\AutoritzacioHores::aplica($workLog->fresh());
+            // Un fitxatge que ho té tot bé (horari, zona, sense extres ni incidències) s'aprova sol.
+            \App\Services\AprovacioAutomatica::intenta($workLog);
         } elseif (array_key_exists('end_time', $data) && $data['end_time'] !== null && $workLog->segmented) {
             // Jornada segmentada per HITOS (domi): tancar la cua — visita provisional
             // oberta i desplaçament final fins al tancament — i recalcular efectiu.

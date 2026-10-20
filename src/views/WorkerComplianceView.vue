@@ -2,7 +2,7 @@
   <div>
     <div class="page-header">
       <div>
-        <h1 class="page-title">Informació i polítiques</h1>
+        <h1 class="page-title">Normes i informació</h1>
         <p class="page-subtitle">Documents que has de llegir i confirmar. La confirmació deixa constància amb data.</p>
       </div>
     </div>

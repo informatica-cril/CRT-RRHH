@@ -130,6 +130,31 @@ class UserController extends Controller
         return response()->json(['canviats' => $canviats, 'omesos' => $omesos]);
     }
 
+    /**
+     * PUT /api/v1/users/{user}/fitxatge-automatic { actiu } — només admin (Direcció, 20-10-2026).
+     * Qui ho té activat no fitxa: l'app li crea cada dia l'entrada i la sortida amb el seu horari
+     * (worklogs:fitxatge-automatic). Pensat per a gerència.
+     */
+    public function fitxatgeAutomatic(Request $request, User $user)
+    {
+        $actiu = (bool) $request->validate(['actiu' => 'required|boolean'])['actiu'];
+        $user->forceFill([
+            'fitxatge_automatic' => $actiu,
+            'fitxatge_automatic_by' => $request->user()->id,
+            'fitxatge_automatic_at' => now(),
+        ])->save();
+        try {
+            \App\Models\AuditLog::create([
+                'user_id' => $request->user()->id, 'action' => $actiu ? 'FITXATGE_AUTOMATIC_ACTIVAT' : 'FITXATGE_AUTOMATIC_DESACTIVAT',
+                'entity_type' => 'user', 'entity_id' => $user->id,
+                'description' => ($actiu ? 'Fitxatge automàtic activat per a ' : 'Fitxatge automàtic desactivat per a ') . $user->name,
+                'ip_address' => $request->ip(), 'user_agent' => substr((string) $request->userAgent(), 0, 500),
+            ]);
+        } catch (\Throwable $e) { report($e); }
+
+        return response()->json(['fitxatge_automatic' => $actiu]);
+    }
+
     /** GET /api/v1/users/sense-horari — llista per a la Safata (admin i RRHH). */
     public function llistaSenseHorari()
     {
@@ -166,7 +191,7 @@ class UserController extends Controller
             } elseif ($esGestioRrhh && ! $propia) {
                 unset($data['role'], $data['password'], $data['active']);
             } else {
-                foreach (['role', 'active', 'work_type', 'job_profile', 'work_schedule_id', 'device_phone',
+                foreach (['role', 'active', 'work_type', 'job_profile', 'work_schedule_id', 'retribucio_pct', 'device_phone',
                           'pacte_complementaries', 'relacio', 'disponibilitat_setmanal',
                           'seniority_date', 'onboarding_profile_id', 'onboarding_completed',
                           'must_change_password', 'password'] as $field) {

@@ -96,6 +96,8 @@ Route::prefix('v1')->group(function () {
             Route::get('sense-horari', [UserController::class, 'llistaSenseHorari'])->middleware('role:admin,hr');
             // Treure o tornar l'accés a l'app a una selecció (segueixen a la plantilla).
             Route::post('acces-app', [UserController::class, 'accesApp'])->middleware('role:admin,hr');
+            // Fitxatge automàtic (gerència): només admin.
+            Route::put('{user}/fitxatge-automatic', [UserController::class, 'fitxatgeAutomatic'])->middleware('role:admin');
             // Activar o desactivar una selecció (mateixes regles que la fitxa).
             Route::post('estat-seleccio', [\App\Http\Controllers\Api\UserEstatController::class, 'seleccio'])->middleware('role:admin,hr');
             // Fitxa d'un usuari: el propi titular o personal de gestió.
@@ -283,7 +285,11 @@ Route::prefix('v1')->group(function () {
             // Excel del que es veu a la pantalla de registres (mes, persona i vista).
             Route::get('export', [\App\Http\Controllers\Api\WorkLogExportController::class, 'export'])->middleware('role:admin,coordinator,hr');
             // Aprovar una selecció de fitxatges d'una sola vegada.
+            // Acceptar les hores de més d'un fitxatge (p. ex. ha cobert un torn): RRHH i admin.
+            Route::post('{workLog}/accepta-hores-de-mes', [\App\Http\Controllers\Api\AuthCodeController::class, 'acceptaHoresDeMes'])->middleware('role:admin,hr');
             Route::post('aprova-seleccionats', [\App\Http\Controllers\Api\WorkLogBulkController::class, 'aprova'])->middleware('role:admin,coordinator,hr');
+            // «Aprovar tots els correctes»: els pendents que compleixen la regla d'aprovació automàtica.
+            Route::post('aprova-correctes', [\App\Http\Controllers\Api\AprovacioAutomaticaController::class, 'aprovaCorrectes'])->middleware('role:admin,coordinator,hr');
             // «Revisar de nou»: RRHH i admin tornen a pendent un fitxatge ja resolt (p. ex. per coordinació).
             Route::post('{workLog}/reobrir', [\App\Http\Controllers\Api\WorkLogReobrirController::class, 'fitxatge'])->middleware('role:admin,hr');
             // «Corregir hora»: RRHH i admin corregeixen l'entrada o la sortida d'un fitxatge (amb motiu).
@@ -334,6 +340,9 @@ Route::prefix('v1')->group(function () {
             // controlador comprova la propietat). Fitxer a disc PRIVAT: és dada de salut.
             Route::post('{absence}/justificant', [AbsenceController::class, 'pujaJustificant']);
             Route::get('{absence}/justificant', [AbsenceController::class, 'baixaJustificant']);
+            // Bolcat de l'Excel de RRHH (vacances, permisos, baixes, hores sindicals): previsualitzar i aplicar.
+            Route::post('importa-excel/previsualitza', [\App\Http\Controllers\Api\ImportaAbsenciesController::class, 'previsualitza'])->middleware('role:admin,hr');
+            Route::post('importa-excel/aplica', [\App\Http\Controllers\Api\ImportaAbsenciesController::class, 'aplica'])->middleware('role:admin,hr');
         });
 
         // ── Auth Codes ── (hores complementàries: gestió; 'use' el fa el treballador)
@@ -348,6 +357,9 @@ Route::prefix('v1')->group(function () {
             Route::post('validate', [AuthCodeController::class, 'validateCode']);
             Route::post('use', [AuthCodeController::class, 'useCode']);
         });
+        // El treballador demana autorització quan passa de l'hora de sortida (des del comptador).
+        Route::get('overtime-requests/meves', [AuthCodeController::class, 'myOvertimeRequests']);
+        Route::post('overtime-requests/meves', [AuthCodeController::class, 'requestMyOvertime'])->middleware('throttle:10,60');
         // Autorització d'hores extraordinàries forçades des de domi (compromís de pagament).
         Route::prefix('overtime-requests')->middleware('role:admin,hr')->group(function () {
             Route::get('/', [AuthCodeController::class, 'overtimeRequests']);
@@ -601,6 +613,23 @@ Route::prefix('v1')->group(function () {
         // La llista de TOTA la plantilla amb els seus overrides és pura gestió: no s'obre.
         Route::get('break-settings/workers', [BreakSettingController::class, 'workers'])->middleware('role:admin,coordinator,hr');
         Route::put('break-settings/workers/{user}', [BreakSettingController::class, 'updateWorker'])->middleware('role:admin,hr');
+        // Aprovació automàtica dels fitxatges correctes: interruptor i marge de minuts.
+        Route::get('aprovacio-automatica', [\App\Http\Controllers\Api\AprovacioAutomaticaController::class, 'show'])->middleware('role:admin,coordinator,hr');
+        Route::put('aprovacio-automatica', [\App\Http\Controllers\Api\AprovacioAutomaticaController::class, 'update'])->middleware('role:admin,hr');
+        // Quadrant: RRHH i admin canvien l'horari de cada persona dia a dia (coordinació no hi té accés);
+        // el treballador veu el seu.
+        Route::get('quadrant', [\App\Http\Controllers\Api\QuadrantController::class, 'mes'])->middleware('role:admin,hr');
+        Route::get('quadrant/any', [\App\Http\Controllers\Api\QuadrantController::class, 'any'])->middleware('role:admin,hr');
+        Route::put('quadrant', [\App\Http\Controllers\Api\QuadrantController::class, 'desa'])->middleware('role:admin,hr');
+        Route::post('quadrant/copia', [\App\Http\Controllers\Api\QuadrantController::class, 'copia'])->middleware('role:admin,hr');
+        Route::get('el-meu-quadrant', [\App\Http\Controllers\Api\QuadrantController::class, 'elMeu']);
+        // Neteja de plantilles d'horari: veure qui les fa servir, ajuntar les iguals i esborrar les que no fa servir ningú.
+        Route::get('plantilles-horari', [\App\Http\Controllers\Api\PlantillesHorariController::class, 'index'])->middleware('role:admin,hr');
+        Route::post('plantilles-horari/esborra-sense-us', [\App\Http\Controllers\Api\PlantillesHorariController::class, 'esborraSenseUs'])->middleware('role:admin,hr');
+        Route::post('plantilles-horari/{workSchedule}/ajunta', [\App\Http\Controllers\Api\PlantillesHorariController::class, 'ajunta'])->middleware('role:admin,hr');
+        Route::delete('plantilles-horari/{workSchedule}', [\App\Http\Controllers\Api\PlantillesHorariController::class, 'destroy'])->middleware('role:admin,hr');
+        Route::get('avisos-marge', [\App\Http\Controllers\Api\AvisMargeController::class, 'index'])->middleware('role:admin,hr');
+        Route::post('avisos-marge/{user}/descarta', [\App\Http\Controllers\Api\AvisMargeController::class, 'descarta'])->middleware('role:admin,hr');
 
         // Configuració de correu (admin) + enviament de prova
         Route::middleware('role:admin')->group(function () {
@@ -694,6 +723,14 @@ Route::prefix('v1')->group(function () {
         Route::get('holidays', [HolidayController::class, 'index']);
         Route::post('holidays', [HolidayController::class, 'store'])->middleware('role:admin,hr');
         Route::delete('holidays/{holiday}', [HolidayController::class, 'destroy'])->middleware('role:admin,hr');
+
+        // ── Jornada de contracte: màxim anual i mòdul diari d'un % (pestanya Jornada de la fitxa) ──
+        Route::get('jornada/modul', [\App\Http\Controllers\Api\JornadaController::class, 'modul'])->middleware('role:admin,hr');
+        Route::middleware('role:admin,hr')->group(function () {
+            Route::get('users/{user}/jornada', [\App\Http\Controllers\Api\JornadaController::class, 'show']);
+            Route::post('users/{user}/jornada', [\App\Http\Controllers\Api\JornadaController::class, 'store']);
+            Route::delete('users/{user}/jornada/{canvi}', [\App\Http\Controllers\Api\JornadaController::class, 'destroy']);
+        });
 
         // ── Bossa anual d'hores (1726 h prorratejades) ──
         Route::get('bossa-anual', [\App\Http\Controllers\Api\AnnualBagController::class, 'show']);

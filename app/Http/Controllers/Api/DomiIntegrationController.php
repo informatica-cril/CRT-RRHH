@@ -1104,20 +1104,12 @@ class DomiIntegrationController extends Controller
     /** Finestra horària: el hito cau dins l'horari del dia del treballador? */
     private function isScheduledDayPublic(User $worker, Carbon $when): bool
     {
-        $schedule = $worker->workSchedule;
-        if (! $schedule || ! is_array($schedule->days)) {
-            return false;
-        }
+        // Quadrant o plantilla d'aquell dia (veure HorariDia).
         $local = $when->copy()->setTimezone('Europe/Madrid');
-        $jsDay = (int) $local->format('w');
-        foreach ($schedule->days as $d) {
-            if ((int) ($d['day'] ?? -1) === $jsDay
-                && ($d['active'] ?? true) !== false
-                && ! empty($d['start']) && ! empty($d['end'])) {
-                $t = $local->format('H:i');
-                if ($t >= substr($d['start'], 0, 5) && $t <= substr($d['end'], 0, 5)) {
-                    return true;
-                }
+        $t = $local->format('H:i');
+        foreach (\App\Services\HorariDia::trams($worker, $local->toDateString()) as $d) {
+            if ($t >= $d['start'] && $t <= $d['end']) {
+                return true;
             }
         }
 
@@ -1140,23 +1132,10 @@ class DomiIntegrationController extends Controller
 
     private function scheduledHoursToday(User $worker): float
     {
-        $schedule = $worker->workSchedule;
-        if (! $schedule || ! is_array($schedule->days)) {
-            return 0;
-        }
-        $jsDay = (int) now('Europe/Madrid')->format('w'); // 0=Dg .. 6=Ds
-        foreach ($schedule->days as $d) {
-            if ((int) ($d['day'] ?? -1) === $jsDay
-                && ($d['active'] ?? true) !== false
-                && ! empty($d['start']) && ! empty($d['end'])) {
-                [$sh, $sm] = array_map('intval', explode(':', $d['start']));
-                [$eh, $em] = array_map('intval', explode(':', $d['end']));
+        // Quadrant o plantilla d'avui (veure HorariDia); com abans, només el primer tram.
+        $primer = \App\Services\HorariDia::trams($worker, now('Europe/Madrid')->toDateString())[0] ?? null;
 
-                return max(0, (($eh * 60 + $em) - ($sh * 60 + $sm)) / 60);
-            }
-        }
-
-        return 0;
+        return $primer ? \App\Services\HorariDia::minuts([$primer]) / 60 : 0;
     }
 
     private function pausaPerPlanificacio(User $worker): array

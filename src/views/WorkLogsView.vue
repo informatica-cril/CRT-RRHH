@@ -2,8 +2,8 @@
   <div>
     <div class="page-header">
       <div>
-        <h1 class="page-title">{{ t('work_logs_title') }}</h1>
-        <p class="page-subtitle">{{ t('rdl_notice') }}</p>
+        <h1 class="page-title">Fitxatges</h1>
+        <p class="page-subtitle">Les entrades i sortides de tothom. Els fitxatges correctes s'aproven sols; aquí revises la resta.</p>
       </div>
       <div class="page-actions">
         <select class="form-select" v-model="selectedMonth">
@@ -22,12 +22,61 @@
          Fora de zona es revisa amb la DISTÀNCIA a la zona, mai amb la posició (les coordenades
          no viatgen al llistat). -->
     <div v-if="authStore.isStaff" class="wl-filtres">
-      <button v-for="f in filtres" :key="f.clau" type="button" class="wl-filtre"
+      <button v-for="f in filtres.filter(f => f.clau !== 'marge' || authStore.canManageStaff)" :key="f.clau" type="button" class="wl-filtre"
         :class="[f.to, { actiu: vista === f.clau, buit: !recomptes[f.clau] && f.clau !== 'tots' }]"
         @click="vista = f.clau">
         <span>{{ f.icona }}</span> {{ f.nom }}
         <span class="wl-n">{{ recomptes[f.clau] || 0 }}</span>
       </button>
+    </div>
+
+    <!-- Aprovació automàtica: els fitxatges correctes s'aproven sols en fitxar la sortida; aquest botó
+         fa el mateix amb els pendents que ja hi havia (del mes i la persona triats). -->
+    <div v-if="authStore.isStaff && confAuto" class="wl-auto-barra" :class="{ apagada: !confAuto.enabled }">
+<span v-if="confAuto.enabled && modeAprovar === 'auto'">
+        🤖 <strong>Aprovació automàtica.</strong> Els fitxatges que quadren amb l'horari (± {{ confAuto.marge_minuts }} min),
+        són dins de zona i no tenen hores extra ni incidències s'aproven sols. Aquí només queden els que cal revisar.
+      </span>
+      <span v-else-if="confAuto.enabled">
+        ✋ <strong>Aprovació manual.</strong> Marca els fitxatges que vulguis aprovar. S'aprovaran tal com estan,
+        encara que tinguin hores extra o coses per revisar.
+      </span>
+      <span v-else>⏸ <strong>Aprovació automàtica desactivada:</strong> tots els fitxatges s'han d'aprovar a mà.</span>
+      <span class="wl-auto-accions">
+        <!-- Cada gestor tria com vol aprovar: un sol botó a la vista cada vegada perquè no es confonguin. -->
+        <span class="wl-mode" role="group" aria-label="Com vols aprovar">
+          <button type="button" :class="{ actiu: modeAprovar === 'auto' }" @click="modeAprovar = 'auto'"
+            title="L'app revisa els pendents i només aprova els que ho tenen tot bé">🤖 Automàtica</button>
+          <button type="button" :class="{ actiu: modeAprovar === 'manual' }" @click="modeAprovar = 'manual'"
+            title="Tu marques els fitxatges i s'aproven tal com estan">✋ Manual</button>
+        </span>
+        <button v-if="modeAprovar === 'auto' && pendentsTancats.length" type="button" class="btn btn-success btn-sm" :disabled="aprovantCorrectes" @click="aprovaCorrectes"
+          title="Aprova els pendents d'aquest mes que tenen l'horari, la zona i les hores bé. La resta es queden per revisar.">
+          {{ aprovantCorrectes ? 'Revisant…' : `✅ Aprovar els correctes (${pendentsTancats.length} pendents)` }}
+        </button>
+        <button v-if="potConfigurarAuto && !editantAuto" type="button" class="btn btn-outline btn-sm" @click="configuraAuto">⚙️ Canviar</button>
+      </span>
+      <div v-if="editantAuto" class="wl-auto-form">
+        <label><input type="checkbox" v-model="editantAuto.enabled" /> Aprovar sols els fitxatges correctes</label>
+        <label>Marge sobre l'horari:
+          <input class="form-input" type="number" min="0" max="60" v-model="editantAuto.marge_minuts" style="width:70px;" :disabled="!editantAuto.enabled" /> min
+        </label>
+        <button type="button" class="btn btn-primary btn-sm" @click="desaAuto">Desa</button>
+        <button type="button" class="btn btn-outline btn-sm" @click="editantAuto = null">Cancel·la</button>
+      </div>
+    </div>
+
+        <!-- Avís de marge: només RRHH i admin. Informatiu: no bloqueja cap aprovació. -->
+    <div v-if="authStore.canManageStaff && avisosMarge.length" class="wl-marge">
+      ⚠️ <strong>{{ avisosMarge.length }} persona{{ avisosMarge.length === 1 ? '' : 'es' }} porta{{ avisosMarge.length === 1 ? '' : 'en' }} 2 setmanes o més fitxant al límit del marge</strong>
+      <ul>
+        <li v-for="a in avisosMarge" :key="a.user_id">
+          <strong>{{ a.nom }}</strong>: {{ a.dies }} dies seguits des del {{ dataCurta(a.inici) }}
+          ({{ a.entrades_tard }} entrades tard, {{ a.sortides_abans }} sortides abans)
+          <button type="button" class="btn btn-outline btn-sm" @click="selectedUser = a.user_id; vista = 'marge'">Veure</button>
+          <button type="button" class="btn btn-outline btn-sm" @click="descartaAvisMarge(a)">Descartar</button>
+        </li>
+      </ul>
     </div>
 
     <!-- Pendents d'altres mesos: el comptador del menú els suma tots i aquí només es veu el mes triat -->
@@ -39,8 +88,9 @@
     </div>
 
     <!-- Aprovació conjunta: apareix quan hi ha fitxatges seleccionats -->
-    <div v-if="authStore.isStaff && seleccionats.length" class="wl-seleccio">
+    <div v-if="ambCaselles && seleccionats.length" class="wl-seleccio">
       <strong>{{ seleccionats.length }}</strong> fitxatge{{ seleccionats.length === 1 ? '' : 's' }} seleccionat{{ seleccionats.length === 1 ? '' : 's' }}
+      <span class="text-small">· s'aprovaran tal com estan, encara que tinguin coses per revisar</span>
       <button type="button" class="btn btn-success btn-sm" :disabled="aprovant" @click="aprovaSeleccionats">
         {{ aprovant ? 'Aprovant…' : '✅ Aprovar seleccionats' }}
       </button>
@@ -52,14 +102,14 @@
         <table>
           <thead>
             <tr>
-              <th v-if="authStore.isStaff" class="wl-check">
+              <th v-if="ambCaselles" class="wl-check">
                 <input type="checkbox" :checked="totsSeleccionats" :indeterminate.prop="seleccionats.length > 0 && !totsSeleccionats"
                   :disabled="!pendentsVisibles.length" title="Seleccionar tots els pendents visibles" @change="seleccionaTots($event.target.checked)" />
               </th>
               <th v-for="c in columnes" :key="c.clau" v-show="c.clau !== 'treballador' || authStore.isStaff"
                 class="th-ord" :class="{ actiu: ordre.col === c.clau }" :aria-sort="ordre.col === c.clau ? (ordre.dir === 'asc' ? 'ascending' : 'descending') : 'none'"
-                @click="ordena(c.clau)" :title="'Ordenar per ' + t(c.text).toLowerCase()">
-                {{ t(c.text) }}
+                @click="ordena(c.clau)" :title="'Ordenar per ' + c.text.toLowerCase()">
+                {{ c.text }}
                 <span class="ord-fletxa">{{ ordre.col === c.clau ? (ordre.dir === 'asc' ? '▲' : '▼') : '↕' }}</span>
               </th>
               <th>{{ t('actions') }}</th>
@@ -67,7 +117,7 @@
           </thead>
           <tbody>
             <tr v-for="log in filteredLogs" :key="log.id" :class="{ 'wl-fila-sel': seleccionats.includes(log.id) }">
-              <td v-if="authStore.isStaff" class="wl-check">
+              <td v-if="ambCaselles" class="wl-check">
                 <input v-if="log.status === 'pending'" type="checkbox" :value="log.id" v-model="seleccionats" :title="'Seleccionar per aprovar'" />
               </td>
               <td v-if="authStore.isStaff">{{ getUserName(log.user_id) }}</td>
@@ -79,27 +129,26 @@
                   {{ formatHM(log.effective_hours ?? log.total_hours_worked) }}
                 </strong>
                 <span v-else>—</span>
-                <span v-if="log.segmented && Number(log.effective_hours) !== Number(log.total_hours_worked)" class="badge badge-warning" style="font-size:0.7rem; margin-left:4px;" title="Temps efectiu segons trams aprovats">efectiu</span>
+                <div v-if="Number(log.extra_hours_authorized || 0) > 0" class="wl-nota">inclou +{{ formatHM(log.extra_hours_authorized) }} d'extra aprovades</div>
                 <div v-if="sortidaAltreDia(log)" class="sortida-altre-dia" :title="'La jornada es va iniciar el ' + String(log.date).slice(0, 10).split('-').reverse().join('/') + ' i la sortida no es va fitxar fins al ' + sortidaAltreDia(log).data">
                     ⚠ Sortida fitxada el {{ sortidaAltreDia(log).data }}<span v-if="sortidaAltreDia(log).dies > 1"> (+{{ sortidaAltreDia(log).dies }} dies)</span>
                   </div>
               </td>
               <td>
-                <div style="display:flex;flex-direction:column;gap:2px;">
-                  <span v-if="Number(log.extra_hours_authorized || 0) > 0" class="badge badge-success" title="Hores Extres Autoritzades">
-                    +{{ formatHM(log.extra_hours_authorized) }} ✓
-                  </span>
-                  <span v-if="Number(log.extra_hours_unauthorized || 0) > 0" class="badge badge-warning" title="Hores Extres No Autoritzades">
-                    +{{ formatHM(log.extra_hours_unauthorized) }} (pendent)
-                  </span>
-                  <span v-if="Number(log.hours_out_of_area || 0) > 0" class="badge badge-danger" title="Hores Fora de Zona Descomptades">
-                    -{{ formatHM(log.hours_out_of_area) }} (Fora Zona)
-                  </span>
-                  <span v-if="horesForaHorari(log) > 0" class="badge badge-warning" title="Temps fet fora de l'horari: no compta fins que s'aprova el tram al detall">
-                    +{{ formatHM(horesForaHorari(log)) }} fora d'horari (per revisar)
-                  </span>
-                  <span v-if="!Number(log.extra_hours_authorized) && !Number(log.extra_hours_unauthorized) && !Number(log.hours_out_of_area) && !horesForaHorari(log)">—</span>
-                </div>
+                <!-- Una sola llista del que cal mirar, en frases curtes; si no hi ha res, es diu clarament. -->
+                <ul v-if="avisos(log).length" class="wl-avisos">
+                  <li v-for="a in avisos(log)" :key="a.text" :class="'wl-avis-' + a.to" :title="a.ajuda">{{ a.text }}</li>
+                </ul>
+                <!-- Hores de més sense autoritzar (p. ex. ha cobert un torn): RRHH i admin les accepten aquí mateix. -->
+                <button v-if="authStore.canManageStaff && log.end_time && Number(log.extra_hours_unauthorized || 0) > 0"
+                  type="button" class="btn btn-outline btn-sm wl-accepta" :disabled="acceptant === log.id" @click="acceptaHoresDeMes(log)"
+                  title="Les compta com a hores de més autoritzades (extra o complementàries segons la jornada)">
+                  ✔ Acceptar {{ formatHM(log.extra_hours_unauthorized) }} de més
+                </button>
+                <span v-else-if="log.status === 'pending' && log.end_time && log.motiu_no_auto" class="wl-avis-groc wl-motiu" title="Per això no s'ha aprovat sol">• {{ etiqueta('noAuto', log.motiu_no_auto) }}</span>
+                <span v-else-if="log.status === 'pending' && log.end_time && 'motiu_no_auto' in log" class="wl-ok" title="Compleix les condicions: s'aprova amb «Aprovar els correctes»">✓ Tot quadra</span>
+                <span v-else-if="log.status === 'pending' && log.end_time" class="text-muted">—</span>
+                <span v-else class="text-muted">—</span>
               </td>
               <td>
                 <div style="display:flex;gap:6px;flex-direction:column;align-items:flex-start;">
@@ -109,7 +158,11 @@
                     <span v-else-if="log.status === 'rejected'">❌</span>
                     {{ t(log.status) }}
                   </span>
-                  <span v-if="log.hour_status && log.hour_status !== 'ok'"
+                  <span v-if="log.fitxatge_automatic" class="wl-auto"
+                        title="Fitxatge automàtic (gerència): l'ha creat l'app amb l'horari del dia">🤖 Fitxatge automàtic</span>
+                  <span v-else-if="log.status === 'approved' && log.auto_approved_at" class="wl-auto"
+                        title="L'app l'ha aprovat sola: horari, zona i hores correctes">🤖 Automàtic</span>
+                  <span v-if="log.hour_status === 'in_progress'"
                         class="badge"
                         style="font-size:0.75rem; display:flex; align-items:center; gap:4px;"
                         :class="log.hour_status === 'out_of_area' ? 'badge-danger' : 'badge-warning'">
@@ -124,13 +177,13 @@
               </td>
               <td>
                 <div style="display: flex; gap: 4px; flex-wrap: wrap;">
-                  <button class="btn btn-outline btn-sm" @click="viewDetail(log.id)" title="Veure detall de trams">🔍 Detall</button>
+                  <button class="btn btn-outline btn-sm" @click="viewDetail(log.id)" title="Veure com es divideix el fitxatge i el seu historial">🔍 Detall</button>
                   <template v-if="authStore.isStaff && log.status === 'pending'">
                     <button class="btn btn-success btn-sm" @click="approve(log.id)">{{ t('approve') }}</button>
                     <button class="btn btn-danger btn-sm" @click="openReject(log.id)">{{ t('reject') }}</button>
                   </template>
                   <!-- RRHH i admin poden tornar a revisar el que ja s'ha resolt (p. ex. coordinació). -->
-                  <button v-if="authStore.canManageStaff && log.status !== 'pending'" class="btn btn-outline btn-sm" @click="reobrir(log)" title="Torna el fitxatge a pendent per validar-lo de nou">↺ Revisar de nou</button>
+                  <button v-if="authStore.canManageStaff && log.status !== 'pending'" class="btn btn-outline btn-sm" @click="reobrir(log)" title="Torna el fitxatge a «Pendent» per revisar-lo una altra vegada">↺ Tornar a revisar</button>
                   <template v-if="!authStore.isStaff && log.status === 'rejected'">
                     <button class="btn btn-outline btn-sm" @click="openModify(log)">{{ t('modify_record') }}</button>
                   </template>
@@ -138,7 +191,7 @@
               </td>
             </tr>
             <tr v-if="filteredLogs.length === 0">
-              <td :colspan="authStore.isStaff ? 9 : 7" class="text-center text-muted" style="padding: 32px;">
+              <td :colspan="(authStore.isStaff ? 8 : 7) + (ambCaselles ? 1 : 0)" class="text-center text-muted" style="padding: 32px;">
                 No hi ha registres per aquest període
               </td>
             </tr>
@@ -182,6 +235,8 @@ import { db } from '../services/db'
 import api, { apiFetchRaw } from '../services/apiClient'
 import { i18n } from '../i18n'
 import { formatHM } from '../utils/formatHours'
+import { etiqueta } from '../utils/etiquetes'
+import { avisa } from '../utils/avisos'
 import { sortidaAltreDia } from '../utils/sortidaAltreDia'
 import { useEstatUrl, idOText } from '../composables/useEstatUrl'
 
@@ -242,7 +297,7 @@ const altresMesosPendents = computed(() => Object.entries(pendentsPerMes.value)
   .map(([mes, n]) => { const l = nomMes(mes); return { mes, n, label: l.charAt(0).toUpperCase() + l.slice(1) } }))
 function anarAPendents(mes) {
   selectedMonth.value = mes
-  vista.value = 'pendents'
+  vista.value = 'perrevisar'
 }
 // Cada mes es demana sencer a l'API (abans es filtrava sobre els 500 últims i els mesos vells sortien buits).
 watch(selectedMonth, (m) => { workLogStore.mes = m; workLogStore.loadLogs() })
@@ -268,6 +323,13 @@ const months = computed(() => {
 // Fora de zona = alguna verificació d'ubicació fallida o hores descomptades per zona.
 // Es treballa amb el booleà i la DISTÀNCIA que ja viatgen al llistat; les coordenades
 // no hi són mai (minimització, EIPD §6.3) — igual que a la revisió de marques de domi.
+const diaDe = l => String(l.date).slice(0, 10)
+// Dia d'avui al rellotge del navegador (AAAA-MM-DD), com el text de work_logs.date.
+function avui() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function esForaZona(l) {
   return l.hour_status === 'out_of_area'
     || l.location_match === false
@@ -288,20 +350,77 @@ function horesForaHorari(l) {
   return Number(l.minuts_fora_horari_pendents || 0) / 60
 }
 
+// El que gestió ha de mirar d'un fitxatge, en llenguatge clar.
+function avisos(l) {
+  const a = []
+  if (Number(l.extra_hours_unauthorized || 0) > 0) {
+    a.push({ text: `${formatHM(l.extra_hours_unauthorized)} extra sense aprovar`, to: 'groc', ajuda: "Hores per sobre de la jornada que encara no s'han autoritzat" })
+  }
+  if (horesForaHorari(l) > 0) {
+    a.push({ text: `${formatHM(horesForaHorari(l))} fora d'horari`, to: 'groc', ajuda: "Temps fet fora de l'horari del servei: no compta fins que s'aprova al detall" })
+  }
+  if (Number(l.hours_out_of_area || 0) > 0) {
+    a.push({ text: `${formatHM(l.hours_out_of_area)} fora de zona (no compten)`, to: 'vermell', ajuda: "Temps fitxat lluny de la zona assignada; es descompta" })
+  }
+  return a
+}
+
+// Acceptar les hores de més d'un fitxatge: s'aplica qualsevol autorització d'aquell dia que ja hi hagués
+// i el que falti s'autoritza ara (mateixes regles i topalls que una petició).
+const acceptant = ref(null)
+async function acceptaHoresDeMes(log) {
+  const nom = getUserName(log.user_id)
+  const motiu = await demana(`Acceptar ${formatHM(log.extra_hours_unauthorized)} de més de ${nom} el ${formatDate(log.date)}?
+Motiu (opcional): p. ex. ha cobert el torn d'una companya.`, { obligatori: false })
+  if (motiu === null) return
+  acceptant.value = log.id
+  try {
+    const r = await api.post(`/v1/work-logs/${log.id}/accepta-hores-de-mes`, { motiu: motiu.trim() || null })
+    avisa(`✅ ${formatHM(r.aplicades || 0)} de més acceptades${r.pendents > 0 ? ` (en queden ${formatHM(r.pendents)} sense autoritzar)` : ''}.`)
+    await workLogStore.loadLogs()
+  } catch (e) {
+    avisa(e?.message || "No s'han pogut acceptar.", 'error')
+  } finally {
+    acceptant.value = null
+  }
+}
+
 // Més de 14 h: gairebé sempre una sortida que no es va fitxar a temps (molts venen de l'app antiga).
 function esLlarg(l) {
   return l.start_time && l.end_time && (new Date(l.end_time) - new Date(l.start_time)) > 14 * 3600 * 1000
 }
 
-const vista = ref('tots')
+// ── Avís: persones que porten 2 setmanes fitxant al límit del marge (només RRHH i admin) ──
+const avisosMarge = ref([])
+async function carregaAvisosMarge() {
+  if (!authStore.canManageStaff) return
+  try { avisosMarge.value = await api.get('/v1/avisos-marge') } catch { avisosMarge.value = [] }
+}
+onMounted(carregaAvisosMarge)
+const idsMarge = computed(() => new Set(avisosMarge.value.flatMap(a => a.log_ids)))
+async function descartaAvisMarge(a) {
+  if (!await confirma(`Descartar l'avís de ${a.nom}? Només tornarà a sortir si comença una ratxa nova.`)) return
+  try {
+    await api.post(`/v1/avisos-marge/${a.user_id}/descarta`, { inici: a.inici })
+    await carregaAvisosMarge()
+  } catch (e) {
+    alert(e?.message || "No s'ha pogut descartar.")
+  }
+}
+const dataCurta = d => String(d).slice(0, 10).split('-').reverse().slice(0, 2).join('/')
+
+// Gestió entra directament al que cal revisar: pendents ja tancats (els «En curs» encara no es poden aprovar).
+const vista = ref(authStore.isStaff ? 'perrevisar' : 'tots')
 useEstatUrl('vista', vista)
 const filtres = [
   { clau: 'tots', nom: 'Tots', icona: '📋', to: 'neutre', fn: () => true },
-  { clau: 'pendents', nom: "Pendents d'aprovar", icona: '⏳', to: 'groc', fn: l => l.status === 'pending' },
+  { clau: 'encurs', nom: 'Treballant ara', icona: '🟢', to: 'neutre', fn: l => !l.end_time && diaDe(l) === avui() },  // Qui és treballant ara (va entrar avui) i qui es va deixar la sortida un altre dia, per separat.
+  { clau: 'perrevisar', nom: 'Per revisar', icona: '👀', to: 'groc', fn: l => l.status === 'pending' && !!l.end_time },
+  { clau: 'marge', nom: 'Al límit del marge', icona: '⏰', to: 'taronja', fn: l => idsMarge.value.has(l.id) },
   { clau: 'forazona', nom: 'Fora de zona', icona: '📍', to: 'vermell', fn: esForaZona },
-  { clau: 'extra', nom: 'Hores extra no autoritzades', icona: '⏱', to: 'taronja', fn: l => Number(l.extra_hours_unauthorized || 0) > 0 },
   { clau: 'forahorari', nom: "Fora d'horari per revisar", icona: '🕘', to: 'taronja', fn: l => horesForaHorari(l) > 0 },
-  { clau: 'sensesortida', nom: 'Sense sortida', icona: '🕒', to: 'taronja', fn: l => !l.end_time },
+  { clau: 'extra', nom: 'Hores extra sense aprovar', icona: '⏱', to: 'taronja', fn: l => Number(l.extra_hours_unauthorized || 0) > 0 },
+  { clau: 'sensesortida', nom: "Sense sortida d'altres dies", icona: '🕒', to: 'taronja', fn: l => !l.end_time && diaDe(l) < avui() },
   { clau: 'llargs', nom: 'Més de 14 h', icona: '⚠️', to: 'vermell', fn: esLlarg },
   { clau: 'aprovats', nom: 'Aprovats', icona: '✅', to: 'verd', fn: l => l.status === 'approved' },
   { clau: 'rebutjats', nom: 'Rebutjats', icona: '❌', to: 'neutre', fn: l => l.status === 'rejected' },
@@ -320,6 +439,15 @@ const logsDelMes = computed(() => {
 })
 
 // ── Aprovació conjunta ──
+// Mode triat pel gestor (es recorda en aquest navegador): «auto» = «Aprovar els correctes»;
+// «manual» = caselles i «Aprovar seleccionats». Sense configuració d'aprovació, sempre manual.
+const CLAU_MODE = 'wl-mode-aprovar'
+const modeAprovar = ref((() => { try { return localStorage.getItem(CLAU_MODE) === 'manual' ? 'manual' : 'auto' } catch { return 'auto' } })())
+watch(modeAprovar, m => {
+  seleccionats.value = []
+  try { localStorage.setItem(CLAU_MODE, m) } catch { /* sense emmagatzematge: només aquesta visita */ }
+})
+const ambCaselles = computed(() => authStore.isStaff && (modeAprovar.value === 'manual' || !confAuto.value))
 const seleccionats = ref([])
 const aprovant = ref(false)
 const pendentsVisibles = computed(() => filteredLogs.value.filter(l => l.status === 'pending').map(l => l.id))
@@ -342,6 +470,43 @@ async function aprovaSeleccionats() {
     alert(e?.message || "No s'han pogut aprovar.")
   } finally {
     aprovant.value = false
+  }
+}
+
+// ── «Aprovar tots els correctes» (la regla és la de l'aprovació automàtica, al servidor) ──
+const pendentsTancats = computed(() => logsDelMes.value.filter(l => l.status === 'pending' && l.end_time).map(l => l.id))
+const aprovantCorrectes = ref(false)
+const confAuto = ref(null)
+const potConfigurarAuto = computed(() => authStore.canManageStaff)
+onMounted(async () => {
+  if (!authStore.isStaff) return
+  try { confAuto.value = await api.get('/v1/aprovacio-automatica') } catch (e) { /* sense la ruta (servidor antic): no es mostra */ }
+})
+const editantAuto = ref(null)
+function configuraAuto() {
+  editantAuto.value = { enabled: confAuto.value.enabled, marge_minuts: confAuto.value.marge_minuts }
+}
+async function desaAuto() {
+  try {
+    confAuto.value = await api.put('/v1/aprovacio-automatica', { enabled: !!editantAuto.value.enabled, marge_minuts: Number(editantAuto.value.marge_minuts) || 0 })
+    editantAuto.value = null
+  } catch (e) {
+    alert(e?.message || "No s'ha pogut desar.")
+  }
+}
+async function aprovaCorrectes() {
+  const n = pendentsTancats.value.length
+  if (!await confirma(`Revisar ${n} fitxatge${n === 1 ? '' : 's'} pendent${n === 1 ? '' : 's'} i aprovar els que estiguin bé? Els que tinguin alguna cosa a mirar es quedaran pendents.`)) return
+  aprovantCorrectes.value = true
+  try {
+    const r = await api.post('/v1/work-logs/aprova-correctes', { ids: pendentsTancats.value })
+    await workLogStore.loadLogs()
+    const motius = Object.entries(r?.motius || {}).map(([m, k]) => `· ${m}: ${k}`).join('\n')
+    alert(`${r.aprovats} aprovats.` + (r.pendents ? `\n${r.pendents} es queden per revisar:\n${motius}` : ''))
+  } catch (e) {
+    alert(e?.message || "No s'han pogut aprovar.")
+  } finally {
+    aprovantCorrectes.value = false
   }
 }
 
@@ -369,13 +534,13 @@ const recomptes = computed(() => Object.fromEntries(filtres.map(f => [f.clau, lo
 
 // Ordenació per columna: un clic ordena, el segon inverteix. Per defecte, data més recent primer.
 const columnes = [
-  { clau: 'treballador', text: 'employee' },
-  { clau: 'data', text: 'date' },
-  { clau: 'inici', text: 'start_time' },
-  { clau: 'fi', text: 'end_time' },
-  { clau: 'hores', text: 'worked_hours' },
-  { clau: 'extres', text: 'extra_hours' },
-  { clau: 'estat', text: 'status' },
+  { clau: 'treballador', text: 'Persona' },
+  { clau: 'data', text: 'Dia' },
+  { clau: 'inici', text: 'Entrada' },
+  { clau: 'fi', text: 'Sortida' },
+  { clau: 'hores', text: 'Hores que compten' },
+  { clau: 'extres', text: 'Què cal revisar' },
+  { clau: 'estat', text: 'Estat' },
 ]
 const ordre = ref({ col: 'data', dir: 'desc' })
 function ordena(col) {
@@ -455,12 +620,32 @@ function statusBadge(s) { return { 'badge-pending': s === 'pending', 'badge-succ
 
 <style scoped>
 /* Jornada tancada un altre dia (sortida oblidada): s'ha de veure d'un cop d'ull. */
+.wl-marge { margin-bottom: 12px; padding: 10px 14px; border-radius: 12px; background: #FFF7E6; border: 1px solid #F5C77E; color: #7A4B00; font-size: .86rem; }
+.wl-marge ul { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.wl-marge li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .sortida-altre-dia { margin-top: 3px; font-size: .74rem; font-weight: 700; color: var(--color-danger, #B3352F); white-space: nowrap; }
 .wl-altres-mesos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; padding: 10px 14px; border-radius: 12px; background: #fff7e0; border: 1px solid #f0d58a; color: #6b5100; font-size: .86rem; }
 .wl-mes-xip { border: 1px solid #e0c060; background: #fff; color: #6b5100; border-radius: 99px; padding: 3px 12px; cursor: pointer; font-size: .82rem; }
 .wl-mes-xip:hover { background: #ffefb8; }
 .wl-mes-xip strong { margin-left: 4px; background: #D9A400; color: #fff; border-radius: 99px; padding: 0 7px; font-size: .74rem; }
 .wl-seleccio { position: sticky; top: 8px; z-index: 5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 12px; border-radius: 12px; background: #E8F8F2; border: 1px solid #0DAF83; color: #0A5C46; font-size: .88rem; box-shadow: 0 4px 14px rgba(10, 92, 70, .12); }
+.wl-auto-barra.apagada { background: #f4f5f7; border-color: #d5d9e0; color: #3b4252; }
+.wl-auto-form { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,.08); }
+.wl-auto-form label { display: flex; align-items: center; gap: 6px; }
+.wl-mode { display: inline-flex; border: 1px solid #9fdcc8; border-radius: 99px; overflow: hidden; background: #fff; }
+.wl-mode button { border: 0; background: transparent; padding: 4px 12px; font-size: .8rem; font-weight: 600; color: #0A5C46; cursor: pointer; }
+.wl-mode button.actiu { background: #0A5C46; color: #fff; }
+.wl-auto-accions { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+.wl-auto-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; padding: 10px 14px; border-radius: 12px; background: #E8F8F2; border: 1px solid #9fdcc8; color: #0A5C46; font-size: .86rem; }
+.wl-nota { font-size: .72rem; color: var(--color-text-muted, #6b7280); margin-top: 2px; }
+.wl-avisos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: .78rem; font-weight: 500; }
+.wl-avisos li::before { content: '•'; margin-right: 6px; }
+.wl-avis-groc { color: #b45309; }
+.wl-avis-vermell { color: #b91c1c; }
+.wl-ok { font-size: .78rem; color: #15803d; }
+.wl-motiu { font-size: .78rem; font-weight: 500; }
+.wl-accepta { margin-top: 6px; font-size: .74rem; padding: 3px 9px; }
+.wl-auto { font-size: .7rem; padding: 2px 8px; border-radius: 99px; background: #eef2ff; color: #3730a3; }
 .wl-check { width: 34px; text-align: center; }
 .wl-check input { width: 17px; height: 17px; cursor: pointer; }
 .wl-fila-sel td { background: rgba(13, 175, 131, .07); }

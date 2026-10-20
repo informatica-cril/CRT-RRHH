@@ -2,8 +2,8 @@
   <div>
     <div class="page-header" v-if="activeTab !== 'menu'">
       <div>
-        <h1 class="page-title">{{ t('dashboard_title') }}</h1>
-        <p class="page-subtitle">{{ t('dashboard_subtitle') }}</p>
+        <h1 class="page-title">Inici</h1>
+        <p class="page-subtitle">El resum del dia: què cal revisar avui i com va la plantilla.</p>
       </div>
       <div class="page-actions" v-if="authStore.isAdmin">
         <button class="btn btn-primary" @click="$router.push('/reports')">
@@ -14,8 +14,8 @@
     </div>
     <div class="page-header" v-else>
       <div>
-        <h1 class="page-title">Menú de gestió</h1>
-        <p class="page-subtitle">Accediu a totes les eines de gestió</p>
+        <h1 class="page-title">Totes les opcions</h1>
+        <p class="page-subtitle">Totes les pantalles de gestió, agrupades com al menú.</p>
       </div>
     </div>
 
@@ -338,64 +338,18 @@
       </div>
     </div>
 
-    <!-- ═══ Admin Menu Grid ═══ -->
-    <div v-if="activeTab === 'menu'" class="menu-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:16px;margin-top:8px;padding-bottom:100px;">
-      <div class="card stat-card primary" @click="$router.push('/absences')" style="cursor:pointer;padding:24px;text-align:center;justify-content:center;gap:12px;min-height:140px;">
-        <span style="font-size:2.5rem;">📅</span>
-        <div style="font-weight:700;font-size:1rem;">Absències</div>
-      </div>
-      <div class="card stat-card primary" @click="$router.push('/employees')" style="cursor:pointer;padding:24px;text-align:center;justify-content:center;gap:12px;min-height:140px;">
-        <span style="font-size:2.5rem;">👥</span>
-        <div style="font-weight:700;font-size:1rem;">Treballadors</div>
-      </div>
-      <div class="card stat-card primary" @click="$router.push('/documents')" style="cursor:pointer;padding:24px;text-align:center;justify-content:center;gap:12px;min-height:140px;">
-        <span style="font-size:2.5rem;">📄</span>
-        <div style="font-weight:700;font-size:1rem;">Documentació</div>
-      </div>
-      <div class="card stat-card primary" @click="$router.push('/excedencies')" style="cursor:pointer;padding:24px;text-align:center;justify-content:center;gap:12px;min-height:140px;">
-        <span style="font-size:2.5rem;">⏳</span>
-        <div style="font-weight:700;font-size:1rem;">Excedències</div>
-      </div>
-      <div class="card stat-card primary" @click="$router.push('/reports')" style="cursor:pointer;padding:24px;text-align:center;justify-content:center;gap:12px;min-height:140px;">
-        <span style="font-size:2.5rem;">📊</span>
-        <div style="font-weight:700;font-size:1rem;">Informes</div>
-      </div>
-      <div class="card stat-card primary" @click="$router.push('/payrolls-admin')" style="cursor:pointer;padding:24px;text-align:center;justify-content:center;gap:12px;min-height:140px;">
-        <span style="font-size:2.5rem;">💰</span>
-        <div style="font-weight:700;font-size:1rem;">Nòmines</div>
-      </div>
-      <div class="card stat-card primary" @click="$router.push('/chat-admin')" style="cursor:pointer;padding:24px;text-align:center;justify-content:center;gap:12px;min-height:140px;">
-        <span style="font-size:2.5rem;">💬</span>
-        <div style="font-weight:700;font-size:1rem;">Xat (Super)</div>
-      </div>
-      <div class="card stat-card primary" @click="$router.push('/audit')" style="cursor:pointer;padding:24px;text-align:center;justify-content:center;gap:12px;min-height:140px;">
-        <span style="font-size:2.5rem;">🛡️</span>
-        <div style="font-weight:700;font-size:1rem;">Auditoria</div>
-      </div>
-      <div class="card stat-card" @click="$router.push('/permisos-config')" style="cursor:pointer;padding:24px;text-align:center;justify-content:center;gap:12px;min-height:140px;background:rgba(0,0,0,0.05);">
-        <span style="font-size:2.5rem;">⚙️</span>
-        <div style="font-weight:700;font-size:1rem;">Config Permisos</div>
-      </div>
-      <div class="card stat-card" @click="$router.push('/break-settings')" style="cursor:pointer;padding:24px;text-align:center;justify-content:center;gap:12px;min-height:140px;background:rgba(0,0,0,0.05);">
-        <span style="font-size:2.5rem;">⏱️</span>
-        <div style="font-weight:700;font-size:1rem;">Pausa Obligatòria</div>
-      </div>
-      <div class="card stat-card" @click="$router.push('/mail-settings')" style="cursor:pointer;padding:24px;text-align:center;justify-content:center;gap:12px;min-height:140px;background:rgba(0,0,0,0.05);">
-        <span style="font-size:2.5rem;">✉️</span>
-        <div style="font-weight:700;font-size:1rem;">Configuració Correu</div>
-      </div>
-      <div class="card stat-card" @click="$router.push('/auth-codes')" style="cursor:pointer;padding:24px;text-align:center;justify-content:center;gap:12px;min-height:140px;background:rgba(0,0,0,0.05);">
-        <span style="font-size:2.5rem;">🔐</span>
-        <div style="font-weight:700;font-size:1rem;">Codis Auth</div>
-      </div>
-      <div class="card stat-card" @click="$router.push('/settings')" style="cursor:pointer;padding:24px;text-align:center;justify-content:center;gap:12px;min-height:140px;background:rgba(0,0,0,0.05);">
-        <span style="font-size:2.5rem;">👤</span>
-        <div style="font-weight:700;font-size:1rem;">Configuració</div>
-      </div>
-      <div class="card stat-card" @click="handleLogout" style="cursor:pointer;padding:24px;text-align:center;justify-content:center;gap:12px;min-height:140px;background:rgba(239,68,68,0.1);color:var(--color-danger);">
-        <span style="font-size:2.5rem;">🚪</span>
-        <div style="font-weight:700;font-size:1rem;">Tancar Sessió</div>
-      </div>
+    <!-- ═══ Menú de gestió (mòbil): les mateixes seccions i permisos que el menú lateral ═══ -->
+    <div v-if="activeTab === 'menu'" style="padding-bottom:100px;">
+      <section v-for="sec in seccionsMenu" :key="sec.titol" class="gm-seccio">
+        <h2 class="gm-titol">{{ sec.titol }}</h2>
+        <div class="gm-graella">
+          <button v-for="e in sec.entrades" :key="e.nom" type="button" class="gm-entrada" :class="{ perill: e.perill }"
+            @click="e.to ? $router.push(e.to) : e.accio()">
+            <span class="gm-icona">{{ e.icona }}</span>
+            <span class="gm-text"><strong>{{ e.nom }}</strong><small>{{ e.ajuda }}</small></span>
+          </button>
+        </div>
+      </section>
     </div>
 
     <div class="rdl-notice">{{ t('rdl_notice') }} · {{ t('rdl_retention') }}</div>
@@ -437,6 +391,7 @@ import { i18n } from '../i18n'
 import { formatHM } from '../utils/formatHours'
 import { Bar } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js'
+import { diaLocal } from '../utils/diaLocal'
 
 ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale)
 
@@ -571,7 +526,7 @@ async function fetchAnalyticsData() {
      dataExt.push(Number(totalExt).toFixed(1))
      
      // Absences
-     const totalAbs = allAbsences.filter(a => a.start_date && a.start_date.substring(0, 7) === mStr).length
+     const totalAbs = allAbsences.filter(a => a.start_date && diaLocal(a.start_date).substring(0, 7) === mStr).length
      dataAbs.push(totalAbs)
   }
   
@@ -1070,6 +1025,47 @@ onMounted(async () => {
   }
 })
 
+// Menú de gestió del mòbil. Les condicions de rol són les del menú lateral (Sidebar.vue).
+const seccionsMenu = computed(() => {
+  const a = authStore
+  const e = (nom, ajuda, to, icona, pot = true) => (pot ? [{ nom, ajuda, to, icona }] : [])
+  const seccions = [
+    { titol: 'Avui', entrades: [
+      ...e("Safata d'avisos", 'El que espera una decisió teva', '/safata', '📥', a.isStaff),
+      ...e('Incidències', 'Els problemes que explica la plantilla', '/incidencies', '🛎️', a.isAdmin || a.isHr),
+    ] },
+    { titol: 'Temps de treball', entrades: [
+      ...e('Fitxatges', 'Entrades i sortides; revisa les que no quadren', '/work-logs', '⏱'),
+      ...e("Control d'hores", 'Hores complementàries i extres de cada persona', '/hours-control', '🕐', a.isStaff),
+      ...e('Absències i permisos', 'Vacances, permisos i baixes per aprovar', '/absences', '📅'),
+      ...e('Excedències', 'Temporades sense treballar', '/excedencies', '⏳'),
+      ...e('Hores de més', 'Autoritzar les hores de més i les peticions', '/auth-codes', '⏱'),
+      ...e('Disponibilitat', 'Qui pot treballar cada dia', '/disponibilitat', '📆', a.canManageStaff),
+    ] },
+    { titol: 'Persones', entrades: [
+      ...e('Treballadors', 'La fitxa de cada persona', '/employees', '👥', a.canManageStaff),
+      ...e('Nòmines', 'Puja i reparteix les nòmines', '/payrolls-admin', '💶', a.isAdmin),
+      ...e('Documents', 'Envia documents i mira qui els ha signat', '/documents', '📄', a.isAdmin),
+      ...e('Biblioteca', 'Protocols i guies per a tothom', '/biblioteca', '📚', a.isStaff),
+    ] },
+    { titol: 'Informes i control', entrades: [
+      ...e('Informes', 'Llistats per persona i període', '/reports', '📊'),
+      ...e('Auditoria', 'Qui ha fet què i quan', '/audit', '🧾', a.isAdmin),
+      ...e('Supervisió del xat', "Avisos del xat de l'empresa", '/chat-admin', '💬', a.isAdmin),
+    ] },
+    { titol: 'Configuració', entrades: [
+      ...e('Tipus de permisos', 'Quins permisos hi ha i quants dies donen', '/permisos-config', '⚙️', a.canManageStaff),
+      ...e('Pausa obligatòria', "Quan i quanta estona s'ha de parar", '/break-settings', '☕', a.canManageStaff),
+      ...e('Correu electrònic', "Des de quin correu envia avisos l'app", '/mail-settings', '✉️', a.isAdmin),
+    ] },
+    { titol: 'El meu compte', entrades: [
+      ...e('Configuració', 'La teva contrasenya i preferències', '/settings', '👤'),
+      { nom: 'Tancar sessió', ajuda: "Surt de l'app en aquest aparell", icona: '🚪', accio: handleLogout, perill: true },
+    ] },
+  ]
+  return seccions.filter(sec => sec.entrades.length)
+})
+
 async function handleLogout() {
   await authStore.logout()
   router.push('/login')
@@ -1088,6 +1084,14 @@ function statusBadge(s) { return { pending: 'badge-pending', approved: 'badge-su
 </script>
 
 <style scoped>
+.gm-seccio { margin-top: 14px; }
+.gm-titol { margin: 0 0 8px; font-size: .78rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-secondary); }
+.gm-graella { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.gm-entrada { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--color-border); background: var(--color-bg-card); color: var(--color-text); text-align: left; cursor: pointer; font: inherit; }
+.gm-entrada.perill { color: var(--color-danger); }
+.gm-icona { flex: none; font-size: 1.6rem; width: 40px; text-align: center; }
+.gm-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gm-text small { font-size: .8rem; color: var(--color-text-secondary); }
 /* ── Activitat recent ── */
 .act-fila { cursor: pointer; }
 .act-fila:hover td { background: rgba(9, 78, 140, .04); }

@@ -72,4 +72,86 @@ class WorkSchedule extends Model
 
         return $out;
     }
+
+    /**
+     * Els trams actius per dia (0=Dg..6=Ds), ordenats i amb els que es trepitgen ajuntats.
+     * @return array<int, array<int, array{0: string, 1: string}>>
+     */
+    public static function tramsPerDia($days): array
+    {
+        // «8:00» i «08:00» són la mateixa hora: es comparen sempre amb dos dígits.
+        $hhmm = fn (?string $h) => $h === null ? null : vsprintf('%02d:%02d', array_map('intval', explode(':', $h) + [0, 0]));
+        $per = [];
+        foreach (self::normalizeDays($days) as $d) {
+            [$a, $b] = [$hhmm($d['start']), $hhmm($d['end'])];
+            if ($d['active'] && $a !== null && $b > $a) $per[$d['day']][] = [$a, $b];
+        }
+        foreach ($per as $dia => $trams) {
+            sort($trams);
+            $junts = [];
+            foreach ($trams as [$a, $b]) {
+                $u = count($junts) - 1;
+                if ($u >= 0 && $a <= $junts[$u][1]) {
+                    $junts[$u][1] = max($junts[$u][1], $b);
+                } else {
+                    $junts[] = [$a, $b];
+                }
+            }
+            $per[$dia] = $junts;
+        }
+        ksort($per);
+
+        return $per;
+    }
+
+    /** Clau de l'horari pels seus trams: dues plantilles amb la mateixa clau fan el mateix horari. */
+    public static function signatura($days): string
+    {
+        $parts = [];
+        foreach (self::tramsPerDia($days) as $dia => $trams) {
+            foreach ($trams as [$a, $b]) $parts[] = "{$dia}:{$a}-{$b}";
+        }
+
+        return implode('|', $parts);
+    }
+
+    /**
+     * Nom automàtic a partir dels dies, el mateix criteri que src/utils/nomHorari.js:
+     * «30 h · Dl-Dv 08:00-14:00», «30 h · Dl, Dc, Dv 08:00-14:00 / Dm, Dj 12:00-18:00».
+     */
+    public static function nomAutomatic($days): string
+    {
+        $noms = ['Dg', 'Dl', 'Dm', 'Dc', 'Dj', 'Dv', 'Ds'];
+        $ordre = [1, 2, 3, 4, 5, 6, 0];
+        $per = self::tramsPerDia($days);
+        $perText = [];
+        foreach ($ordre as $dia) {
+            if (empty($per[$dia])) continue;
+            $text = implode(' i ', array_map(fn ($t) => "{$t[0]}-{$t[1]}", $per[$dia]));
+            $perText[$text][] = $dia;
+        }
+        if (! $perText) return '';
+        $parts = [];
+        foreach ($perText as $text => $dies) {
+            $pos = array_map(fn ($d) => array_search($d, $ordre, true), $dies);
+            $seguits = count($dies) > 2 && $pos === range($pos[0], $pos[0] + count($pos) - 1);
+            $etiqueta = $seguits ? $noms[$dies[0]] . '-' . $noms[end($dies)] : implode(', ', array_map(fn ($d) => $noms[$d], $dies));
+            $parts[] = "{$etiqueta} {$text}";
+        }
+        $hores = str_replace('.', ',', (string) round(self::minutsSetmanals($days) / 60, 2));
+
+        return mb_substr("{$hores} h · " . implode(' / ', $parts), 0, 250);
+    }
+
+    /** Minuts setmanals de l'horari tal com està (no el número que diu el nom). */
+    public static function minutsSetmanals($days): int
+    {
+        $min = fn (string $h) => (int) substr($h, 0, 2) * 60 + (int) substr($h, 3, 2);
+        $total = 0;
+        foreach (self::tramsPerDia($days) as $trams) {
+            foreach ($trams as [$a, $b]) $total += $min($b) - $min($a);
+        }
+
+        return $total;
+    }
 }

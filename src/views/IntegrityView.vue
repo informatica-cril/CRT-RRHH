@@ -2,8 +2,8 @@
   <div>
     <div class="page-header">
       <div>
-        <h1 class="page-title">Integritat i segell FNMT</h1>
-        <p class="page-subtitle">Segell de temps diari (RFC 3161) sobre la cadena de hash de totes les firmes i registres — inalterabilitat oposable a tercers</p>
+        <h1 class="page-title">Integritat</h1>
+        <p class="page-subtitle">Cada dia l'app segella tots els registres amb un segell oficial de temps (FNMT). Així es pot demostrar que ningú els ha canviat.</p>
       </div>
       <div class="page-actions">
         <button class="btn" :disabled="sealing" @click="sealNow">{{ sealing ? 'Segellant…' : 'Segellar avui' }}</button>

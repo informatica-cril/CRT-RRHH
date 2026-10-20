@@ -10,6 +10,7 @@ export const FRASES = {
     'La jornada no correspon a cap servei assignat.',
     'Fitxatge fet per error: la persona no treballava aquest dia.',
     'Les hores no quadren amb el registre del servei.',
+    "L'hora d'entrada o de sortida està mal fitxada.",
   ],
   rebuig_tram: [
     'Temps fora de zona sense justificació.',

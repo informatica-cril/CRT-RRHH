@@ -23,7 +23,10 @@ class User extends Authenticatable
         /* Quan domi va CONFIRMAR el compte. Diferent de domi_username, que el pot omplir
            l'Excel d'alta massiva sense que domi hagi creat res. */
         'domi_provisioned_at',
-        'postal_code_assigned', 'work_schedule_id', 'break_override', 'break_override_time', 'active',
+        'postal_code_assigned', 'work_schedule_id', 'break_override',
+        // % de RETRIBUCIÓ: només informatiu, no es barreja amb la jornada (aquesta té historial a JornadaContracte).
+        'retribucio_pct',
+        'break_override_time', 'active',
         'privacy_consent', 'seniority_date',
         'onboarding_profile_id',
         'must_change_password',
@@ -135,6 +138,9 @@ class User extends Authenticatable
         'domi_provisioned_at' => 'datetime',
         'totp_recovery_generated_at' => 'datetime',
         'practiques' => 'boolean',
+        // Fora de $fillable a propòsit: només ho canvia admin (UserController::fitxatgeAutomatic).
+        'fitxatge_automatic' => 'boolean',
+        'fitxatge_automatic_at' => 'datetime',
     ];
 
     // ── Relationships ──

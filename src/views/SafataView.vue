@@ -2,7 +2,7 @@
   <div class="safata">
     <div class="sf-head">
       <div>
-        <h1 class="page-title">📥 Safata de pendents</h1>
+        <h1 class="page-title">📥 Safata d'avisos</h1>
         <p class="page-subtitle">Tot el que espera una decisió teva, per urgència. Cada targeta obre la pantalla on es resol.</p>
       </div>
       <span class="sf-tot"><b>{{ total }}</b> pendents</span>
@@ -83,6 +83,7 @@ onMounted(async () => {
   const senseSortida = nCua('sensesortida')
   const senseHorari = nCua('sensehorari')
   const incidencies = nCua('incidencies')
+  const horesExtra = nCua('horesextra')
   const [absencies, excedencies, suggeriments, conciliacio] = await Promise.all([
     n(db.getAbsences(), a => a.approved === null || a.approved === undefined),
     n(db.getExcedencias(), e => e.status === 'pending'),
@@ -108,6 +109,7 @@ onMounted(async () => {
     { clau: 'drets', titol: 'Drets RGPD per respondre', sub: 'sol·licituds amb termini d\'un mes (art. 12.3)', icona: '🔐', n: drets, urgencia: 'alta', enllac: '/privacy' },
     { clau: 'sensehorari', titol: 'Persones sense horari', sub: "no se'ls poden calcular hores ni pauses: llista a sota", icona: '🗓️', n: senseHorari, urgencia: 'alta', enllac: '/safata#sense-horari', nomesGestio: true },
     { clau: 'incidencies', titol: 'Incidències per atendre', sub: "el que han enviat els treballadors des de l'app", icona: '🛎️', n: incidencies, urgencia: 'mitjana', enllac: '/incidencies', nomesGestio: true },
+    { clau: 'horesextra', titol: "Hores fora d'horari per autoritzar", sub: 'sol·licituds dels treballadors i de coordinació', icona: '⏰', n: horesExtra, urgencia: 'mitjana', enllac: '/hours-control', nomesGestio: true },
     { clau: 'comite', titol: 'Hores de comitè per validar', sub: 'crèdit horari de la representació (art. 68 ET)', icona: '🤝', n: comite, urgencia: 'mitjana', enllac: '/comite' },
   ]
   carregant.value = false
@@ -118,7 +120,7 @@ onMounted(async () => {
 .safata { padding: 4px 0; }
 .sf-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
 .sf-head > div { flex: 1; }
-.sf-tot { background: var(--color-navy, #0A2A4A); color: #fff; border-radius: 12px; padding: 10px 18px; font-weight: 800; white-space: nowrap; }
+.sf-tot { background: var(--color-primary-dark); color: #fff; border-radius: 12px; padding: 10px 18px; font-weight: 800; white-space: nowrap; }
 .sf-tot b { font-size: 1.5rem; margin-right: 6px; font-variant-numeric: tabular-nums; }
 .sf-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-top: 16px; }
 .sf-card { background: var(--color-surface, #fff); border: 1px solid var(--color-border, #DCE4EE); border-top: 4px solid #cfd8e3; border-radius: 14px; padding: 16px 18px; display: flex; gap: 14px; align-items: flex-start; text-decoration: none; color: inherit; transition: box-shadow .15s, transform .15s; height: 100%; box-sizing: border-box; }

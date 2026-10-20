@@ -2,8 +2,8 @@
   <div>
     <div class="page-header">
       <div>
-        <h1 class="page-title">Expedient del treballador</h1>
-        <p class="page-subtitle">Mètriques objectives agregades des de domi · només lectura · la qualificació i la sanció les decideix una persona</p>
+        <h1 class="page-title">Evidències</h1>
+        <p class="page-subtitle">Dades objectives de la feina de cada persona, que venen de la Domiciliària. Només per consultar: les decisions les pren una persona.</p>
       </div>
     </div>
 

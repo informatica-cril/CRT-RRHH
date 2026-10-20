@@ -34,6 +34,11 @@ class AuthCodeCaracteritzacioTest extends TestCase
             'time_slot_start' => '09:00',
             'time_slot_end' => '13:00',
             'generated_by' => $admin->id,
+            // Des del 20-10-2026 tota autorització és d'una persona (abans podia ser «per a qualsevol»).
+            // Extraordinàries perquè la persona de prova no té quadre horari (les complementàries el necessiten).
+            'user_id' => User::create(['name' => 'Treballador', 'email' => 'w' . uniqid() . '@test.local',
+                'password' => bcrypt('x'), 'role' => 'worker', 'active' => true])->id,
+            'type' => 'extraordinaria',
             'valid_from' => '2026-07-01',
             'valid_to' => '2026-07-31',
         ], $overrides);
@@ -56,7 +61,8 @@ class AuthCodeCaracteritzacioTest extends TestCase
 
         $this->postJson('/api/v1/auth-codes', ['concept' => 'incomplet'])
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['code', 'authorized_hours', 'generated_by']);
+            // El codi ja no és obligatori (el posa el servidor); la persona sí.
+            ->assertJsonValidationErrors(['authorized_hours', 'generated_by', 'user_id']);
     }
 
     public function test_store_franja_nocturna_es_rebutja_422(): void

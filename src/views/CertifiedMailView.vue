@@ -3,11 +3,7 @@
     <div class="page-header">
       <div>
         <h1 class="page-title">Comunicació certificada</h1>
-        <p class="page-subtitle">
-          Enviament de documentació laboral per correu certificat amb segell de temps: acusaments de
-          recepció i documentació d'expedient. La certificació acredita lliurament, obertura, lectura
-          i descàrrega dels adjunts.
-        </p>
+        <p class="page-subtitle">Envia documents per correu certificat: queda constància de quan s'han rebut i quan s'han obert.</p>
       </div>
       <div class="page-actions">
         <button v-if="authStore.isAdmin" class="btn btn-secondary" @click="obreConfig">Configuració</button>

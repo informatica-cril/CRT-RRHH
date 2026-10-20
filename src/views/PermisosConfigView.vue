@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="page-header">
-      <div><h1 class="page-title">Configuració de Permisos</h1><p class="page-subtitle">XII Conveni Col·lectiu d'Establiments Sanitaris de Catalunya</p></div>
+      <div><h1 class="page-title">Tipus de permisos</h1><p class="page-subtitle">Les vacances i els permisos que es poden demanar i quants dies dona cadascun, segons el conveni.</p></div>
       <div class="page-actions">
         <button class="btn btn-primary" @click="openCreateModal()">+ Nou tipus</button>
         <button class="btn btn-accent" @click="showMassModal = true">👥 Assignació massiva</button>

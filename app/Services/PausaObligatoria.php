@@ -87,24 +87,10 @@ class PausaObligatoria
     /** Hores previstes al dia de la setmana del fitxatge (primer tram, com la pantalla). */
     private function horesPrevistes(User $worker, Carbon $dia): float
     {
-        $schedule = $worker->workSchedule;
-        if (! $schedule) {
-            return 0;
-        }
-        $jsDay = (int) $dia->format('w'); // 0=Dg .. 6=Ds
-        foreach (\App\Models\WorkSchedule::normalizeDays($schedule->days) as $d) {
-            if ($d['day'] === $jsDay) {
-                if (! $d['active']) {
-                    return 0;
-                }
-                [$sh, $sm] = array_map('intval', explode(':', $d['start']));
-                [$eh, $em] = array_map('intval', explode(':', $d['end']));
+        // Quadrant o plantilla d'aquell dia (veure HorariDia); com abans, només el primer tram.
+        $primer = HorariDia::trams($worker, $dia->toDateString())[0] ?? null;
 
-                return max(0, (($eh * 60 + $em) - ($sh * 60 + $sm)) / 60);
-            }
-        }
-
-        return 0;
+        return $primer ? HorariDia::minuts([$primer]) / 60 : 0;
     }
 
     /**

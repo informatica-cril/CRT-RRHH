@@ -2,11 +2,8 @@
   <div>
     <div class="page-header">
       <div>
-        <h1 class="page-title">Informació a la representació legal</h1>
-        <p class="page-subtitle">
-          Escrits que el XII Conveni sanitari obliga a lliurar a la RLT. Es redacten aquí, es signen aquí i
-          queda constància aquí, al costat de l'expedient.
-        </p>
+        <h1 class="page-title">Representació legal</h1>
+        <p class="page-subtitle">Els informes que l'empresa ha de donar per llei als representants dels treballadors. Es redacten, es signen i s'envien aquí.</p>
       </div>
     </div>
 

@@ -3,29 +3,53 @@
     <div class="page-header">
       <div>
         <h1 class="page-title">Comitè d'empresa</h1>
-        <p class="page-subtitle">
-          Representants, crèdit horari (art. 68.e ET) i validació de les hores que registren.
-        </p>
+        <p class="page-subtitle">Qui són els representants, quantes hores sindicals tenen cada mes i validar les que registren.</p>
       </div>
       <div class="page-actions">
-        <input v-if="pestanya !== 'membres'" v-model="mes" type="month" class="form-input" @change="carrega" />
+        <!-- Les hores es poden mirar d'un mes o de tot l'any (les de l'Excel de RRHH són de molts mesos). -->
+        <select v-model="periode" class="form-select" style="width:auto;" @change="carrega">
+          <option value="mes">D'un mes</option>
+          <option value="any">De tot l'any</option>
+        </select>
+        <input v-if="periode === 'mes'" v-model="mes" type="month" class="form-input" @change="carrega" />
+        <select v-else v-model="any" class="form-select" style="width:auto;" @change="carrega">
+          <option v-for="a in anys" :key="a" :value="a">{{ a }}</option>
+        </select>
       </div>
     </div>
 
-    <div class="comite-tabs mb-lg">
-      <button v-for="p in pestanyes" :key="p.clau" class="btn btn-sm" :class="pestanya === p.clau ? 'btn-primary' : 'btn-outline'" @click="canvia(p.clau)">
-        {{ p.nom }}<span v-if="p.clau === 'hores' && pendents > 0" class="comite-n">{{ pendents }}</span>
-      </button>
-    </div>
 
     <div v-if="error" class="card mb-lg" style="border-left:4px solid var(--color-danger);">
       <div class="text-small" style="color:var(--color-danger);">{{ error }}</div>
     </div>
 
+    <!-- ═══ RESUM ═══ -->
+    <div class="card mb-lg">
+      <h3 class="card-title mb-md">Crèdit horari de {{ nomMes }}</h3>
+      <div v-if="resum.length === 0" class="empty-state"><p>No hi ha representants amb mandat aquest mes</p></div>
+      <div v-else class="table-container">
+        <table>
+          <thead><tr><th>Representant</th><th>Càrrec</th><th>Crèdit</th><th>Validades</th><th>Pendents</th><th>Convocades empresa</th><th>Restants</th><th>Gastades aquest any</th></tr></thead>
+          <tbody>
+            <tr v-for="f in resum" :key="f.membre.id">
+              <td><strong>{{ f.membre.user?.name }}</strong><div class="text-small text-muted">{{ f.membre.user?.dni }}</div></td>
+              <td class="text-small">{{ carrecs[f.membre.carrec] }}<span v-if="f.membre.sindicat"> · {{ f.membre.sindicat }}</span></td>
+              <td>{{ hm(f.credit) }}</td>
+              <td style="color:var(--color-success);">{{ hm(f.validades) }}</td>
+              <td style="color:#D9A400;">{{ hm(f.pendents) }}</td>
+              <td class="text-muted">{{ hm(f.convocades) }}</td>
+              <td :style="f.restants < 0 ? 'color:var(--color-danger);font-weight:700;' : 'font-weight:700;'">{{ hm(f.restants) }}</td>
+              <td class="text-muted">{{ f.any_validades !== undefined ? hm(f.any_validades) : '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- ═══ HORES ═══ -->
-    <div v-if="pestanya === 'hores'" class="card">
+    <div class="card mb-lg">
       <div class="card-header">
-        <h3 class="card-title">Hores registrades</h3>
+        <h3 class="card-title">Hores registrades<span v-if="pendents > 0" class="comite-n" title="Pendents de validar">{{ pendents }}</span></h3>
         <select v-model="filtreEstat" class="form-select" style="max-width:200px;" @change="carrega">
           <option value="">Tots els estats</option>
           <option value="pendent">Pendents</option>
@@ -41,7 +65,8 @@
             <tr v-for="h in hores" :key="h.id">
               <td><strong>{{ h.user?.name }}</strong><div class="text-small text-muted">{{ h.user?.dni }}</div></td>
               <td>{{ dmy(h.data) }}</td>
-              <td class="text-small">{{ h.hora_inici.slice(0, 5) }}–{{ h.hora_fi.slice(0, 5) }}</td>
+              <!-- Les hores que vénen de l'Excel de RRHH no porten franja, només la durada. -->
+              <td class="text-small">{{ h.origen_ref ? 'Excel de RRHH' : `${h.hora_inici.slice(0, 5)}–${h.hora_fi.slice(0, 5)}` }}</td>
               <td>{{ hm(h.minuts / 60) }}</td>
               <td class="text-small">{{ tipusHores[h.tipus] || h.tipus }}<span v-if="!h.consumeix_credit" class="text-muted"> (no descompta)</span></td>
               <td class="text-small" style="max-width:280px;">
@@ -65,31 +90,9 @@
       </div>
     </div>
 
-    <!-- ═══ RESUM ═══ -->
-    <div v-if="pestanya === 'resum'" class="card">
-      <h3 class="card-title mb-md">Crèdit horari del mes</h3>
-      <div v-if="resum.length === 0" class="empty-state"><p>No hi ha representants amb mandat aquest mes</p></div>
-      <div v-else class="table-container">
-        <table>
-          <thead><tr><th>Representant</th><th>Càrrec</th><th>Crèdit</th><th>Validades</th><th>Pendents</th><th>Convocades empresa</th><th>Restants</th></tr></thead>
-          <tbody>
-            <tr v-for="f in resum" :key="f.membre.id">
-              <td><strong>{{ f.membre.user?.name }}</strong><div class="text-small text-muted">{{ f.membre.user?.dni }}</div></td>
-              <td class="text-small">{{ carrecs[f.membre.carrec] }}<span v-if="f.membre.sindicat"> · {{ f.membre.sindicat }}</span></td>
-              <td>{{ hm(f.credit) }}</td>
-              <td style="color:var(--color-success);">{{ hm(f.validades) }}</td>
-              <td style="color:#D9A400;">{{ hm(f.pendents) }}</td>
-              <td class="text-muted">{{ hm(f.convocades) }}</td>
-              <td :style="f.restants < 0 ? 'color:var(--color-danger);font-weight:700;' : 'font-weight:700;'">{{ hm(f.restants) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
     <!-- ═══ MEMBRES ═══ -->
-    <template v-if="pestanya === 'membres'">
-      <div class="card mb-lg">
+    <div>
+      <div v-if="mostraForm || editant" ref="formMembre" class="card mb-lg">
         <div class="card-header">
           <h3 class="card-title">{{ editant ? 'Editar mandat' : 'Afegir representant' }}</h3>
           <span class="text-small text-muted">Escala legal amb {{ creditLegal.plantilla }} persones en plantilla laboral: {{ creditLegal.hores }} h/mes</span>
@@ -133,13 +136,16 @@
           </div>
           <div class="comite-ample" style="display:flex;gap:8px;">
             <button class="btn btn-accent" :disabled="desant">{{ desant ? 'Desant…' : (editant ? 'Desar canvis' : 'Afegir') }}</button>
-            <button v-if="editant" type="button" class="btn btn-outline" @click="nouMembre">Cancel·lar</button>
+            <button type="button" class="btn btn-outline" @click="nouMembre">Cancel·lar</button>
           </div>
         </form>
       </div>
 
       <div class="card">
-        <h3 class="card-title mb-md">Representants</h3>
+        <div class="card-header">
+          <h3 class="card-title">Representants</h3>
+          <button v-if="!mostraForm && !editant" type="button" class="btn btn-outline btn-sm" @click="obreForm">+ Afegir representant</button>
+        </div>
         <div v-if="membres.length === 0" class="empty-state"><p>Encara no hi ha cap representant donat d'alta</p></div>
         <div v-else class="table-container">
           <table>
@@ -161,14 +167,14 @@
           </table>
         </div>
       </div>
-    </template>
+    </div>
   </div>
 </template>
 
 <script setup>
 import SelectorPersona from '../components/SelectorPersona.vue'
 import { confirma, demana } from '../utils/dialegs'
-import { ref, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 import { useEstatUrl } from '../composables/useEstatUrl'
 import api, { apiFetchRaw } from '../services/apiClient'
 
@@ -176,17 +182,17 @@ const TIPUS_HORES = {
   reunio_comite: 'Reunió del comitè', assemblea: 'Assemblea', negociacio_empresa: "Reunió convocada per l'empresa",
   formacio: 'Formació sindical', gestio: 'Gestions de representació', altres: 'Altres',
 }
-const pestanyes = [
-  { clau: 'hores', nom: 'Hores per validar' },
-  { clau: 'resum', nom: 'Resum mensual' },
-  { clau: 'membres', nom: 'Representants' },
-]
 
-const pestanya = ref('hores')
+const mostraForm = ref(false)
+const formMembre = ref(null)
 const mes = ref(new Date().toISOString().slice(0, 7))
-useEstatUrl('pestanya', pestanya)
 useEstatUrl('mes', mes)
-const filtreEstat = ref('pendent')
+// Per defecte totes (les pendents surten primer): amb «només pendents» no es veien les ja validades.
+const filtreEstat = ref('')
+const periode = ref('mes')
+const any = ref(String(new Date().getFullYear()))
+const anys = Array.from({ length: 4 }, (_, i) => String(new Date().getFullYear() - i))
+useEstatUrl('periode', periode)
 const error = ref('')
 const desant = ref(false)
 const pendents = ref(0)
@@ -225,33 +231,43 @@ async function comptaPendents () {
   try { pendents.value = (await api.get('/v1/comite/hores?estat=pendent')).length } catch { /* el comptador no és crític */ }
 }
 
+// Tot a la mateixa pàgina: el resum del període, les hores i els representants es carreguen alhora.
 async function carrega () {
   error.value = ''
   try {
-    if (pestanya.value === 'hores') {
-      const q = new URLSearchParams({ mes: mes.value })
-      if (filtreEstat.value) q.set('estat', filtreEstat.value)
-      // Les pendents surten totes, siguin del mes que siguin: que no se n'escapi cap per filtre de data.
-      if (filtreEstat.value === 'pendent') q.delete('mes')
-      hores.value = await api.get(`/v1/comite/hores?${q}`)
-      comptaPendents()
-    } else if (pestanya.value === 'resum') {
-      resum.value = (await api.get(`/v1/comite/resum?mes=${mes.value}`)).files
-    } else {
-      const [r, us] = await Promise.all([api.get('/v1/comite/membres'), usuaris.value.length ? usuaris.value : api.get('/v1/users')])
-      membres.value = r.membres
-      tipusMembre.value = r.tipus
-      carrecs.value = r.carrecs
-      creditLegal.value = r.credit_legal
-      usuaris.value = us.filter(u => u.role !== 'service' && u.active !== false).sort((a, b) => a.name.localeCompare(b.name))
-      if (!editant.value && !form.value.user_id) form.value = buit()
-    }
+    const q = new URLSearchParams(periode.value === 'any' ? { any: any.value } : { mes: mes.value })
+    if (filtreEstat.value) q.set('estat', filtreEstat.value)
+    // Les pendents surten totes, siguin del mes que siguin: que no se n'escapi cap per filtre de data.
+    if (filtreEstat.value === 'pendent') { q.delete('mes'); q.delete('any') }
+    const mesResum = periode.value === 'any' ? `${any.value}-${String(new Date().getMonth() + 1).padStart(2, '0')}` : mes.value
+    const [h, rs, r, us] = await Promise.all([
+      api.get(`/v1/comite/hores?${q}`),
+      api.get(`/v1/comite/resum?mes=${mesResum}`),
+      api.get('/v1/comite/membres'),
+      usuaris.value.length ? usuaris.value : api.get('/v1/users'),
+    ])
+    hores.value = h
+    resum.value = rs.files
+    membres.value = r.membres
+    tipusMembre.value = r.tipus
+    carrecs.value = r.carrecs
+    creditLegal.value = r.credit_legal
+    usuaris.value = us.filter(u => u.role !== 'service' && u.active !== false).sort((a, b) => a.name.localeCompare(b.name))
+    if (!editant.value && !form.value.user_id) form.value = buit()
+    comptaPendents()
   } catch (e) {
     error.value = e?.message || "No s'han pogut carregar les dades."
   }
 }
-
-function canvia (p) { pestanya.value = p; carrega() }
+const nomMes = computed(() => {
+  if (periode.value === 'any') return `l'any ${any.value} (mes actual)`
+  const [a, m] = mes.value.split('-').map(Number)
+  return new Date(a, m - 1, 1).toLocaleDateString('ca-ES', { month: 'long', year: 'numeric' })
+})
+function obreForm () {
+  mostraForm.value = true
+  nextTick(() => formMembre.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+}
 
 async function valida (h) {
   try {
@@ -286,10 +302,10 @@ function edita (m) {
     data_alta: String(m.data_alta).slice(0, 10), data_baixa: m.data_baixa ? String(m.data_baixa).slice(0, 10) : '',
     credit_hores_mensual: m.credit_hores_mensual, notes: m.notes || '',
   }
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+  nextTick(() => formMembre.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
 }
 
-function nouMembre () { editant.value = null; form.value = buit() }
+function nouMembre () { editant.value = null; mostraForm.value = false; form.value = buit() }
 
 async function esborra (m) {
   if (!await confirma(`Eliminar ${m.user?.name} dels representants?`)) return

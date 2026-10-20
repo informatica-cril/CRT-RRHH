@@ -1,70 +1,65 @@
 <template>
   <div>
     <div class="page-header">
-      <div><h1 class="page-title">{{ t('auth_codes') }}</h1><p class="page-subtitle">Gestió completa de codis d'autorització d'hores extres</p></div>
+      <div><h1 class="page-title">Hores de més</h1><p class="page-subtitle">Les peticions per autoritzar i les hores de més autoritzades a cada persona. S'apliquen soles als seus fitxatges d'aquells dies: no cal cap codi.</p></div>
       <div class="page-actions" v-if="authStore.isStaff">
-        <button class="btn btn-primary" @click="openCreateModal">+ {{ t('generate_code') }}</button>
+        <button class="btn btn-primary" @click="openCreateModal">+ Autoritzar hores</button>
+      </div>
+    </div>
+
+    <!-- Peticions pendents: les demana la persona quan es passa de l'hora, o les força coordinació des de domi. -->
+    <div v-if="authStore.isStaff && pendents.length" class="card mb-lg hm-pendents">
+      <h3 class="card-title">⚠ {{ pendents.length }} petici{{ pendents.length === 1 ? 'ó' : 'ons' }} per autoritzar</h3>
+      <p class="text-small text-muted" style="margin:4px 0 10px;">Si s'autoritza i la jornada ja està tancada, les hores s'hi apliquen soles.</p>
+      <div v-for="p in pendents" :key="p.id" class="hm-peticio">
+        <div class="hm-peticio-info">
+          <strong>{{ p.user?.name || getUserName(p.user_id) }}</strong>
+          <span class="badge badge-warning">{{ formatHM(p.hours) }}</span>
+          <span class="text-small text-muted">{{ formatDate(p.period_from) }}<template v-if="p.period_to && p.period_to !== p.period_from"> → {{ formatDate(p.period_to) }}</template>
+            · {{ p.origen === 'treballador' ? 'la demana la persona' : 'forçada per ' + p.requested_by }}</span>
+          <div v-if="p.reason" class="text-small text-muted">{{ p.reason }}</div>
+        </div>
+        <div class="hm-peticio-acc">
+          <button class="btn btn-success btn-sm" :disabled="p._busy" @click="autoritzar(p)">✔ Autoritzar</button>
+          <button class="btn btn-outline btn-sm" :disabled="p._busy" @click="denegar(p)">✖ Denegar</button>
+        </div>
       </div>
     </div>
 
     <div class="card">
-      <div class="table-container">
-        <table>
+      <div class="card-header">
+        <h3 class="card-title">Autoritzacions</h3>
+        <label class="text-small hm-toggle">
+          <input type="checkbox" v-model="veureAcabades" /> Veure també les acabades ({{ acabades }})
+        </label>
+      </div>
+      <div v-if="!codesVisibles.length" class="text-muted hm-buit">
+        {{ veureAcabades ? 'Encara no hi ha cap autorització.' : 'Ara mateix no hi ha cap autorització vigent.' }}
+      </div>
+      <div v-else class="table-container">
+        <table class="hm-taula">
           <thead>
-            <tr>
-              <th>{{ t('auth_code') }}</th>
-              <th>Tipus</th>
-              <th>Concepte</th>
-              <th>Hores</th>
-              <th>Consum (registre)</th>
-              <th>S'esgota</th>
-              <th>Destinatari</th>
-              <th>Validesa</th>
-              <th>{{ t('status') }}</th>
-              <th v-if="authStore.isStaff">{{ t('actions') }}</th>
-            </tr>
+            <tr><th>Persona</th><th>Tipus</th><th>Motiu</th><th>Dies</th><th>Fetes / queden</th><th>Estat</th><th v-if="authStore.isStaff"></th></tr>
           </thead>
           <tbody>
-            <tr v-for="code in codes" :key="code.id">
-              <td><code style="background:var(--color-bg);padding:4px 8px;border-radius:4px;font-weight:600;">{{ code.code }}</code></td>
-              <td>
-                <span class="badge" :class="code.type === 'extraordinaria' ? 'badge-warning' : 'badge-info'" style="white-space:nowrap;">
-                  {{ code.type === 'extraordinaria' ? '⚡ Extra 1,25×' : '✋ Compl. 1,00×' }}
-                </span>
+            <tr v-for="code in codesVisibles" :key="code.id" :class="{ 'hm-acabada': !esVigent(code) }">
+              <td :title="'Referència ' + code.code + (code.notification_sent ? ' · avisada per correu' : '')">
+                <strong>{{ code.user_id ? getUserName(code.user_id) : 'Qualsevol (antiga)' }}</strong>
               </td>
-              <td>{{ code.concept || '—' }}</td>
-              <td><strong>{{ code.authorized_hours }}h</strong></td>
-              <td style="min-width:130px;">
-                <template v-if="code.consum">
-                  <div style="display:flex;align-items:center;gap:6px;">
-                    <div style="flex:1;height:8px;border-radius:4px;background:var(--color-bg);overflow:hidden;min-width:50px;">
-                      <div :style="{width: Math.min(100, code.consum.pct||0)+'%', height:'100%',
-                                    background: (code.consum.pct||0) >= 100 ? '#dc3545' : (code.consum.pct||0) >= 85 ? '#D9A400' : '#0DAF83'}"></div>
-                    </div>
-                    <span class="text-small" style="white-space:nowrap;"><b>{{ code.consum.usat_h }}h</b> · {{ code.consum.pct ?? 0 }}%</span>
-                  </div>
+              <td><span class="hm-tipus" :class="code.type">{{ code.type === 'extraordinaria' ? 'Extra ×1,25' : 'Complementària' }}</span></td>
+              <td class="hm-motiu">{{ code.concept || '—' }}</td>
+              <td class="text-small hm-dies">{{ dies(code) }}</td>
+              <td class="hm-consum">
+                <div class="hm-barra"><div :style="{ width: Math.min(100, code.consum?.pct || 0) + '%' }"></div></div>
+                <span class="text-small"><strong>{{ formatHM(code.consum?.usat_h || 0) }}</strong> de {{ formatHM(code.authorized_hours) }}
+                  <template v-if="esVigent(code)"> · queden {{ formatHM(code.queden_h ?? 0) }}</template></span>
+              </td>
+              <td><span class="hm-estat" :class="code.estat">{{ NOMS_ESTAT[code.estat] || code.estat }}</span></td>
+              <td v-if="authStore.isStaff" class="hm-accions">
+                <template v-if="esVigent(code)">
+                  <button class="btn btn-outline btn-sm" @click="renovarCode(code)" title="Allargar-la o posar-hi més hores">↻ Renovar</button>
+                  <button class="btn btn-outline btn-sm hm-anul" @click="revokeCode(code)">Anul·lar</button>
                 </template>
-              </td>
-              <td class="text-small">
-                <template v-if="code.consum?.esgota === 'esgotat'"><span style="color:#dc3545;font-weight:700;">Esgotat</span></template>
-                <template v-else-if="code.consum?.esgota">
-                  {{ formatDate(code.consum.esgota) }}
-                  <div v-if="code.consum.dins_validesa === false" style="color:#0A7C5E;">fora de la validesa: caduca abans</div>
-                  <div v-else style="color:#96600F;">al ritme actual del registre</div>
-                </template>
-                <template v-else><span class="text-muted">sense consum imputat</span></template>
-              </td>
-              <td>{{ code.user_id ? getUserName(code.user_id) : 'Qualsevol' }}</td>
-              <td><span class="text-small">{{ formatDate(code.valid_from) }} → {{ formatDate(code.valid_to) }}</span></td>
-              <td>
-                <span class="badge" :class="codeBadge(code)">{{ codeStatusText(code) }}</span>
-              </td>
-              <td v-if="authStore.isStaff">
-                <div style="display:flex;gap:4px;flex-wrap:wrap;">
-                  <button v-if="!code.revoked && !code.used" class="btn btn-outline btn-sm" @click="renovarCode(code)">↻ Renovar</button>
-                  <button v-if="!code.revoked && !code.used" class="btn btn-danger btn-sm" @click="revokeCode(code)">⊘ Revocar</button>
-                  <span v-if="code.notification_sent" class="badge badge-info" style="font-size:0.65rem;">📧 Enviat</span>
-                </div>
               </td>
             </tr>
           </tbody>
@@ -72,26 +67,11 @@
       </div>
     </div>
 
-    <!-- Worker: Validate -->
-    <div v-if="authStore.isWorker" class="card mt-lg" style="max-width:500px;">
-      <h3 class="card-title mb-md">{{ t('validate_code') }}</h3>
-      <div style="display:flex;gap:8px;">
-        <input class="form-input" v-model="codeInput" :placeholder="t('enter_code')" />
-        <button class="btn btn-accent" @click="validate">{{ t('validate_code') }}</button>
-      </div>
-      <div v-if="validationResult" class="mt-sm" style="padding:8px 12px;border-radius:8px;" :style="{ background: validationResult.valid ? 'rgba(76,175,80,0.1)' : 'rgba(239,68,68,0.1)', color: validationResult.valid ? 'var(--color-success)' : 'var(--color-danger)' }">
-        <strong>{{ validationResult.valid ? '✓ Codi vàlid' : '✗ ' + validationResult.reason }}</strong>
-        <div v-if="validationResult.valid && validationResult.code" class="text-small mt-sm">
-          Concepte: {{ validationResult.code.concept }} · {{ validationResult.code.authorized_hours }}h · Franja: {{ validationResult.code.time_slot_start }}-{{ validationResult.code.time_slot_end }}
-        </div>
-      </div>
-    </div>
-
     <!-- Create Modal -->
     <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
       <div class="modal" style="max-width:600px;">
         <div class="modal-header">
-          <h3 class="modal-title">Nou codi d'autorització</h3>
+          <h3 class="modal-title">Autoritzar hores de més</h3>
           <button class="icon-btn" @click="showModal = false">✕</button>
         </div>
         <div class="form-group">
@@ -105,8 +85,8 @@
               :style="capExceeded ? 'border-color:var(--color-danger);' : ''" />
           </div>
           <div class="form-group">
-            <label class="form-label">Destinatari</label>
-            <SelectorPersona v-model="form.user_id" :persones="workers" :buida="{ valor: null, text: 'Qualsevol treballador' }" style="width:100%;" />
+            <label class="form-label">Persona *</label>
+            <SelectorPersona v-model="form.user_id" :persones="workers" style="width:100%;" />
           </div>
         </div>
 
@@ -114,8 +94,8 @@
         <div class="form-group">
           <label class="form-label">Tipus d'hora *</label>
           <select class="form-select" v-model="form.type">
-            <option value="complementaria">✋ Complementàries (només contractes a temps parcial, art. 12.5 ET)</option>
-            <option value="extraordinaria">⚡ Extraordinàries (màxim 80 h/any, art. 20.1 del conveni)</option>
+            <option value="complementaria">✋ Complementàries (només per a qui treballa a temps parcial)</option>
+            <option value="extraordinaria">⚡ Extraordinàries (com a màxim 80 h l'any)</option>
           </select>
         </div>
 
@@ -131,18 +111,18 @@
             Canvia el tipus a hores EXTRAORDINÀRIES (màxim 80 h/any).
           </template>
           <template v-else-if="capInfo && form.type === 'extraordinaria'">
-            <strong>Hores extraordinàries: topall de 80 h l'any</strong> (art. 20.1 del conveni XII),
+            <strong>Hores extraordinàries: topall de 80 h l'any</strong> (art. 20.2 del conveni XII),
             retribuïdes a 1,25×. El topall del 30% de complementàries no hi aplica.
           </template>
           <template v-else-if="capInfo">
-            <strong>Tope anual complementàries ({{ capInfo.year }}): {{ capInfo.cap }}h</strong>
+            <strong>Màxim de complementàries de l'any ({{ capInfo.year }}): {{ capInfo.cap }}h</strong>
             <span> — 30% de {{ capInfo.annualBasic }}h de jornada bàsica anual</span>
             · ja autoritzades l'any <strong>{{ capInfo.already }}h</strong> · disponibles <strong>{{ capInfo.remaining }}h</strong>
             <div style="margin-top:6px;">
               <button type="button" class="btn btn-accent btn-sm" @click="useFullCap" :disabled="!(capInfo.remaining > 0)">
                 ⚡ Donar d'alta el PACTE signat amb tot l'any ({{ capInfo.remaining }}h)
               </button>
-              <span class="text-small text-muted" style="margin-left:6px;">Normalment NO cal: el codi del pacte neix sol amb l'alta del treballador (o amb «pacte:backfill» per als antics). Aquest botó és per a casos manuals.</span>
+              <span class="text-small text-muted" style="margin-left:6px;">Normalment no cal: el codi es crea sol quan es dona d'alta la persona. Fes-lo servir només si li falta.</span>
             </div>
             <!-- Seguiment mensual del consum anual -->
             <div style="margin-top:6px;font-weight:600;">Seguiment mensual {{ capInfo.year }}:</div>
@@ -152,12 +132,12 @@
                 <div style="font-weight:700;">{{ h > 0 ? h : '·' }}</div>
               </div>
             </div>
-            <div v-if="capExceeded" style="font-weight:700;margin-top:6px;">⚠️ Supera el tope anual del 30%. Redueix les hores o revoca codis previs.</div>
+            <div v-if="capExceeded" style="font-weight:700;margin-top:6px;">⚠️ Passa del màxim de l'any (el 30 % de la seva jornada). Posa-hi menys hores o anul·la algun codi anterior.</div>
           </template>
-          <template v-else>Calculant el tope anual del 30%…</template>
+          <template v-else>Calculant el màxim de l'any…</template>
         </div>
         <div v-else class="text-small text-muted" style="margin:-4px 0 8px;">
-          El límit del 30% s'aplica quan s'assigna a un treballador concret.
+          Tria la persona: les hores s'apliquen soles als seus fitxatges d'aquells dies.
         </div>
         <div class="form-date-row">
           <div class="form-group">
@@ -192,7 +172,7 @@
         <div v-if="createError" class="text-small" style="color:var(--color-danger);margin-top:8px;">{{ createError }}</div>
         <div class="modal-footer">
           <button class="btn btn-outline" @click="showModal = false">{{ t('cancel') }}</button>
-          <button class="btn btn-primary" @click="createCode" :disabled="!form.concept || !form.authorized_hours || capExceeded || franjaInvalid">{{ t('generate_code') }}</button>
+          <button class="btn btn-primary" @click="createCode" :disabled="!form.user_id || !form.concept || !form.authorized_hours || capExceeded || franjaInvalid">Autoritzar</button>
         </div>
       </div>
     </div>
@@ -227,13 +207,13 @@
     <div v-if="showRevokeModal" class="modal-overlay" @click.self="showRevokeModal = false">
       <div class="modal" style="max-width:400px;">
         <div class="modal-header">
-          <h3 class="modal-title">⚠️ Confirmar revocació</h3>
+          <h3 class="modal-title">⚠️ Anul·lar el codi</h3>
         </div>
-        <p>Esteu segurs de revocar el codi <strong>{{ revokeTarget?.code }}</strong>?</p>
+        <p>Segur que vols anul·lar el codi <strong>{{ revokeTarget?.code }}</strong>?</p>
         <p class="text-small text-muted mt-sm">Aquesta acció és immediata i no es pot desfer.</p>
         <div class="modal-footer">
           <button class="btn btn-outline" @click="showRevokeModal = false">{{ t('cancel') }}</button>
-          <button class="btn btn-danger" @click="confirmRevoke">Revocar immediatament</button>
+          <button class="btn btn-danger" @click="confirmRevoke">Sí, anul·lar-lo ara</button>
         </div>
       </div>
     </div>
@@ -246,6 +226,8 @@ import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { db } from '../services/db'
 import { auditLog } from '../services/audit'
+import { avisa } from '../utils/avisos'
+import { demana } from '../utils/dialegs'
 import { i18n } from '../i18n'
 
 console.log('[AuthCodesView] Compilando componente...')
@@ -254,8 +236,6 @@ const authStore = useAuthStore()
 const t = (key) => i18n.t(key)
 
 const codes = ref([])
-const codeInput = ref('')
-const validationResult = ref(null)
 const showModal = ref(false)
 const showRevokeModal = ref(false)
 const revokeTarget = ref(null)
@@ -359,7 +339,34 @@ async function fetchData() {
   }
 }
 
-onMounted(fetchData)
+onMounted(() => { fetchData(); loadPendents() })
+
+// ── Peticions pendents (abans només a «Control d'hores») ──
+const pendents = ref([])
+async function loadPendents() {
+  if (!authStore.isStaff) return
+  try {
+    const r = await db.getOvertimeRequests('pending')
+    pendents.value = (Array.isArray(r) ? r : (r?.data ?? [])).map(p => ({ ...p, _busy: false }))
+  } catch (e) { pendents.value = [] }
+}
+async function autoritzar(p) {
+  p._busy = true
+  try {
+    const r = await db.authorizeOvertime(p.id)
+    avisa(r?.aplicades ? `✅ Autoritzades i aplicades ${r.aplicades} h al fitxatge.` : '✅ Autoritzades.')
+    await Promise.all([loadPendents(), fetchData()])
+  } catch (e) { p._busy = false; avisa(e?.message || "No s'ha pogut autoritzar.", 'error') }
+}
+async function denegar(p) {
+  // El motiu és obligatori: qui rep la denegació ha de saber per què.
+  const reason = await demana('Motiu de la denegació (obligatori):', { frases: 'denegacio' })
+  if (reason === null) return
+  if (!reason.trim()) { avisa('Cal escriure el motiu de la denegació.', 'error'); return }
+  p._busy = true
+  try { await db.denyOvertime(p.id, reason); await loadPendents() }
+  catch (e) { p._busy = false; avisa(e?.message || "No s'ha pogut denegar.", 'error') }
+}
 
 const now = new Date()
 const form = reactive({
@@ -395,7 +402,7 @@ async function createCode() {
   crypto.getRandomValues(arr)
   const code = Array.from(arr, b => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('').replace(/(.{4})/g, '$1-').slice(0, 14)
   try {
-    await db.addAuthCode({
+    const creat = await db.addAuthCode({
       code, concept: form.concept, authorized_hours: form.authorized_hours,
       type: form.type,
       time_slot_start: form.time_slot_start, time_slot_end: form.time_slot_end,
@@ -412,6 +419,9 @@ async function createCode() {
     }
     await fetchData()
     showModal.value = false
+    avisa(creat?.aplicades > 0
+      ? `✅ Hores autoritzades. Ja s'han aplicat ${creat.aplicades} h a fitxatges tancats d'aquells dies.`
+      : "✅ Hores autoritzades. S'aplicaran soles quan fitxi la sortida aquells dies.")
   } catch (e) {
     console.error(e)
     if (e && e.status === 422) {
@@ -440,14 +450,50 @@ async function confirmRevoke() {
   }
 }
 
-async function validate() { 
-  try {
-    validationResult.value = await db.validateAuthCode(codeInput.value) 
-  } catch (e) { console.error(e) }
+// Estats en paraules (els calcula el servidor amb les hores realment aplicades als fitxatges).
+const NOMS_ESTAT = { activa: 'Activa', propera: 'Comença més endavant', esgotada: 'Esgotada', caducada: 'Caducada', anullada: 'Anul·lada' }
+const veureAcabades = ref(false)
+const esVigent = c => ['activa', 'propera'].includes(c.estat)
+const codesVisibles = computed(() => [...codes.value]
+  .filter(c => veureAcabades.value || esVigent(c))
+  .sort((a, b) => Number(esVigent(b)) - Number(esVigent(a)) || String(b.valid_from).localeCompare(String(a.valid_from))))
+const acabades = computed(() => codes.value.filter(c => !esVigent(c)).length)
+function dies(c) {
+  const d1 = formatDate(c.valid_from), d2 = formatDate(c.valid_to)
+  return d1 === d2 ? d1 : `${d1} → ${d2}`
+}
+function formatHM(h) {
+  const m = Math.round(Number(h || 0) * 60)
+  return `${Math.floor(m / 60)}h${m % 60 ? ' ' + (m % 60) + 'min' : ''}`
 }
 function getUserName(id) { return users.value.find(u => u.id === id)?.name || '—' }
 function formatDate(d) { return new Date(d).toLocaleDateString('ca-ES', { day: '2-digit', month: 'short', year: 'numeric' }) }
 function codeBadge(c) { return c.revoked ? 'badge-danger' : c.used ? 'badge-warning' : isExpired(c) ? 'badge-warning' : 'badge-success' }
-function codeStatusText(c) { return c.revoked ? 'Revocat' : c.used ? t('code_used') : isExpired(c) ? t('code_expired') : 'Actiu' }
+function codeStatusText(c) { return c.revoked ? 'Revocat' : c.used ? 'Gastada' : isExpired(c) ? t('code_expired') : 'Actiu' }
 function isExpired(c) { return new Date() > new Date(c.valid_to) }
 </script>
+
+<style scoped>
+.hm-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.hm-buit { padding: 24px; text-align: center; }
+.hm-taula td { vertical-align: middle; }
+.hm-acabada { opacity: .6; }
+.hm-tipus { font-size: .74rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; white-space: nowrap; background: #DBEAFE; color: #1E3A8A; }
+.hm-tipus.extraordinaria { background: #FEF3C7; color: #92400E; }
+.hm-motiu { max-width: 320px; }
+.hm-dies { white-space: nowrap; }
+.hm-consum { min-width: 170px; }
+.hm-barra { height: 6px; border-radius: 99px; background: var(--color-border-light, #eef2f7); overflow: hidden; margin-bottom: 3px; }
+.hm-barra div { height: 100%; background: #0DAF83; }
+.hm-estat { font-size: .74rem; font-weight: 700; padding: 2px 9px; border-radius: 99px; white-space: nowrap; background: #e2e8f0; color: #475569; }
+.hm-estat.activa { background: #DCFCE7; color: #166534; }
+.hm-estat.propera { background: #DBEAFE; color: #1E3A8A; }
+.hm-estat.anullada { background: #FDECEA; color: #B3352F; }
+.hm-accions { white-space: nowrap; }
+.hm-anul { color: var(--color-danger, #B3352F); }
+.hm-pendents { border-left: 4px solid #D9A400; }
+.hm-peticio { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--color-border-light, #eef2f7); }
+.hm-peticio-info { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.hm-peticio-info > div { flex-basis: 100%; }
+.hm-peticio-acc { display: flex; gap: 6px; }
+</style>

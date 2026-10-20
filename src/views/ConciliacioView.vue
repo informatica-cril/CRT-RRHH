@@ -2,8 +2,8 @@
   <div>
     <div class="page-header">
       <div>
-        <h1 class="page-title">Conciliació d'identitats</h1>
-        <p class="page-subtitle">Comptes històrics de domi sense DNI a la fitxa: el sistema suggereix la parella, tu la confirmes</p>
+        <h1 class="page-title">Conciliació</h1>
+        <p class="page-subtitle">Uneix els comptes antics de la Domiciliària amb la fitxa de cada persona. L'app proposa la parella i tu la confirmes.</p>
       </div>
       <div class="page-actions">
         <button class="btn" :disabled="loading" @click="load">{{ loading ? 'Carregant…' : 'Actualitzar' }}</button>

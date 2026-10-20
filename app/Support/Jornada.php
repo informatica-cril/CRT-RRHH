@@ -29,6 +29,9 @@ final class Jornada
     /** Multiplicador retributiu de l'hora extraordinària. */
     public const EXTRA_FACTOR = 1.25;
 
+    /** Vacances en dies laborables per al mòdul diari (30 naturals ≈ 22 laborables, art. 34.1). */
+    public const VACANCES_LABORABLES = 22;
+
     /** Màxim legal d'hores complementàries sobre la jornada bàsica (art. 12.5 ET). */
     public const COMPLEMENTARY_MAX_RATIO = 0.30;
 

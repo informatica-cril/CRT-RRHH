@@ -2,7 +2,7 @@
   <div class="safata">
     <div class="sf-head">
       <div>
-        <h1 class="page-title">📥 La meva safata</h1>
+        <h1 class="page-title">📥 Safata d'avisos</h1>
         <p class="page-subtitle">Tot el que et reclama una acció: firmes, avisos i notificacions. Cada targeta t'hi porta.</p>
       </div>
       <span class="sf-tot"><b>{{ total }}</b> pendents</span>
@@ -70,7 +70,7 @@ onMounted(async () => {
   const nDiscip = discip.filter(d => !d.acknowledged_at && !d.acknowledged).length
 
   cues.value = [
-    { clau: 'audiencia', titol: 'Audiència prèvia oberta', sub: 'un tram del teu fitxatge; pots presentar la teva explicació', icona: '🗣️', n: nAudi, urgencia: 'alta', enllac: audienciaLink.value },
+    { clau: 'audiencia', titol: 'Pots explicar què va passar', sub: 'una part del teu fitxatge està en revisió; envia la teva explicació', icona: '🗣️', n: nAudi, urgencia: 'alta', enllac: audienciaLink.value },
     { clau: 'disciplinari', titol: 'Notificació a acusar', sub: 'comunicació que has de donar per rebuda', icona: '⚖️', n: nDiscip, urgencia: 'alta', enllac: '/worker/compliance' },
     { clau: 'resolucions', titol: 'Sol·licituds resoltes', sub: 'absències, permisos o hores que RRHH ha resolt', icona: '📬', n: nResolucions, urgencia: 'mitjana', enllac: '/absences' },
     { clau: 'firmes', titol: 'Documents per signar', sub: 'documents pendents de la teva firma', icona: '✍️', n: nDocs, urgencia: 'mitjana', enllac: '/worker/documents' },
@@ -85,7 +85,7 @@ onMounted(async () => {
 .safata { padding: 4px 0; }
 .sf-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
 .sf-head > div { flex: 1; }
-.sf-tot { background: var(--color-navy, #0A2A4A); color: #fff; border-radius: 12px; padding: 10px 18px; font-weight: 800; white-space: nowrap; }
+.sf-tot { background: var(--color-primary-dark); color: #fff; border-radius: 12px; padding: 10px 18px; font-weight: 800; white-space: nowrap; }
 .sf-tot b { font-size: 1.5rem; margin-right: 6px; font-variant-numeric: tabular-nums; }
 .sf-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-top: 14px; }
 .sf-card { background: var(--color-surface, #fff); border: 1px solid var(--color-border, #DCE4EE); border-left: 5px solid #cfd8e3; border-radius: 14px; padding: 16px; display: flex; gap: 14px; align-items: flex-start; text-decoration: none; color: inherit; transition: box-shadow .15s; min-height: 60px; }

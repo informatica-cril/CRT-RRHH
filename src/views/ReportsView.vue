@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="page-header">
-      <div><h1 class="page-title">{{ t('reports') }}</h1><p class="page-subtitle">Informes configurables i dades de nòmines per treballador i període</p></div>
+      <div><h1 class="page-title">Informes</h1><p class="page-subtitle">Treu llistats i dades per persona i per període (per a nòmines, inspecció…).</p></div>
       <div class="page-actions" style="flex-wrap:wrap;">
         <select class="form-select" v-model="selectedMonth" style="width:180px;">
           <option v-for="m in months" :key="m.value" :value="m.value">{{ m.label }}</option>
@@ -397,7 +397,7 @@ function printFisioReport() {
   </style></head><body>
     <h1>Informe mensual de jornada — Fisioterapeutes</h1>
     <div class="sub">${selectedMonthLabel.value} · CRT · Generat el ${new Date().toLocaleDateString('ca-ES')}</div>
-    <div class="legend">Temps efectiu = només trams aprovats · Autoritzat = bàsic (conveni pels dies treballats, exclou festius) + complementàries amb codi · Desviació = efectiu − autoritzat (<b class="over">▲ excés</b> / <b class="under">▼ dèficit</b>)</div>
+    <div class="legend">Temps que compta = només les parts del fitxatge aprovades · Autoritzat = bàsic (conveni pels dies treballats, exclou festius) + complementàries amb codi · Desviació = efectiu − autoritzat (<b class="over">▲ excés</b> / <b class="under">▼ dèficit</b>)</div>
     <table>
       <thead><tr>
         <th>Fisioterapeuta</th><th>Dies</th><th>Bàsic</th><th>Compl. (codi)</th><th>Autoritzat</th><th>Efectiu</th><th>No autoritzat</th><th>Fora zona</th><th>Desviació</th>

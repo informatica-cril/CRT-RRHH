@@ -8,7 +8,7 @@ class OvertimeRequest extends Model
 {
     protected $fillable = [
         'user_id', 'hours', 'period_from', 'period_to', 'requested_by', 'reason',
-        'domi_ref', 'status', 'authorized_by', 'authorized_at', 'authorization_code_id',
+        'domi_ref', 'origen', 'work_log_id', 'status', 'authorized_by', 'authorized_at', 'authorization_code_id',
         'denial_reason',
     ];
 
