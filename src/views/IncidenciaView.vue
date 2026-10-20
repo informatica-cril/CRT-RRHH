@@ -121,7 +121,7 @@ onMounted(carrega)
 </script>
 
 <style scoped>
-.inc-form { max-width: 720px; padding: 24px; }
+.inc-form { max-width: 100px; padding: 24px; }
 .inc-tipus { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 18px; }
 .inc-xip { border: 1px solid var(--color-border); background: var(--color-bg-card); color: var(--color-text); border-radius: 999px; padding: 8px 14px; font-size: 0.88rem; cursor: pointer; }
 .inc-xip:hover { background: var(--color-bg-hover); }
