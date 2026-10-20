@@ -112,7 +112,7 @@ const PASSOS = [
   { on: 'setmana', text: "Això no corre tant: n'hi ha prou que ho miris un cop a la setmana." },
   { on: 'rapid', text: "I aquí tens les coses que es fan de tant en tant: buscar algú, donar d'alta una persona o treure l'informe del mes. Si busques una altra pantalla, és a «Totes les opcions»." },
 ]
-const CLAU_VIST = 'cril_tauler_recorregut_vist'
+const CLAU_VIST = 'crt_tauler_recorregut_vist'
 
 const authStore = useAuthStore()
 const carregant = ref(true)
@@ -174,7 +174,7 @@ const enCanviar = () => carrega()
 onMounted(async () => {
   await carrega()
   interval = setInterval(carrega, 60000)
-  window.addEventListener('cril:canvi-dades', enCanviar)
+  window.addEventListener('crt:canvi-dades', enCanviar)
   // La primera vegada que s'entra, el recorregut comença sol.
   let vist = true
   try { vist = !!localStorage.getItem(CLAU_VIST) } catch (e) {}
@@ -182,7 +182,7 @@ onMounted(async () => {
 })
 onUnmounted(() => {
   clearInterval(interval)
-  window.removeEventListener('cril:canvi-dades', enCanviar)
+  window.removeEventListener('crt:canvi-dades', enCanviar)
   document.querySelectorAll('.tr-marcat').forEach(el => el.classList.remove('tr-marcat'))
 })
 
