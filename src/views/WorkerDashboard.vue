@@ -103,12 +103,14 @@
               <p class="text-small text-muted" style="margin:0 0 6px;">Dies que ja et compten:</p>
               <div v-for="l in logsHoresComptades" :key="'c' + l.id" class="text-small" style="padding:6px 0;border-top:1px solid var(--color-border-light);">
                 <strong>{{ formatDateFull(l.date) }}</strong> · <span style="color:var(--color-success);font-weight:600;">{{ formatHM(l.extra_hours_authorized) }} comptades</span>
+                <div class="text-muted" style="margin-top:2px;">{{ franjaDeMes(l) }}</div>
               </div>
             </template>
             <template v-if="logsWithUnauthorized.length">
               <p class="text-small text-muted" :style="{ margin: logsHoresComptades.length ? '12px 0 8px' : '0 0 8px' }">Aquests dies tens temps de més que encara no compta. Si RRHH te l'autoritza, s'hi aplicarà sol.</p>
               <div v-for="l in logsWithUnauthorized" :key="l.id" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--color-border-light);">
-                <span class="text-small"><strong>{{ formatDateFull(l.date) }}</strong> · {{ formatHM(l.extra_hours_unauthorized) }} sense autoritzar</span>
+                <span class="text-small"><strong>{{ formatDateFull(l.date) }}</strong> · {{ formatHM(l.extra_hours_unauthorized) }} sense autoritzar
+                  <div class="text-muted" style="margin-top:2px;">{{ franjaDeMes(l) }}</div></span>
                 <button class="btn btn-outline btn-sm" :disabled="demanantDia === l.id" @click="demanaHoresDia(l)">✋ Demanar-les</button>
               </div>
             </template>
@@ -1188,6 +1190,26 @@ const logsHoresComptades = computed(() => {
   const mes = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' }).slice(0, 7)
   return myWorkLogs.value.filter(l => String(l.date).slice(0, 7) === mes && Number(l.extra_hours_authorized || 0) > 0 && l.status !== 'rejected')
 })
+// Franja de cada dia amb hores de més: els trams fora d'horari (es carreguen només per a aquests dies).
+// Les hores arriben en hora de Madrid sense zona («2026-10-16T19:40:00.000»): es llegeixen del text.
+const tramsForaHorari = reactive({})
+const hhmm = t => String(t || '').slice(11, 16)
+watch(() => [...logsWithUnauthorized.value, ...logsHoresComptades.value].map(l => l.id), async ids => {
+  for (const id of ids) {
+    if (id in tramsForaHorari) continue
+    tramsForaHorari[id] = null
+    try {
+      const trams = await db.getWorkLogSegments(id)
+      tramsForaHorari[id] = (Array.isArray(trams) ? trams : []).filter(t => !t.in_schedule && t.start_time && t.end_time)
+    } catch (e) { tramsForaHorari[id] = [] }
+  }
+}, { immediate: true })
+function franjaDeMes(l) {
+  const dia = `Vas fitxar de ${hhmm(l.start_time)} a ${hhmm(l.end_time)}`
+  const trams = tramsForaHorari[l.id]
+  if (!trams?.length) return dia
+  return `${dia} · fora d'horari: ` + trams.map(t => `${hhmm(t.start_time)}–${hhmm(t.end_time)}`).join(', ')
+}
 const totalSenseAutoritzar = computed(() => logsWithUnauthorized.value.reduce((s, l) => s + Number(l.extra_hours_unauthorized || 0), 0))
 const totalHoresComptades = computed(() => logsHoresComptades.value.reduce((s, l) => s + Number(l.extra_hours_authorized || 0), 0))
 const isFinishing = ref(false)
