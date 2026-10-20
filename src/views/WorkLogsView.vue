@@ -67,8 +67,10 @@
     </div>
 
         <!-- Avís de marge: només RRHH i admin. Informatiu: no bloqueja cap aprovació. -->
-    <div v-if="authStore.canManageStaff && avisosMarge.length" class="wl-marge">
-      ⚠️ <strong>{{ avisosMarge.length }} persona{{ avisosMarge.length === 1 ? '' : 'es' }} porta{{ avisosMarge.length === 1 ? '' : 'en' }} 3 fitxatges o més seguits fora de l'horari (de més o de menys)</strong>
+    <!-- Desplegable i tancat per defecte: amb moltes persones ocupava mitja pantalla. -->
+    <details v-if="authStore.canManageStaff && avisosMarge.length" class="wl-marge">
+      <summary>⚠️ <strong>{{ avisosMarge.length }} {{ avisosMarge.length === 1 ? 'persona porta' : 'persones porten' }} 3 fitxatges o més seguits fora de l'horari (de més o de menys)</strong>
+        <span class="wl-marge-obre">· veure la llista</span></summary>
       <ul>
         <li v-for="a in avisosMarge" :key="a.user_id">
           <strong>{{ a.nom }}</strong>: {{ a.dies }} dies seguits des del {{ dataCurta(a.inici) }}
@@ -77,7 +79,7 @@
           <button type="button" class="btn btn-outline btn-sm" @click="descartaAvisMarge(a)">Descartar</button>
         </li>
       </ul>
-    </div>
+    </details>
 
     <!-- Pendents d'altres mesos: el comptador del menú els suma tots i aquí només es veu el mes triat -->
     <div v-if="authStore.isStaff && altresMesosPendents.length" class="wl-altres-mesos">
@@ -673,6 +675,9 @@ function statusBadge(s) { return { 'badge-pending': s === 'pending', 'badge-succ
 <style scoped>
 /* Jornada tancada un altre dia (sortida oblidada): s'ha de veure d'un cop d'ull. */
 .wl-marge { margin-bottom: 12px; padding: 10px 14px; border-radius: 12px; background: #FFF7E6; border: 1px solid #F5C77E; color: #7A4B00; font-size: .86rem; }
+.wl-marge summary { cursor: pointer; }
+.wl-marge[open] .wl-marge-obre { display: none; }
+.wl-marge-obre { font-size: .8rem; text-decoration: underline; }
 .wl-marge ul { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
 .wl-marge li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .sortida-altre-dia { margin-top: 3px; font-size: .74rem; font-weight: 700; color: var(--color-danger, #B3352F); white-space: nowrap; }
