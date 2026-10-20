@@ -338,8 +338,8 @@ onMounted(() => {
   // Després d'aprovar, rebutjar o demanar alguna cosa, es torna a comptar de seguida (agrupant els canvis seguits).
   let espera = null
   const enCanviar = () => { clearTimeout(espera); espera = setTimeout(fetchCounts, 600) }
-  window.addEventListener('cril:canvi-dades', enCanviar)
+  window.addEventListener('crt:canvi-dades', enCanviar)
   const treuRuta = router.afterEach(() => enCanviar())
-  onUnmounted(() => { clearInterval(interval); clearTimeout(espera); window.removeEventListener('cril:canvi-dades', enCanviar); treuRuta() })
+  onUnmounted(() => { clearInterval(interval); clearTimeout(espera); window.removeEventListener('crt:canvi-dades', enCanviar); treuRuta() })
 })
 </script>

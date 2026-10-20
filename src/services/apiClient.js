@@ -156,7 +156,7 @@ export async function apiRequest(endpoint, options = {}) {
 
   // Un canvi fet amb èxit (aprovar, rebutjar, demanar un permís…): el menú torna a comptar els pendents.
   if (options.method && options.method !== 'GET') {
-    window.dispatchEvent(new CustomEvent('cril:canvi-dades'))
+    window.dispatchEvent(new CustomEvent('crt:canvi-dades'))
   }
 
   // Handle 204 No Content

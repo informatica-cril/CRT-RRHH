@@ -85,7 +85,7 @@ onMounted(async () => {
 .safata { padding: 4px 0; }
 .sf-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
 .sf-head > div { flex: 1; }
-.sf-tot { background: var(--color-navy, #0A2A4A); color: #fff; border-radius: 12px; padding: 10px 18px; font-weight: 800; white-space: nowrap; }
+.sf-tot { background: var(--color-primary-dark); color: #fff; border-radius: 12px; padding: 10px 18px; font-weight: 800; white-space: nowrap; }
 .sf-tot b { font-size: 1.5rem; margin-right: 6px; font-variant-numeric: tabular-nums; }
 .sf-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-top: 14px; }
 .sf-card { background: var(--color-surface, #fff); border: 1px solid var(--color-border, #DCE4EE); border-left: 5px solid #cfd8e3; border-radius: 14px; padding: 16px; display: flex; gap: 14px; align-items: flex-start; text-decoration: none; color: inherit; transition: box-shadow .15s; min-height: 60px; }

@@ -1244,7 +1244,7 @@ const entrada = (nom, ajuda, to, icona, color, extra = {}) => ({ nom, ajuda, to,
 const seccionsMenu = computed(() => [
   { titol: 'Avui', entrades: [
     entrada("Safata d'avisos", 'Coses que et demanen o que has de saber', '/worker/safata', 'safata', '#B3352F'),
-    entrada('Missatges', 'Parla amb RRHH o amb el teu equip', '/worker/chat', 'xat', '#094E8C'),
+    entrada('Missatges', 'Parla amb RRHH o amb el teu equip', '/worker/chat', 'xat', '#00806C'),
   ] },
   { titol: 'El meu temps', entrades: [
     entrada('Calendari i horari', 'El teu horari, els festius i les teves vacances', '/worker/calendar', 'calendari', '#1d5fbf'),
@@ -1255,7 +1255,7 @@ const seccionsMenu = computed(() => [
   { titol: 'Els meus papers', entrades: [
     entrada('Les meves nòmines', 'Descarrega les teves nòmines', '/worker/payrolls', 'euro', '#0A7C5E'),
     entrada('Documents per llegir i signar', "Contractes i documents que t'envia l'empresa", '/worker/documents', 'full', '#c2570c'),
-    entrada("Biblioteca de l'empresa", 'Protocols, guies i formacions', '/worker/biblioteca', 'llibre', '#094E8C'),
+    entrada("Biblioteca de l'empresa", 'Protocols, guies i formacions', '/worker/biblioteca', 'llibre', '#00806C'),
   ] },
   { titol: 'Ajuda', entrades: [
     entrada('Tinc un problema', "Explica a RRHH què passa (un fitxatge malament, un dubte…)", '/worker/incidencia', 'avis', '#d97706'),
@@ -1263,7 +1263,7 @@ const seccionsMenu = computed(() => [
   ] },
   { titol: 'Més', entrades: [
     entrada('El meu rendiment', 'Com et va la feina, segons els indicadors', '/worker/rendiment', 'grafic', '#1d5fbf'),
-    ...(esRepresentant.value ? [entrada('Hores de comitè', 'Les hores que fas com a representant', '/worker/comite', 'rellotge', '#094E8C')] : []),
+    ...(esRepresentant.value ? [entrada('Hores de comitè', 'Les hores que fas com a representant', '/worker/comite', 'rellotge', '#00806C')] : []),
     ...(teApps.value ? [entrada('Les meves apps', "Entra a les altres aplicacions de l'empresa", '/portal', 'apps', '#0A7C5E')] : []),
   ] },
   { titol: 'El meu compte', entrades: [
@@ -1838,7 +1838,7 @@ const estatExtra = computed(() => {
   return { to: 'cap', text: "Sense autorització: aquest temps no comptarà fins que s'autoritzi." }
 })
 
-const clauCodi = () => workLogStore.currentLog?.id ? `cril_codi_extra_${workLogStore.currentLog.id}` : null
+const clauCodi = () => workLogStore.currentLog?.id ? `crt_codi_extra_${workLogStore.currentLog.id}` : null
 function desaCodiExtra(c) {
   codiExtra.value = c
   const k = clauCodi()
@@ -1973,7 +1973,7 @@ async function finalitzaDesDeAvis() {
 async function aplicaCodiExtra(logId) {
   const c = codiExtra.value
   codiExtra.value = null
-  try { localStorage.removeItem(`cril_codi_extra_${logId}`) } catch (e) {}
+  try { localStorage.removeItem(`crt_codi_extra_${logId}`) } catch (e) {}
   if (!c || !logId) return
   try {
     workLogStore.logs = await db.getWorkLogsByUser(authStore.userId)

@@ -1421,7 +1421,7 @@ const DESC_ROL = {
   hr: 'Gestiona la plantilla: fitxes, horaris, zones, fitxatges i permisos.',
   admin: "Control total de l'aplicació, també la configuració i qui és Superior.",
 }
-const form = reactive({ retribucio_pct: '', role: 'worker', entitat: 'CRIL', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: '', specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
+const form = reactive({ retribucio_pct: '', role: 'worker', entitat: 'CRT', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: '', specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
 // Previsualitza el mòdul del % que s'està escrivint.
 let tempsModul = null
 watch(nouPct, (pct) => {
@@ -1627,7 +1627,7 @@ async function openEditModal(user) {
         fitxatgeAutomatic.value = !!full.fitxatge_automatic
       } catch (e) { /* es queda buit */ }
   } else {
-    Object.assign(form, { retribucio_pct: '', role: 'worker', entitat: 'CRIL', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: new Date().toISOString().split('T')[0], specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
+    Object.assign(form, { retribucio_pct: '', role: 'worker', entitat: 'CRT', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: new Date().toISOString().split('T')[0], specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
     showEditModal.value = true
   }
 }
