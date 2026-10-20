@@ -87,14 +87,21 @@
           </div>
 
           <!-- Hores de més: les autoritzacions s'apliquen soles (RRHH, 20-10-2026); ja no s'escriu cap codi. -->
-          <div v-if="logsWithUnauthorized.length || autoritzacionsVigents.length" class="card mt-lg" style="border-left:4px solid var(--color-warning);">
+          <div v-if="logsWithUnauthorized.length || autoritzacionsVigents.length || logsHoresComptades.length" class="card mt-lg" style="border-left:4px solid var(--color-warning);">
             <h3 class="card-title mb-md">⏱ Hores de més</h3>
             <div v-for="c in autoritzacionsVigents" :key="c.id" class="text-small" style="padding:8px 10px;border-radius:8px;background:rgba(13,175,131,.08);margin-bottom:8px;">
               ✔ Tens <strong>{{ formatHM(c.authorized_hours) }}</strong> {{ c.type === 'extraordinaria' ? 'extraordinàries' : 'complementàries' }} autoritzades
               del {{ formatDate(c.valid_from) }} al {{ formatDate(c.valid_to) }}. S'apliquen soles als teus fitxatges d'aquells dies.
             </div>
+            <!-- Les que ja compten (autoritzades), perquè la persona vegi què se li paga de més aquest mes. -->
+            <template v-if="logsHoresComptades.length">
+              <p class="text-small" style="margin:0 0 6px;">✔ Aquest mes et compten <strong>{{ formatHM(totalHoresComptades) }}</strong> de més:</p>
+              <div v-for="l in logsHoresComptades" :key="'c' + l.id" class="text-small" style="padding:6px 0;border-top:1px solid var(--color-border-light);">
+                <strong>{{ formatDateFull(l.date) }}</strong> · <span style="color:var(--color-success);font-weight:600;">{{ formatHM(l.extra_hours_authorized) }} comptades</span>
+              </div>
+            </template>
             <template v-if="logsWithUnauthorized.length">
-              <p class="text-small text-muted" style="margin:0 0 8px;">Aquests dies tens temps de més que encara no compta. Si RRHH te l'autoritza, s'hi aplicarà sol.</p>
+              <p class="text-small text-muted" :style="{ margin: logsHoresComptades.length ? '12px 0 8px' : '0 0 8px' }">Aquests dies tens temps de més que encara no compta. Si RRHH te l'autoritza, s'hi aplicarà sol.</p>
               <div v-for="l in logsWithUnauthorized" :key="l.id" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--color-border-light);">
                 <span class="text-small"><strong>{{ formatDateFull(l.date) }}</strong> · {{ formatHM(l.extra_hours_unauthorized) }} sense autoritzar</span>
                 <button class="btn btn-outline btn-sm" :disabled="demanantDia === l.id" @click="demanaHoresDia(l)">✋ Demanar-les</button>
@@ -1171,6 +1178,12 @@ async function demanaHoresDia(l) {
   }
 }
 const logsWithUnauthorized = computed(() => myWorkLogs.value.filter(l => (l.extra_hours_unauthorized || 0) > 0))
+// Hores de més autoritzades (ja compten) del mes en curs.
+const logsHoresComptades = computed(() => {
+  const mes = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' }).slice(0, 7)
+  return myWorkLogs.value.filter(l => String(l.date).slice(0, 7) === mes && Number(l.extra_hours_authorized || 0) > 0 && l.status !== 'rejected')
+})
+const totalHoresComptades = computed(() => logsHoresComptades.value.reduce((s, l) => s + Number(l.extra_hours_authorized || 0), 0))
 const isFinishing = ref(false)
 
 const permissionUsage = ref({})
