@@ -15,6 +15,12 @@ class AvisMargeController extends Controller
         return response() ->json(AvisMarge::llista());
     }
 
+    /** GET /api/v1/el-meu-avis-marge — el treballador veu si porta 3 fitxatges seguits fora d'horari. */
+    public function meu(Request $request)
+    {
+        return response()->json(['avis' => AvisMarge::llista($request->user()->id)[0] ?? null]);
+    }
+
     public function descarta(Request $request, User $user)
     {
         $data = $request->validate(['inici' => 'required|date_format:Y-m-d' ]);

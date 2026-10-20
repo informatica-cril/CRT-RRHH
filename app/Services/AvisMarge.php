@@ -17,7 +17,11 @@ final class AvisMarge
     /** Fitxatges seguits fora d'horari perquè surti l'avís. */
     public const DIES_RATXA = 3;
 
-    public static function llista(): array
+    /**
+     * Sense $userId, la llista de RRHH (sense els avisos descartats). Amb $userId, només aquella
+     * persona i encara que RRHH l'hagi descartat: és el que veu el treballador a la seva app.
+     */
+    public static function llista(?int $userId = null): array
     {
         $des = now('Europe/Madrid')->subDays(60)->toDateString();
         $descartats = DB::table('avisos_marge_descartats')->get()
@@ -26,9 +30,10 @@ final class AvisMarge
         $avisos = [];
         WorkLog::with('user.workSchedule')
             ->where('date', '>=', $des)->whereNotNull('end_time')->where('status', '!=', 'rejected')
+            ->when($userId, fn ($q) => $q->where('user_id', $userId))
             ->orderBy('date', 'desc')->get()
             ->groupBy('user_id')
-            ->each(function ($logs) use ($descartats, &$avisos) {
+            ->each(function ($logs) use ($descartats, $userId, &$avisos) {
                 $ratxa = [];
                 foreach ($logs as $log) {                       // del més recent al més antic
                     $us = self::desviacio($log);
@@ -40,7 +45,7 @@ final class AvisMarge
                 $inici = Carbon::parse(end($ratxa)['dia']);
                 if ($fi->lt(now('Europe/Madrid')->subDays(7)->startOfDay())) return;   // ratxa antiga
                 if (count($ratxa) < self::DIES_RATXA) return;                          // encara no són 3 seguits
-                if ($descartats->has($logs->first()->user_id . '|' . $inici->toDateString())) return;
+                if (! $userId && $descartats->has($logs->first()->user_id . '|' . $inici->toDateString())) return;
 
                 $avisos[] = [
                     'user_id' => $logs->first()->user_id,

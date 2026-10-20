@@ -124,6 +124,22 @@ class AvisMargeTest extends TestCase
         $this->assertFalse($this->avisos()->has($w->id));
     }
 
+    public function test_el_treballador_veu_el_seu_avis_encara_que_rrhh_l_hagi_descartat(): void
+    {
+        $w = $this->treballadora();
+        $this->jornades($w, '08:08', '15:00');
+        $puntual = $this->treballadora('Puntual');
+        $this->jornades($puntual, '08:00', '15:00');
+
+        Sanctum::actingAs($this->gestio('hr'));
+        $this->postJson("/api/v1/avisos-marge/{$w->id}/descarta", ['inici' => '2026-09-28'])->assertOk();
+
+        Sanctum::actingAs($w);
+        $this->getJson('/api/v1/el-meu-avis-marge')->assertOk()->assertJson(['avis' => ['user_id' => $w->id, 'entrades_tard' => 15]]);
+        Sanctum::actingAs($puntual);
+        $this->assertNull($this->getJson('/api/v1/el-meu-avis-marge')->assertOk()->json('avis'));
+    }
+
     public function test_coordinacio_i_treballadors_no_ho_veuen(): void
     {
         Sanctum::actingAs($this->gestio('coordinator'));
