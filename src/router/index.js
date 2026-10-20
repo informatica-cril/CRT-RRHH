@@ -23,6 +23,13 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true }
   },
   {
+    // Tauler senzill de RRHH (és el seu Inici); aquí perquè administració també el pugui veure.
+    path: '/tauler',
+    name: 'tauler',
+    component: () => import('../components/TaulerRrhh.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
     // Safata de pendents — visible per a staff (admin/hr/coordinator)
     path: '/safata',
     name: 'safata',

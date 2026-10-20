@@ -1403,8 +1403,10 @@ async function fetchData() {
 }
 
 // ?obre=<id> (des del cercador de la capçalera): obre directament la fitxa d'aquella persona.
+// ?obre=nou (des del tauler de RRHH): obre la fitxa buida per donar d'alta algú.
 const route = useRoute()
 async function obreDesDeRuta() {
+  if (route.query.obre === 'nou') { openEditModal(null); return }
   const id = Number(route.query.obre)
   if (!id) return
   const u = workers.value.find(w => w.id === id) || await db.getUser(id).catch(() => null)

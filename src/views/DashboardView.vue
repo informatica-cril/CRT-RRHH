@@ -1,11 +1,13 @@
 <template>
-  <div>
+  <TaulerRrhh v-if="authStore.isHr && activeTab !== 'menu'" />
+  <div v-else>
     <div class="page-header" v-if="activeTab !== 'menu'">
       <div>
         <h1 class="page-title">Inici</h1>
         <p class="page-subtitle">El resum del dia: què cal revisar avui i com va la plantilla.</p>
       </div>
       <div class="page-actions" v-if="authStore.isAdmin">
+        <button class="btn btn-secondary" @click="$router.push('/tauler')" title="El que veu RRHH quan entra">Veure el tauler de RRHH</button>
         <button class="btn btn-primary" @click="$router.push('/reports')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           {{ t('reports') }}
@@ -392,6 +394,8 @@ import { formatHM } from '../utils/formatHours'
 import { Bar } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js'
 import { diaLocal } from '../utils/diaLocal'
+// RRHH entra al tauler senzill (només el que ha de fer, amb ajuda a cada targeta) en lloc d'aquest resum.
+import TaulerRrhh from '../components/TaulerRrhh.vue'
 
 ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale)
 
