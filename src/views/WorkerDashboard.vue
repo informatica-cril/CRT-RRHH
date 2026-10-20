@@ -78,7 +78,7 @@
           <!-- Today's summary with authorized/unauthorized split -->
           <div class="card mt-lg">
             <h3 class="card-title mb-md">Resum del dia</h3>
-            <div class="stats-grid" style="display:grid;grid-template-columns:repeat(3, 1fr);gap:10px;">
+            <div class="stats-grid" style="display:grid;grid-template-columns:repeat(2, 1fr);gap:10px;">
               <div class="stat-card" style="padding:12px;"><div class="text-small" style="font-weight:600;color:var(--color-text-secondary);">Hores fetes avui</div><div style="font-size:1.5rem;font-weight:700;color:var(--color-primary);margin-top:4px;">{{ todayHours }}</div></div>
               <div class="stat-card" style="padding:12px;"><div class="text-small" style="font-weight:600;color:var(--color-text-secondary);">Hores aquesta setmana</div><div style="font-size:1.5rem;font-weight:700;color:var(--color-accent);margin-top:4px;">{{ weekHours }}</div></div>
               <div class="stat-card" style="padding:12px;border-bottom:3px solid var(--color-success);"><div class="text-small" style="font-weight:600;color:var(--color-success);">✓ Hores extra aprovades aquest mes</div><div style="font-size:1.5rem;font-weight:700;color:var(--color-success);margin-top:4px;">{{ todayAuthorized }}</div></div>
