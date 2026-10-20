@@ -15,7 +15,9 @@ use Illuminate\Support\Facades\DB;
  *   - l'entrada i la sortida cauen a ± el marge (10 min per defecte) d'un inici i d'un final
  *     de tram del seu horari d'aquell dia;
  *   - entrada, sortida i tots els trams són dins de zona;
- *   - no té hores extra (ni codi ni minuts de més) ni és un dia fora de quadrant;
+ *   - no té hores extra (ni codi ni més minuts de més que el marge) ni és un dia fora de quadrant.
+ *     Els minuts de més dins del marge no bloquegen (RRHH, 20-10-2026): queden apuntats sense
+ *     autoritzar (no compten) i es poden acceptar igualment si cal;
  *   - no té cap incidència: alertes obertes, canvis fets a mà o sense GPS, trams rebutjats,
  *     jornada amb fites de domi o pausa obligatòria sense fer.
  * Si en falla una, es queda pendent com fins ara. Els trams curts de fora d'horari que cauen dins
@@ -35,10 +37,11 @@ final class AprovacioAutomatica
         if (! $iniciRaw || ! $fiRaw) return 'sense entrada o sortida';
         if ($log->auto_closed) return 'tancat pel sistema';
         if ($log->out_of_schedule) return 'dia fora de quadrant';
-        if ($log->authorized_extra_code || (float) $log->extra_hours_authorized > 0 || (float) $log->extra_hours_unauthorized > 0) {
+        $extraForaMarge = (float) $log->extra_hours_unauthorized * 60 > $marge + 0.5;
+        if ($log->authorized_extra_code || (float) $log->extra_hours_authorized > 0 || $extraForaMarge) {
             return 'hores extra';
         }
-        if (in_array($log->hour_status, ['extra', 'out_of_area'], true) || (float) $log->hours_out_of_area > 0) {
+        if ($log->hour_status === 'out_of_area' || ($log->hour_status === 'extra' && $extraForaMarge) || (float) $log->hours_out_of_area > 0) {
             return 'hores extra o fora de zona';
         }
         if ($log->start_location_match !== true && $log->start_location_match !== 1) return 'entrada fora de zona';

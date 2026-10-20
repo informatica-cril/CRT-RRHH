@@ -90,6 +90,16 @@ class AprovacioAutomaticaTest extends TestCase
         $this->assertSame('pending', $this->jornada($w, '08:20', '16:00', ['extra_hours_unauthorized' => 0.5])->status);
     }
 
+    public function test_uns_minuts_de_mes_dins_del_marge_no_bloquegen(): void
+    {
+        $w = $this->treballadora();
+        // 10 min de més amb marge de 10: s'aprova; els minuts queden apuntats sense autoritzar.
+        $log = $this->jornada($w, '08:12', '16:08', ['extra_hours_unauthorized' => 0.17, 'hour_status' => 'extra']);
+        $this->assertSame('approved', $log->status);
+        $this->assertEquals(0.17, (float) $log->extra_hours_unauthorized);
+        $this->assertSame('pending', $this->jornada($w, '08:20', '16:00', ['extra_hours_unauthorized' => 0.2])->status);   // 12 min
+    }
+
     public function test_sense_horari_o_amb_l_interruptor_apagat_no_s_aprova(): void
     {
         $sense = User::create(['name' => 'Sense horari', 'email' => 's@test.local', 'password' => bcrypt('x'), 'role' => 'worker', 'active' => true]);
