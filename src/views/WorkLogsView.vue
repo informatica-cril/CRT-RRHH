@@ -68,11 +68,11 @@
 
         <!-- Avís de marge: només RRHH i admin. Informatiu: no bloqueja cap aprovació. -->
     <div v-if="authStore.canManageStaff && avisosMarge.length" class="wl-marge">
-      ⚠️ <strong>{{ avisosMarge.length }} persona{{ avisosMarge.length === 1 ? '' : 'es' }} porta{{ avisosMarge.length === 1 ? '' : 'en' }} 2 setmanes o més fitxant al límit del marge</strong>
+      ⚠️ <strong>{{ avisosMarge.length }} persona{{ avisosMarge.length === 1 ? '' : 'es' }} porta{{ avisosMarge.length === 1 ? '' : 'en' }} 3 fitxatges o més seguits fora de l'horari (de més o de menys)</strong>
       <ul>
         <li v-for="a in avisosMarge" :key="a.user_id">
           <strong>{{ a.nom }}</strong>: {{ a.dies }} dies seguits des del {{ dataCurta(a.inici) }}
-          ({{ a.entrades_tard }} entrades tard, {{ a.sortides_abans }} sortides abans)
+          ({{ resumDesviacio(a) }})
           <button type="button" class="btn btn-outline btn-sm" @click="selectedUser = a.user_id; vista = 'marge'">Veure</button>
           <button type="button" class="btn btn-outline btn-sm" @click="descartaAvisMarge(a)">Descartar</button>
         </li>
@@ -395,7 +395,12 @@ function esLlarg(l) {
   return l.start_time && l.end_time && (new Date(l.end_time) - new Date(l.start_time)) > 14 * 3600 * 1000
 }
 
-// ── Avís: persones que porten 2 setmanes fitxant al límit del marge (només RRHH i admin) ──
+// ── Avís: persones que porten 3 fitxatges seguits fora d'horari, de més o de menys (només RRHH i admin) ──
+function resumDesviacio(a) {
+  return [[a.entrades_tard, 'entrades tard'], [a.sortides_abans, 'sortides abans'],
+    [a.entrades_aviat, "entrades abans d'hora"], [a.sortides_tard, 'sortides més tard']]
+    .filter(([n]) => n > 0).map(([n, t]) => `${n} ${t}`).join(', ')
+}
 const avisosMarge = ref([])
 async function carregaAvisosMarge() {
   if (!authStore.canManageStaff) return
@@ -421,7 +426,7 @@ const filtres = [
   { clau: 'tots', nom: 'Tots', icona: '📋', to: 'neutre', fn: () => true },
   { clau: 'encurs', nom: 'Treballant ara', icona: '🟢', to: 'neutre', fn: l => !l.end_time && diaDe(l) === avui() },  // Qui és treballant ara (va entrar avui) i qui es va deixar la sortida un altre dia, per separat.
   { clau: 'perrevisar', nom: 'Per revisar', icona: '👀', to: 'groc', fn: l => l.status === 'pending' && !!l.end_time },
-  { clau: 'marge', nom: 'Al límit del marge', icona: '⏰', to: 'taronja', fn: l => idsMarge.value.has(l.id) },
+  { clau: 'marge', nom: "Fora d'horari seguit", icona: '⏰', to: 'taronja', fn: l => idsMarge.value.has(l.id) },
   { clau: 'forazona', nom: 'Fora de zona', icona: '📍', to: 'vermell', fn: esForaZona },
   { clau: 'forahorari', nom: "Fora d'horari per revisar", icona: '🕘', to: 'taronja', fn: l => horesForaHorari(l) > 0 },
   { clau: 'extra', nom: 'Hores extra sense aprovar', icona: '⏱', to: 'taronja', fn: l => Number(l.extra_hours_unauthorized || 0) > 0 },
