@@ -12,8 +12,8 @@ use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 /**
- * Avís de marge: qui porta 2 setmanes seguides entrant tard o sortint abans dins del marge
- * surt a la llista de RRHH i admin; un dia puntual talla la ratxa i es pot descartar.
+ * Avís de fora d'horari: qui porta 3 fitxatges seguits entrant o sortint fora de l'horari (de més
+ * o de menys) surt a la llista de RRHH i admin; un dia puntual talla la ratxa i es pot descartar.
  */
 class AvisMargeTest extends TestCase
 {
@@ -84,6 +84,17 @@ class AvisMargeTest extends TestCase
         $this->assertSame(15, $this->avisos()[$abans->id]['sortides_abans']);
     }
 
+    public function test_fitxar_de_mes_tambe_compta(): void
+    {
+        $mes = $this->treballadora('De més');
+        $this->jornades($mes, '07:30', '16:10');   // entra abans i surt més tard, molt més que el marge
+
+        Sanctum::actingAs($this->gestio('hr'));
+        $a = $this->avisos()[$mes->id];
+        $this->assertSame(15, $a['entrades_aviat']);
+        $this->assertSame(15, $a['sortides_tard']);
+    }
+
     public function test_qui_es_puntual_no_surt(): void
     {
         $puntual = $this->treballadora('Puntual');
@@ -96,7 +107,7 @@ class AvisMargeTest extends TestCase
     public function test_un_dia_puntual_fa_poc_talla_la_ratxa(): void
     {
         $w = $this->treballadora();
-        $this->jornades($w, '08:08', '15:00', ['2026-10-12']);   // només 4 dies seguits des d'aleshores
+        $this->jornades($w, '08:08', '15:00', ['2026-10-15']);   // només 1 dia seguit des d'aleshores
 
         Sanctum::actingAs($this->gestio('hr'));
         $this->assertFalse($this->avisos()->has($w->id));
