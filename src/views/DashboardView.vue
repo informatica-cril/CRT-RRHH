@@ -391,6 +391,7 @@ import { i18n } from '../i18n'
 import { formatHM } from '../utils/formatHours'
 import { Bar } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js'
+import { diaLocal } from '../utils/diaLocal'
 
 ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale)
 
@@ -525,7 +526,7 @@ async function fetchAnalyticsData() {
      dataExt.push(Number(totalExt).toFixed(1))
      
      // Absences
-     const totalAbs = allAbsences.filter(a => a.start_date && a.start_date.substring(0, 7) === mStr).length
+     const totalAbs = allAbsences.filter(a => a.start_date && diaLocal(a.start_date).substring(0, 7) === mStr).length
      dataAbs.push(totalAbs)
   }
   

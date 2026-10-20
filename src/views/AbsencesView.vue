@@ -152,6 +152,7 @@ import { useAuthStore } from '../stores/auth'
 import { db } from '../services/db'
 import { auditLog } from '../services/audit'
 import { i18n } from '../i18n'
+import { diaLocal } from '../utils/diaLocal'
 
 const authStore = useAuthStore()
 const t = (key) => i18n.t(key)
@@ -256,7 +257,7 @@ const recomptes = computed(() => Object.fromEntries(FILTRES.map(f => [f.clau, am
 const llista = computed(() => ambCerca.value.filter((FILTRES.find(f => f.clau === filtre.value) || FILTRES[3]).fn))
 // Si en entrar no hi ha res per resoldre, es mostren totes: una pantalla buida fa pensar que no hi ha dades.
 watch(absences, () => { if (filtre.value === 'pendents' && !recomptes.value.pendents) filtre.value = 'totes' }, { once: true })
-const dia = (d) => String(d).slice(0, 10)
+const dia = diaLocal
 const diesNaturals = (a) => Math.round((new Date(dia(a.end_date)) - new Date(dia(a.start_date))) / 86400000) + 1
 
 async function createAbsence() {
