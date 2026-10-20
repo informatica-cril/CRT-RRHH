@@ -94,8 +94,13 @@
               del {{ formatDate(c.valid_from) }} al {{ formatDate(c.valid_to) }}. S'apliquen soles als teus fitxatges d'aquells dies.
             </div>
             <!-- Les que ja compten (autoritzades), perquè la persona vegi què se li paga de més aquest mes. -->
+            <!-- Resum del mes, sempre visible: el que ja compta i el que encara no. -->
+            <div class="text-small" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+              <span style="padding:4px 10px;border-radius:99px;background:rgba(13,175,131,.1);color:var(--color-success);font-weight:600;">✔ Aquest mes et compten {{ formatHM(totalHoresComptades) }} de més</span>
+              <span v-if="totalSenseAutoritzar > 0" style="padding:4px 10px;border-radius:99px;background:rgba(245,158,11,.12);color:#92400E;font-weight:600;">⏳ {{ formatHM(totalSenseAutoritzar) }} encara sense autoritzar</span>
+            </div>
             <template v-if="logsHoresComptades.length">
-              <p class="text-small" style="margin:0 0 6px;">✔ Aquest mes et compten <strong>{{ formatHM(totalHoresComptades) }}</strong> de més:</p>
+              <p class="text-small text-muted" style="margin:0 0 6px;">Dies que ja et compten:</p>
               <div v-for="l in logsHoresComptades" :key="'c' + l.id" class="text-small" style="padding:6px 0;border-top:1px solid var(--color-border-light);">
                 <strong>{{ formatDateFull(l.date) }}</strong> · <span style="color:var(--color-success);font-weight:600;">{{ formatHM(l.extra_hours_authorized) }} comptades</span>
               </div>
@@ -1183,6 +1188,7 @@ const logsHoresComptades = computed(() => {
   const mes = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' }).slice(0, 7)
   return myWorkLogs.value.filter(l => String(l.date).slice(0, 7) === mes && Number(l.extra_hours_authorized || 0) > 0 && l.status !== 'rejected')
 })
+const totalSenseAutoritzar = computed(() => logsWithUnauthorized.value.reduce((s, l) => s + Number(l.extra_hours_unauthorized || 0), 0))
 const totalHoresComptades = computed(() => logsHoresComptades.value.reduce((s, l) => s + Number(l.extra_hours_authorized || 0), 0))
 const isFinishing = ref(false)
 
