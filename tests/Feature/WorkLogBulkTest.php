@@ -163,4 +163,54 @@ class WorkLogBulkTest extends TestCase
         $this->postJson('/api/v1/work-logs/aprova-seleccionats', ['ids' => [$id]])->assertForbidden();
         $this->assertDatabaseHas('work_logs', ['id' => $id, 'status' => 'pending']);
     }
+
+    public function test_rebutja_nomes_els_pendents_amb_el_motiu(): void
+    {
+        $t = $this->usuari('worker');
+        $pendent = $this->fitxatge($t, 'pending');
+        $aprovat = $this->fitxatge($t, 'approved');
+
+        Sanctum::actingAs($this->usuari('hr'));
+        $this->postJson('/api/v1/work-logs/rebutja-seleccionats', ['ids' => [$pendent, $aprovat], 'motiu' => 'Fitxatge duplicat'])
+            ->assertOk()->assertJson(['rebutjats' => 1, 'omesos' => 1]);
+
+        $this->assertDatabaseHas('work_logs', ['id' => $pendent, 'status' => 'rejected', 'rejection_reason' => 'Fitxatge duplicat']);
+        $this->assertDatabaseHas('work_logs', ['id' => $aprovat, 'status' => 'approved']);
+        $this->assertSame(1, DB::table('work_log_modifications')->where('action', 'rejected')->count());
+    }
+
+    public function test_rebutjar_demana_motiu(): void
+    {
+        $id = $this->fitxatge($this->usuari('worker'), 'pending');
+
+        Sanctum::actingAs($this->usuari('hr'));
+        $this->postJson('/api/v1/work-logs/rebutja-seleccionats', ['ids' => [$id], 'motiu' => 'no'])->assertStatus(422);
+        $this->assertDatabaseHas('work_logs', ['id' => $id, 'status' => 'pending']);
+    }
+
+    public function test_tornar_a_revisar_torna_a_pendent_els_resolts(): void
+    {
+        $t = $this->usuari('worker');
+        $aprovat = $this->fitxatge($t, 'approved');
+        $rebutjat = $this->fitxatge($t, 'rejected');
+        $pendent = $this->fitxatge($t, 'pending');
+
+        Sanctum::actingAs($this->usuari('hr'));
+        $this->postJson('/api/v1/work-logs/reobre-seleccionats', ['ids' => [$aprovat, $rebutjat, $pendent], 'motiu' => 'No quadra amb el quadrant'])
+            ->assertOk()->assertJson(['reoberts' => 2, 'omesos' => 1]);
+
+        foreach ([$aprovat, $rebutjat, $pendent] as $id) {
+            $this->assertDatabaseHas('work_logs', ['id' => $id, 'status' => 'pending']);
+        }
+        $this->assertSame(2, DB::table('work_log_modifications')->where('comment', 'like', 'Fitxatge reobert%')->count());
+    }
+
+    public function test_coordinacio_no_pot_tornar_a_revisar(): void
+    {
+        $id = $this->fitxatge($this->usuari('worker'), 'approved');
+
+        Sanctum::actingAs($this->usuari('coordinator'));
+        $this->postJson('/api/v1/work-logs/reobre-seleccionats', ['ids' => [$id], 'motiu' => 'No quadra amb el quadrant'])->assertForbidden();
+        $this->assertDatabaseHas('work_logs', ['id' => $id, 'status' => 'approved']);
+    }
 }

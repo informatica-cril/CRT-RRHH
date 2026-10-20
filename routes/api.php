@@ -288,6 +288,9 @@ Route::prefix('v1')->group(function () {
             // Acceptar les hores de més d'un fitxatge (p. ex. ha cobert un torn): RRHH i admin.
             Route::post('{workLog}/accepta-hores-de-mes', [\App\Http\Controllers\Api\AuthCodeController::class, 'acceptaHoresDeMes'])->middleware('role:admin,hr');
             Route::post('aprova-seleccionats', [\App\Http\Controllers\Api\WorkLogBulkController::class, 'aprova'])->middleware('role:admin,coordinator,hr');
+            // Rebutjar una selecció (com el botó «Rebutjar» de cada fila) i tornar-la a revisar (RRHH i admin).
+            Route::post('rebutja-seleccionats', [\App\Http\Controllers\Api\WorkLogBulkController::class, 'rebutja'])->middleware('role:admin,coordinator,hr');
+            Route::post('reobre-seleccionats', [\App\Http\Controllers\Api\WorkLogBulkController::class, 'reobre'])->middleware('role:admin,hr');
             // «Aprovar tots els correctes»: els pendents que compleixen la regla d'aprovació automàtica.
             Route::post('aprova-correctes', [\App\Http\Controllers\Api\AprovacioAutomaticaController::class, 'aprovaCorrectes'])->middleware('role:admin,coordinator,hr');
             // «Revisar de nou»: RRHH i admin tornen a pendent un fitxatge ja resolt (p. ex. per coordinació).

@@ -87,13 +87,18 @@
       </button>
     </div>
 
-    <!-- Aprovació conjunta: apareix quan hi ha fitxatges seleccionats -->
+    <!-- Accions conjuntes: apareixen quan hi ha fitxatges seleccionats -->
     <div v-if="ambCaselles && seleccionats.length" class="wl-seleccio">
       <strong>{{ seleccionats.length }}</strong> fitxatge{{ seleccionats.length === 1 ? '' : 's' }} seleccionat{{ seleccionats.length === 1 ? '' : 's' }}
-      <span class="text-small">· s'aprovaran tal com estan, encara que tinguin coses per revisar</span>
-      <button type="button" class="btn btn-success btn-sm" :disabled="aprovant" @click="aprovaSeleccionats">
-        {{ aprovant ? 'Aprovant…' : '✅ Aprovar seleccionats' }}
-      </button>
+      <template v-if="selPendents.length">
+        <button type="button" class="btn btn-success btn-sm" :disabled="aprovant" @click="aprovaSeleccionats"
+          title="S'aproven tal com estan, encara que tinguin coses per revisar">
+          {{ aprovant ? 'Aprovant…' : `✅ Aprovar (${selPendents.length})` }}
+        </button>
+        <button type="button" class="btn btn-danger btn-sm" :disabled="aprovant" @click="rebutjaSeleccionats">❌ Rebutjar ({{ selPendents.length }})</button>
+      </template>
+      <button v-if="selResolts.length && authStore.canManageStaff" type="button" class="btn btn-outline btn-sm" :disabled="aprovant" @click="reobreSeleccionats"
+        title="Tornen a «Pendent» per revisar-los una altra vegada">↺ Tornar a revisar ({{ selResolts.length }})</button>
       <button type="button" class="btn btn-outline btn-sm" @click="seleccionats = []">Treure la selecció</button>
     </div>
 
@@ -104,7 +109,7 @@
             <tr>
               <th v-if="ambCaselles" class="wl-check">
                 <input type="checkbox" :checked="totsSeleccionats" :indeterminate.prop="seleccionats.length > 0 && !totsSeleccionats"
-                  :disabled="!pendentsVisibles.length" title="Seleccionar tots els pendents visibles" @change="seleccionaTots($event.target.checked)" />
+                  :disabled="!pendentsVisibles.length" title="Seleccionar tots els fitxatges visibles" @change="seleccionaTots($event.target.checked)" />
               </th>
               <th v-for="c in columnes" :key="c.clau" v-show="c.clau !== 'treballador' || authStore.isStaff"
                 class="th-ord" :class="{ actiu: ordre.col === c.clau }" :aria-sort="ordre.col === c.clau ? (ordre.dir === 'asc' ? 'ascending' : 'descending') : 'none'"
@@ -118,7 +123,7 @@
           <tbody>
             <tr v-for="log in filteredLogs" :key="log.id" :class="{ 'wl-fila-sel': seleccionats.includes(log.id) }">
               <td v-if="ambCaselles" class="wl-check">
-                <input v-if="log.status === 'pending'" type="checkbox" :value="log.id" v-model="seleccionats" :title="'Seleccionar per aprovar'" />
+                <input v-if="seleccionable(log)" type="checkbox" :value="log.id" v-model="seleccionats" title="Seleccionar" />
               </td>
               <td v-if="authStore.isStaff">{{ getUserName(log.user_id) }}</td>
               <td>{{ formatDate(log.date) }}</td>
@@ -447,10 +452,16 @@ watch(modeAprovar, m => {
   seleccionats.value = []
   try { localStorage.setItem(CLAU_MODE, m) } catch { /* sense emmagatzematge: només aquesta visita */ }
 })
-const ambCaselles = computed(() => authStore.isStaff && (modeAprovar.value === 'manual' || !confAuto.value))
+// Les caselles hi són sempre: amb la selecció es pot aprovar, rebutjar o tornar a revisar.
+const ambCaselles = computed(() => authStore.isStaff)
 const seleccionats = ref([])
 const aprovant = ref(false)
-const pendentsVisibles = computed(() => filteredLogs.value.filter(l => l.status === 'pending').map(l => l.id))
+// Pendents: aprovar o rebutjar. Resolts: tornar a revisar (només RRHH i admin, com el botó de cada fila).
+const seleccionable = (l) => l.status === 'pending' || authStore.canManageStaff
+const pendentsVisibles = computed(() => filteredLogs.value.filter(seleccionable).map(l => l.id))
+const estatDe = (id) => workLogStore.logs.find(l => l.id === id)?.status
+const selPendents = computed(() => seleccionats.value.filter(id => estatDe(id) === 'pending'))
+const selResolts = computed(() => seleccionats.value.filter(id => estatDe(id) && estatDe(id) !== 'pending'))
 const totsSeleccionats = computed(() => pendentsVisibles.value.length > 0 && pendentsVisibles.value.every(id => seleccionats.value.includes(id)))
 function seleccionaTots(marcat) {
   seleccionats.value = marcat ? [...pendentsVisibles.value] : []
@@ -458,16 +469,52 @@ function seleccionaTots(marcat) {
 // Canviar de mes, persona o vista buida la selecció: no s'han d'aprovar fitxatges que ja no es veuen.
 watch([selectedMonth, selectedUser, vista], () => { seleccionats.value = [] })
 async function aprovaSeleccionats() {
-  const n = seleccionats.value.length
+  const n = selPendents.value.length
   if (!await confirma(`Aprovar ${n} fitxatge${n === 1 ? '' : 's'}?`)) return
   aprovant.value = true
   try {
-    const r = await api.post('/v1/work-logs/aprova-seleccionats', { ids: seleccionats.value })
+    const r = await api.post('/v1/work-logs/aprova-seleccionats', { ids: selPendents.value })
     seleccionats.value = []
     await workLogStore.loadLogs()
     if (r?.omesos) alert(`${r.aprovats} aprovats. ${r.omesos} ja no eren pendents i no s'han tocat.`)
   } catch (e) {
     alert(e?.message || "No s'han pogut aprovar.")
+  } finally {
+    aprovant.value = false
+  }
+}
+
+async function rebutjaSeleccionats() {
+  const n = selPendents.value.length
+  const motiu = await demana(`Per què es rebutgen ${n} fitxatge${n === 1 ? '' : 's'}? (mínim 5 caràcters)
+El motiu el veurà cada persona.`, { frases: 'rebuig_fitxatge' })
+  if (motiu === null) return
+  if (motiu.trim().length < 5) return alert("Cal un motiu d'almenys 5 caràcters.")
+  aprovant.value = true
+  try {
+    const r = await api.post('/v1/work-logs/rebutja-seleccionats', { ids: selPendents.value, motiu: motiu.trim() })
+    seleccionats.value = []
+    await workLogStore.loadLogs()
+    if (r?.omesos) alert(`${r.rebutjats} rebutjats. ${r.omesos} ja no eren pendents i no s'han tocat.`)
+  } catch (e) {
+    alert(e?.message || "No s'han pogut rebutjar.")
+  } finally {
+    aprovant.value = false
+  }
+}
+async function reobreSeleccionats() {
+  const n = selResolts.value.length
+  const motiu = await demana(`Per què cal revisar de nou ${n} fitxatge${n === 1 ? '' : 's'}? (mínim 10 caràcters)
+Quedarà registrat a la traçabilitat.`, { frases: 'revisar_de_nou' })
+  if (motiu === null) return
+  if (motiu.trim().length < 10) return alert("Cal un motiu d'almenys 10 caràcters.")
+  aprovant.value = true
+  try {
+    await api.post('/v1/work-logs/reobre-seleccionats', { ids: selResolts.value, motiu: motiu.trim() })
+    seleccionats.value = []
+    await workLogStore.loadLogs()
+  } catch (e) {
+    alert(e?.message || "No s'han pogut tornar a revisar.")
   } finally {
     aprovant.value = false
   }
