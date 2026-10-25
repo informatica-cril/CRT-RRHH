@@ -1,0 +1,1 @@
+function i(n){if(!n)return"";const t=String(n);if(t.length<=10)return t;const e=new Date(t);if(isNaN(e))return t.slice(0,10);const r=a=>String(a).padStart(2,"0");return`${e.getFullYear()}-${r(e.getMonth()+1)}-${r(e.getDate())}`}export{i as d};
