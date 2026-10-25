@@ -102,13 +102,43 @@ class WorkLogCorreccioTest extends TestCase
         $this->corregeix($log, ['start_time' => '2026-10-02 08:20', 'end_time' => '2026-10-02 16:00', 'motiu' => 'No va fitxar la sortida'])->assertOk();
 
         $log->refresh();
-        $this->assertSame('ok', $log->hour_status);
+        // 16:00 en un divendres que acaba a les 15:00: 1 h de més, però ja no «en curs».
+        $this->assertSame('extra', $log->hour_status);
+        $this->assertEquals(1.0, (float) $log->extra_hours_unauthorized);
         $this->assertEquals(6.67, (float) $log->effective_hours);
         $trams = WorkLogSegment::where('work_log_id', $log->id)->get();
         $this->assertSame(460, (int) $trams->sum('duration_minutes'));
         $this->assertSame(60, (int) $trams->where('in_schedule', false)->where('status', 'pending')->sum('duration_minutes'));
         // La sortida corregida no té marca GPS: no és «sortida fora de zona» (abans en creava l'alerta).
         $this->assertSame(0, \App\Models\WorkLogAlert::where('work_log_id', $log->id)->where('type', 'out_of_zone')->count());
+    }
+
+    public function test_corregir_l_hora_recalcula_les_hores_de_mes_sense_autoritzar(): void
+    {
+        // Cas real (Sonia Nocete, dj. 15/10, horari 14:20-20:00): fitxada 14:27-21:15 (1,12 h de més);
+        // corregida a 14:20-21:30 en són 1,5. Abans quedaven les 1,12 h antigues.
+        $horari = \App\Models\WorkSchedule::create(['name' => '28,33', 'total_hours_weekly' => 28.33,
+            'days' => [['day' => 4, 'start' => '14:20', 'end' => '20:00']]]);
+        $treb = User::factory()->create(['role' => 'worker', 'active' => true, 'work_schedule_id' => $horari->id]);
+        $log = WorkLog::create([
+            'user_id' => $treb->id, 'date' => '2026-10-01', 'start_time' => '2026-10-01 14:27:50',
+            'end_time' => '2026-10-01 21:15:10', 'total_hours_worked' => 6.79, 'hours_worked' => 6.79,
+            'extra_hours_unauthorized' => 1.12, 'hour_status' => 'extra',
+            'start_location_match' => true, 'end_location_match' => true, 'status' => 'approved',
+        ]);
+
+        Sanctum::actingAs($this->user('hr'));
+        $this->corregeix($log, ['start_time' => '2026-10-01 14:20', 'end_time' => '2026-10-01 21:30', 'motiu' => 'Hora declarada per la persona'])->assertOk();
+
+        $log->refresh();
+        $this->assertEquals(1.5, (float) $log->extra_hours_unauthorized);
+        $this->assertSame('extra', $log->hour_status);
+
+        // Si la correcció la deixa dins de l'horari, ja no hi ha res de més.
+        $this->corregeix($log, ['end_time' => '2026-10-01 20:00', 'motiu' => 'Sortida real a les 20:00'])->assertOk();
+        $log->refresh();
+        $this->assertEquals(0.0, (float) $log->extra_hours_unauthorized);
+        $this->assertSame('ok', $log->hour_status);
     }
 
     public function test_valida_les_hores(): void

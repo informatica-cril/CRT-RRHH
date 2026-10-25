@@ -117,7 +117,7 @@ class WorkSchedule extends Model
 
     /**
      * Nom automàtic a partir dels dies, el mateix criteri que src/utils/nomHorari.js:
-     * «30 h · Dl-Dv 08:00-14:00», «30 h · Dl, Dc, Dv 08:00-14:00 / Dm, Dj 12:00-18:00».
+     * «30h · Dl-Dv 08:00-14:00», «26h 50min · Dl, Dc, Dv 08:00-14:00 / Dm, Dj 12:00-18:00».
      */
     public static function nomAutomatic($days): string
     {
@@ -138,9 +138,10 @@ class WorkSchedule extends Model
             $etiqueta = $seguits ? $noms[$dies[0]] . '-' . $noms[end($dies)] : implode(', ', array_map(fn ($d) => $noms[$d], $dies));
             $parts[] = "{$etiqueta} {$text}";
         }
-        $hores = str_replace('.', ',', (string) round(self::minutsSetmanals($days) / 60, 2));
+        $min = (int) round(self::minutsSetmanals($days));
+        $hores = intdiv($min, 60) . 'h' . ($min % 60 ? ' ' . ($min % 60) . 'min' : '');
 
-        return mb_substr("{$hores} h · " . implode(' / ', $parts), 0, 250);
+        return mb_substr("{$hores} · " . implode(' / ', $parts), 0, 250);
     }
 
     /** Minuts setmanals de l'horari tal com està (no el número que diu el nom). */

@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Http;
 class WorkLogService
 {
     /** Minuts fora d'horari (entrar abans o sortir després) que s'ajunten al tram d'horari sense revisió. */
+    /** Marge de sempre; si el saldo de minuts està actiu, hi mana la seva finestra (SaldoMinuts::finestraActiva). */
     public const MARGE_HORARI_MIN = 5;
 
     /**
@@ -273,7 +274,7 @@ class WorkLogService
         };
         for ($i = count($segments) - 1; $i >= 0; $i--) {
             $s = $segments[$i];
-            if ($s['in_schedule'] || ! $s['in_zone'] || $s['duration_minutes'] > self::MARGE_HORARI_MIN) continue;
+            if ($s['in_schedule'] || ! $s['in_zone'] || $s['duration_minutes'] > (SaldoMinuts::finestraActiva() ?? self::MARGE_HORARI_MIN)) continue;
             if ($ajuntable($i - 1)) {
                 $segments[$i - 1]['end_time'] = $s['end_time'];
                 $segments[$i - 1]['duration_minutes'] = $minuts($segments[$i - 1]['start_time'], $s['end_time']);

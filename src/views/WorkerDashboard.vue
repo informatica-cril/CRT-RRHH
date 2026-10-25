@@ -95,6 +95,29 @@
             </div>
           </div>
 
+          <!-- Saldo de minuts: només si RRHH l'ha activat. Suma/resta els minuts just abans o després de l'horari. -->
+          <div v-if="saldoMinuts?.activa" class="card mt-lg" style="border-left:4px solid var(--color-primary);">
+            <h3 class="card-title mb-md">⏱ Saldo de minuts</h3>
+            <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
+              <span style="font-size:1.8rem;font-weight:700;" :style="{ color: saldoMinuts.saldo < 0 ? 'var(--color-danger)' : 'var(--color-success)' }">{{ fmtSaldo(saldoMinuts.saldo) }}</span>
+              <span class="text-small text-muted">com a màxim ±{{ saldoMinuts.tope }} min</span>
+            </div>
+            <p class="text-small text-muted" style="margin:8px 0 0;">
+              Els minuts que fitxes fins a {{ saldoMinuts.finestra }} min abans de la teva hora d'entrada o després de la de sortida hi sumen;
+              entrar tard o sortir d'hora hi resta. Fora d'aquest marge no entra res al saldo.
+            </p>
+            <div v-if="saldoMinuts.apunts?.length" style="margin-top:10px;">
+              <p class="text-small text-muted" style="margin:0 0 4px;">Últims dies:</p>
+              <div v-for="a in saldoMinuts.apunts.slice(0, 5)" :key="a.date + a.tipus + a.saldo_despres" class="text-small" style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid var(--color-border-light);">
+                <span><strong>{{ formatDate(a.date) }}</strong> ·
+                  <template v-if="a.tipus === 'ajust'">ajust de RRHH{{ a.nota ? ': ' + a.nota : '' }}</template>
+                  <template v-else>entrada {{ fmtSaldo(a.entrada_delta) }} · sortida {{ fmtSaldo(a.sortida_delta) }}</template>
+                  <span v-if="a.excedent" class="text-muted"> ({{ Math.abs(a.excedent) }} min fora del tope)</span>
+                </span>
+                <span style="font-weight:600;">{{ fmtSaldo(a.saldo_despres) }}</span>
+              </div>
+            </div>
+          </div>
           <!-- Hores de més: les autoritzacions s'apliquen soles (RRHH, 20-10-2026); ja no s'escriu cap codi. -->
           <div v-if="logsWithUnauthorized.length || autoritzacionsVigents.length || logsHoresComptades.length" class="card mt-lg" style="border-left:4px solid var(--color-warning);">
             <h3 class="card-title mb-md">⏱ Hores de més</h3>
@@ -1413,6 +1436,13 @@ async function startWorkday() {
     const dies = pendentsSortida.value.map(j => String(j.date).slice(0, 10).split('-').reverse().join('/')).join(', ')
     if (!await confirma(`No vas fitxar la sortida del ${dies}. Pots declarar a quina hora vas acabar al requadre de dalt del Tauler.\n\nVols iniciar igualment la jornada d'avui?`)) return
   }
+  // Saldo de minuts: entrar uns minuts abans de l'horari els suma al saldo (amb tope); es diu abans de fitxar.
+  const pvEntrada = await previsioSaldo('entrada')
+  if (pvEntrada && pvEntrada.delta > 0) {
+    const cap = pvEntrada.aplicat < pvEntrada.delta
+      ? ` Ara mateix el teu saldo és ${fmtSaldo(pvEntrada.saldo)} i només n'hi caben ${pvEntrada.aplicat}: la resta no compta.` : ''
+    if (!await confirma(`Estàs fitxant ${pvEntrada.delta} min abans de la teva hora d'entrada. Aquests minuts entraran al teu saldo de minuts (màxim ±${pvEntrada.tope} min).${cap}\n\nVols iniciar la jornada igualment?`)) return
+  }
   // Check if scheduled hours already done today
   const scheduledHours = await getScheduledHours()
   if (scheduledHours) {
@@ -1503,6 +1533,11 @@ async function endWorkday() {
     if (!await confirma('La jornada ha durat menys d\'un minut. Segur que vols finalitzar? (Es guardarà amb 0h)')) return
   }
   
+  // Saldo de minuts: sortir uns minuts abans de l'horari els resta del saldo; es pregunta abans de tancar.
+  const pvSortida = await previsioSaldo('sortida')
+  if (pvSortida && pvSortida.delta < 0) {
+    if (!await confirma(`Segur que vols finalitzar la jornada ${-pvSortida.delta} min abans de la teva hora de sortida? Aquests minuts es descomptaran del teu saldo de minuts (ara: ${fmtSaldo(pvSortida.saldo)}; quedaria en ${fmtSaldo(pvSortida.saldo_previst)}).`)) return
+  }
   isFinishing.value = true
   const logId = workLogStore.currentLog?.id
   try {
@@ -1527,6 +1562,7 @@ async function endWorkday() {
   }
   overtimeAlertDismissed.value = false
   if (!workLogStore.isWorking) await aplicaCodiExtra(logId)
+  carregaSaldoMinuts()
 }
 
 async function submitPermission() {
@@ -1768,8 +1804,27 @@ onUnmounted(async () => {
   stopBreakCheckTimer()
 })
 
+// ── Saldo de minuts: els minuts fitxats just abans/després de l'horari (veure App\Services\SaldoMinuts) ──
+const saldoMinuts = ref(null)
+const fmtSaldo = n => `${n > 0 ? '+' : ''}${n} min`
+async function carregaSaldoMinuts() {
+  try {
+    const { api } = await import('../services/apiClient')
+    saldoMinuts.value = await api.get('/v1/saldo-minuts')
+  } catch { saldoMinuts.value = null }   // servidor sense saldo: la targeta no es mostra
+}
+// Què passaria si fitxo ara: només per avisar; el càlcul de veres el fa el servidor en tancar la jornada.
+async function previsioSaldo(tipus) {
+  try {
+    const { api } = await import('../services/apiClient')
+    const r = await api.get(`/v1/saldo-minuts/previsio?tipus=${tipus}`)
+    return r?.activa ? r : null
+  } catch { return null }
+}
+
 onMounted(async () => {
   await fetchData()
+  carregaSaldoMinuts()
   loadWorkerSchedule()
   loadMyAuthCodes()
   import('../services/apiClient').then(({ api }) =>
