@@ -1,9 +1,12 @@
 // Nom automàtic d'una plantilla d'horari a partir dels seus dies (RRHH, 19-10-2026): així no hi ha
 // noms inventats ni dues maneres d'escriure el mateix horari. El mateix criteri que
 // WorkSchedule::nomAutomatic() al servidor.
-//   «30 h · Dl-Dv 08:00-14:00»
-//   «30 h · Dl, Dc, Dv 08:00-14:00 / Dm, Dj 12:00-18:00»
-//   «40 h · Dl-Dv 09:00-14:00 i 15:00-18:00»
+//   «30h · Dl-Dv 08:00-14:00»
+//   «26h 50min · Dl, Dc, Dv 08:00-14:00 / Dm, Dj 12:00-18:00»
+//   «40h · Dl-Dv 09:00-14:00 i 15:00-18:00»
+// Les hores s'escriuen com al total de sota (formatHM), no en decimals: 33h 45min, no 33,75 h.
+
+import { formatHM } from './formatHours'
 
 const NOMS = ['Dg', 'Dl', 'Dm', 'Dc', 'Dj', 'Dv', 'Ds']
 const ORDRE = [1, 2, 3, 4, 5, 6, 0]
@@ -41,6 +44,5 @@ export function nomHorari(dies) {
   }
   const parts = Object.entries(perText).map(([text, llista]) => `${etiquetaDies(llista)} ${text}`)
   if (!parts.length) return ''
-  const hores = String(Math.round(total / 60 * 100) / 100).replace('.', ',')
-  return `${hores} h · ${parts.join(' / ')}`.slice(0, 250)
+  return `${formatHM(total / 60)} · ${parts.join(' / ')}`.slice(0, 250)
 }

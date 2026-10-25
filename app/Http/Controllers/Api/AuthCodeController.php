@@ -621,6 +621,8 @@ class AuthCodeController extends Controller
         $workLog->refresh();
         $falten = round((float) $workLog->extra_hours_unauthorized, 2);
         if ($falten <= 0 || $workLog->authorized_extra_code) {
+            if ($falten <= 0) $this->aprovaTramsForaHorari($workLog);
+
             return response()->json(['ok' => true, 'aplicades' => $jaHiEren, 'de_autoritzacio_existent' => true,
                 'pendents' => $falten]);
         }
@@ -641,9 +643,22 @@ class AuthCodeController extends Controller
             return response()->json(['message' => $error['error'] ?? $error['message'] ?? "No s'han pogut acceptar."], 422);
         }
         $r = $resposta->getData(true);
+        if ((float) $workLog->fresh()->extra_hours_unauthorized <= 0) $this->aprovaTramsForaHorari($workLog->fresh());
 
         return response()->json(['ok' => true, 'aplicades' => round($jaHiEren + (float) ($r['aplicades'] ?? 0), 2),
             'pendents' => round((float) $workLog->fresh()->extra_hours_unauthorized, 2)]);
+    }
+
+    /**
+     * Les hores de més són el tram fora d'horari: en acceptar-les, aquest tram s'aprova també (si no,
+     * quedava «Hores de més: acceptades» amb el tram pendent i sense comptar). El contrari, aprovar el
+     * tram i que s'acceptin les hores, ho fa WorkLogSegmentController::approve.
+     */
+    private function aprovaTramsForaHorari(\App\Models\WorkLog $log): void
+    {
+        $n = $log->segments()->where('status', 'pending')->where('in_schedule', false)->where('in_zone', true)
+            ->update(['status' => 'approved', 'modified_by' => auth()->id(), 'modified_at' => now()]);
+        if ($n > 0) $log->recalcularEfectivo();
     }
 
     /** POST /api/v1/overtime-requests/{req}/deny — el motiu és obligatori. */

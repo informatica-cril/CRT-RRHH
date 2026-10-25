@@ -62,6 +62,16 @@ class WorkLogController extends Controller
             });
         }
 
+        // Saldo de minuts: el moviment de cada fitxatge (camp nou: l'app mòbil l'ignora; no hi és si no està actiu).
+        if (\App\Services\SaldoMinuts::activa() && $logs->isNotEmpty()) {
+            $apunts = \App\Models\SaldoMinutsApunt::whereIn('work_log_id', $logs->pluck('id'))->get()->keyBy('work_log_id');
+            $logs->each(function ($w) use ($apunts) {
+                if ($apunts->has($w->id)) {
+                    $w->setAttribute('saldo_minuts', $apunts[$w->id]->only(['entrada_delta', 'sortida_delta', 'delta_aplicat', 'excedent', 'saldo_despres']));
+                }
+            });
+        }
+
         return response()->json($logs);
     }
 
@@ -354,6 +364,8 @@ class WorkLogController extends Controller
         // una 'Z' veritable i el frontend el pot comparar be amb el seu Date.now().
         return response()->json(array_merge($workLog->toArray(), [
             'server_time' => now()->copy()->utc()->toISOString(),
+            // Moviment del saldo de minuts d'aquest dia (null si el saldo no està actiu o no n'hi ha cap).
+            'saldo_minuts' => \App\Services\SaldoMinuts::apuntDe($workLog->id),
         ]));
     }
 

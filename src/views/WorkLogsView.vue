@@ -30,33 +30,34 @@
       </button>
     </div>
 
-    <!-- Aprovació automàtica: els fitxatges correctes s'aproven sols en fitxar la sortida; aquest botó
-         fa el mateix amb els pendents que ja hi havia (del mes i la persona triats). -->
-    <div v-if="authStore.isStaff && confAuto" class="wl-auto-barra" :class="{ apagada: !confAuto.enabled }">
-<span v-if="confAuto.enabled && modeAprovar === 'auto'">
-        🤖 <strong>Aprovació automàtica.</strong> Els fitxatges que quadren amb l'horari (± {{ confAuto.marge_minuts }} min),
-        són dins de zona i no tenen hores extra ni incidències s'aproven sols. Aquí només queden els que cal revisar.
-      </span>
-      <span v-else-if="confAuto.enabled">
-        ✋ <strong>Aprovació manual.</strong> Marca els fitxatges que vulguis aprovar. S'aprovaran tal com estan,
-        encara que tinguin hores extra o coses per revisar.
-      </span>
-      <span v-else>⏸ <strong>Aprovació automàtica desactivada:</strong> tots els fitxatges s'han d'aprovar a mà.</span>
-      <span class="wl-auto-accions">
-        <!-- Cada gestor tria com vol aprovar: un sol botó a la vista cada vegada perquè no es confonguin. -->
-        <span class="wl-mode" role="group" aria-label="Com vols aprovar">
-          <button type="button" :class="{ actiu: modeAprovar === 'auto' }" @click="modeAprovar = 'auto'"
-            title="L'app revisa els pendents i només aprova els que ho tenen tot bé">🤖 Automàtica</button>
-          <button type="button" :class="{ actiu: modeAprovar === 'manual' }" @click="modeAprovar = 'manual'"
-            title="Tu marques els fitxatges i s'aproven tal com estan">✋ Manual</button>
+    <!-- Ajustos de revisió: un sol botó. Al panell hi ha tres seccions amb títol: aprovació, saldo de minuts i
+         persones fora d'horari. Els formularis i la llista s'obren dins de cada secció només quan es demanen. -->
+    <div v-if="authStore.isStaff && (confAuto || confSaldo?.disponible || (authStore.canManageStaff && avisosMarge.length))" class="wl-eines">
+      <button type="button" class="btn btn-outline btn-sm" :class="{ 'wl-ajustos-oberts': obreAjustos }" @click="obreAjustos = !obreAjustos">
+        ⚙️ Ajustos de revisió {{ obreAjustos ? '▴' : '▾' }}
+        <span v-if="authStore.canManageStaff && avisosMarge.length" class="wl-bolet" :title="`${avisosMarge.length} persones fora d'horari`">{{ avisosMarge.length }}</span>
+      </button>
+      <button v-if="confAuto?.enabled && modeAprovar === 'auto' && pendentsTancats.length" type="button" class="btn btn-success btn-sm" :disabled="aprovantCorrectes" @click="aprovaCorrectes"
+        title="Aprova els pendents d'aquest mes que tenen l'horari, la zona i les hores bé. La resta es queden per revisar.">
+        {{ aprovantCorrectes ? 'Revisant…' : `✅ Aprovar els correctes (${pendentsTancats.length})` }}
+      </button>
+    </div>
+
+    <div v-if="obreAjustos" class="wl-panell">
+      <div v-if="confAuto" class="wl-ajust-fila">
+        <strong class="wl-ajust-titol">Aprovació</strong>
+        <span>
+          <template v-if="!confAuto.enabled">Apagada: tots els fitxatges s'han d'aprovar a mà.</template>
+          <template v-else-if="modeAprovar === 'auto'">Automàtica (± {{ confAuto.marge_minuts }} min): s'aproven sols els que quadren amb l'horari, són dins de zona i no tenen hores extra ni incidències.</template>
+          <template v-else>Manual: marques tu els fitxatges i s'aproven tal com estan.</template>
+          <span v-if="confAuto.enabled" class="wl-mode" role="group" aria-label="Com vols aprovar" style="margin-left:8px;">
+            <button type="button" :class="{ actiu: modeAprovar === 'auto' }" @click="modeAprovar = 'auto'">🤖 Automàtica</button>
+            <button type="button" :class="{ actiu: modeAprovar === 'manual' }" @click="modeAprovar = 'manual'">✋ Manual</button>
+          </span>
         </span>
-        <button v-if="modeAprovar === 'auto' && pendentsTancats.length" type="button" class="btn btn-success btn-sm" :disabled="aprovantCorrectes" @click="aprovaCorrectes"
-          title="Aprova els pendents d'aquest mes que tenen l'horari, la zona i les hores bé. La resta es queden per revisar.">
-          {{ aprovantCorrectes ? 'Revisant…' : `✅ Aprovar els correctes (${pendentsTancats.length} pendents)` }}
-        </button>
-        <button v-if="potConfigurarAuto && !editantAuto" type="button" class="btn btn-outline btn-sm" @click="configuraAuto">⚙️ Canviar</button>
-      </span>
-      <div v-if="editantAuto" class="wl-auto-form">
+        <button v-if="potConfigurarAuto && !editantAuto" type="button" class="btn btn-outline btn-sm" @click="configuraAuto">Canviar</button>
+      </div>
+      <div v-if="editantAuto" class="wl-auto-form wl-form-dins">
         <label><input type="checkbox" v-model="editantAuto.enabled" /> Aprovar sols els fitxatges correctes</label>
         <label>Marge sobre l'horari:
           <input class="form-input" type="number" min="0" max="60" v-model="editantAuto.marge_minuts" style="width:70px;" :disabled="!editantAuto.enabled" /> min
@@ -64,14 +65,40 @@
         <button type="button" class="btn btn-primary btn-sm" @click="desaAuto">Desa</button>
         <button type="button" class="btn btn-outline btn-sm" @click="editantAuto = null">Cancel·la</button>
       </div>
-    </div>
 
-        <!-- Avís de marge: només RRHH i admin. Informatiu: no bloqueja cap aprovació. -->
-    <!-- Desplegable i tancat per defecte: amb moltes persones ocupava mitja pantalla. -->
-    <details v-if="authStore.canManageStaff && avisosMarge.length" class="wl-marge">
-      <summary>⚠️ <strong>{{ avisosMarge.length }} {{ avisosMarge.length === 1 ? 'persona porta' : 'persones porten' }} 3 fitxatges o més seguits fora de l'horari (de més o de menys)</strong>
-        <span class="wl-marge-obre">· veure la llista</span></summary>
-      <ul>
+      <div v-if="confSaldo?.disponible" class="wl-ajust-fila">
+        <strong class="wl-ajust-titol">Saldo de minuts</strong>
+        <span>
+          <template v-if="confSaldo.enabled">Activat. Els minuts fitxats fins a {{ confSaldo.finestra_minuts }} min abans de l'entrada o després de la sortida van a un saldo per persona
+            (màxim ±{{ confSaldo.tope_minuts }} min), des del {{ dataCurta(confSaldo.actiu_des) }}. El fitxatge real no es toca.</template>
+          <template v-else>Desactivat: els minuts sueltos continuen com fins ara.</template>
+        </span>
+        <span class="wl-ajust-botons">
+          <button v-if="authStore.canManageStaff && confSaldo.enabled" type="button" class="btn btn-outline btn-sm" @click="obreSaldos">Veure els saldos</button>
+          <button v-if="potConfigurarAuto && !editantSaldo" type="button" class="btn btn-outline btn-sm" @click="configuraSaldo">Canviar</button>
+        </span>
+      </div>
+      <div v-if="editantSaldo" class="wl-auto-form wl-form-dins">
+        <label><input type="checkbox" v-model="editantSaldo.enabled" /> Activar el saldo de minuts</label>
+        <label>Finestra:
+          <input class="form-input" type="number" min="1" max="15" v-model="editantSaldo.finestra_minuts" style="width:70px;" /> min
+        </label>
+        <label>Tope del saldo: ±
+          <input class="form-input" type="number" min="1" max="60" v-model="editantSaldo.tope_minuts" style="width:70px;" /> min
+        </label>
+        <label>Compta des del:
+          <input class="form-input" type="date" v-model="editantSaldo.actiu_des" />
+        </label>
+        <button type="button" class="btn btn-primary btn-sm" @click="desaSaldo">Desa</button>
+        <button type="button" class="btn btn-outline btn-sm" @click="editantSaldo = null">Cancel·la</button>
+      </div>
+
+      <div v-if="authStore.canManageStaff && avisosMarge.length" class="wl-ajust-fila">
+        <strong class="wl-ajust-titol">Fora d'horari</strong>
+        <span>{{ avisosMarge.length }} {{ avisosMarge.length === 1 ? 'persona porta' : 'persones porten' }} 3 fitxatges o més seguits fora de l'horari (de més o de menys). Només informa: no bloqueja cap aprovació.</span>
+        <button type="button" class="btn btn-outline btn-sm" @click="obreMarge = !obreMarge">{{ obreMarge ? 'Amaga la llista' : 'Veure la llista' }}</button>
+      </div>
+      <ul v-if="obreMarge && authStore.canManageStaff && avisosMarge.length" class="wl-marge-llista">
         <li v-for="a in avisosMarge" :key="a.user_id">
           <strong>{{ a.nom }}</strong>: {{ a.dies }} dies seguits des del {{ dataCurta(a.inici) }}
           ({{ resumDesviacio(a) }})
@@ -79,7 +106,7 @@
           <button type="button" class="btn btn-outline btn-sm" @click="descartaAvisMarge(a)">Descartar</button>
         </li>
       </ul>
-    </details>
+    </div>
 
     <!-- Pendents d'altres mesos: el comptador del menú els suma tots i aquí només es veu el mes triat -->
     <div v-if="authStore.isStaff && altresMesosPendents.length" class="wl-altres-mesos">
@@ -137,6 +164,10 @@
                 </strong>
                 <span v-else>—</span>
                 <div v-if="Number(log.extra_hours_authorized || 0) > 0" class="wl-nota">inclou +{{ formatHM(log.extra_hours_authorized) }} d'extra aprovades</div>
+                <div v-if="log.saldo_minuts" class="wl-nota" title="Moviment del saldo de minuts d'aquest dia">
+                  ⏱ saldo {{ fmtMin(log.saldo_minuts.delta_aplicat) }} → {{ fmtMin(log.saldo_minuts.saldo_despres) }}
+                  <span v-if="log.saldo_minuts.excedent"> ({{ Math.abs(log.saldo_minuts.excedent) }} min fora del tope)</span>
+                </div>
                 <div v-if="sortidaAltreDia(log)" class="sortida-altre-dia" :title="'La jornada es va iniciar el ' + String(log.date).slice(0, 10).split('-').reverse().join('/') + ' i la sortida no es va fitxar fins al ' + sortidaAltreDia(log).data">
                     ⚠ Sortida fitxada el {{ sortidaAltreDia(log).data }}<span v-if="sortidaAltreDia(log).dies > 1"> (+{{ sortidaAltreDia(log).dies }} dies)</span>
                   </div>
@@ -225,6 +256,78 @@
           <button class="btn btn-outline" @click="showRejectModal = false">{{ t('cancel') }}</button>
           <button class="btn btn-danger" @click="confirmReject">{{ t('reject') }}</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Saldos de minuts: llista per persona i la decisió de RRHH/admin (compensar, ajustar o tancar a zero). -->
+    <div v-if="saldos" class="modal-overlay" @click.self="tancaSaldos">
+      <div class="modal" style="max-width:680px;">
+        <div class="modal-header">
+          <h3 class="modal-title">⏱ {{ detallSaldo ? detallSaldo.nom : 'Saldos de minuts' }}</h3>
+          <button class="icon-btn" @click="tancaSaldos">✕</button>
+        </div>
+
+        <template v-if="!detallSaldo">
+          <p class="text-small text-muted">El saldo no caduca sol: a final de mes RRHH o admin decideix què se'n fa (compensar-lo en temps, ajustar-lo o tancar-lo a zero).</p>
+          <label class="text-small" style="display:flex;align-items:center;gap:6px;margin:8px 0;">Mostra només els que passen de
+            <input class="form-input" type="number" min="0" max="60" v-model.number="minSaldo" style="width:70px;" @change="obreSaldos" /> min (en positiu o negatiu)
+          </label>
+          <div v-if="!saldos.persones.length" class="text-muted" style="padding:16px 0;">Ningú té saldo amb aquest filtre.</div>
+          <div v-else class="table-container">
+            <table>
+              <thead><tr><th>Persona</th><th>Saldo</th><th>Últim dia</th><th></th></tr></thead>
+              <tbody>
+                <tr v-for="p in saldos.persones" :key="p.user_id">
+                  <td>{{ p.nom }}</td>
+                  <td><strong :style="{ color: p.saldo < 0 ? 'var(--color-danger)' : 'var(--color-success)' }">{{ fmtMin(p.saldo) }}</strong>
+                    <span v-if="Math.abs(p.saldo) >= saldos.tope" class="text-small text-muted"> (al tope)</span></td>
+                  <td class="text-small">{{ dataCurta(p.ultim_dia) }}</td>
+                  <td><button class="btn btn-outline btn-sm" @click="veuSaldo(p)">Veure i decidir</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
+
+        <template v-else>
+          <button type="button" class="btn btn-outline btn-sm" @click="detallSaldo = null">← Tornar a la llista</button>
+          <p style="margin:10px 0 4px;">Saldo actual:
+            <strong :style="{ color: detallSaldo.saldo < 0 ? 'var(--color-danger)' : 'var(--color-success)' }">{{ fmtMin(detallSaldo.saldo) }}</strong>
+            <span class="text-small text-muted"> (tope ±{{ detallSaldo.tope }} min)</span></p>
+          <div class="table-container" style="max-height:240px;overflow:auto;">
+            <table>
+              <thead><tr><th>Dia</th><th>Entrada</th><th>Sortida</th><th>Entra al saldo</th><th>Saldo</th></tr></thead>
+              <tbody>
+                <tr v-for="a in detallSaldo.apunts" :key="a.date + '-' + a.saldo_despres + '-' + (a.work_log_id || 'a')">
+                  <td class="text-small">{{ dataCurta(a.date) }}</td>
+                  <template v-if="a.tipus === 'ajust'"><td colspan="2" class="text-small">{{ a.nota }}</td></template>
+                  <template v-else><td class="text-small">{{ fmtMin(a.entrada_delta) }}</td><td class="text-small">{{ fmtMin(a.sortida_delta) }}</td></template>
+                  <td class="text-small">{{ fmtMin(a.delta_aplicat) }}<span v-if="a.excedent" class="text-muted"> ({{ Math.abs(a.excedent) }} fora del tope)</span></td>
+                  <td><strong>{{ fmtMin(a.saldo_despres) }}</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div v-if="authStore.canManageStaff" class="wl-auto-form" style="margin-top:12px;">
+            <label style="flex-basis:100%;">Decisió:
+              <select class="form-select" v-model="formAjust.decisio">
+                <option value="compensat">Compensat en temps (el saldo queda a zero)</option>
+                <option value="zero">Tancar a zero sense compensar</option>
+                <option value="ajustat">Ajustar un nombre de minuts</option>
+              </select>
+            </label>
+            <label v-if="formAjust.decisio === 'ajustat'">Minuts (+ o −):
+              <input class="form-input" type="number" min="-60" max="60" v-model.number="formAjust.minuts" style="width:80px;" />
+            </label>
+            <label style="flex-basis:100%;">Motiu (obligatori, queda escrit):
+              <input class="form-input" type="text" maxlength="400" v-model="formAjust.nota" style="width:100%;" placeholder="Ex.: compensats el divendres 30/10 sortint 12 min abans" />
+            </label>
+            <button type="button" class="btn btn-primary btn-sm" :disabled="enviantAjust || formAjust.nota.trim().length < 5 || (formAjust.decisio !== 'ajustat' && detallSaldo.saldo === 0)" @click="enviaAjust">
+              {{ enviantAjust ? 'Desant…' : 'Desar la decisió' }}
+            </button>
+          </div>
+        </template>
       </div>
     </div>
   </div>
@@ -548,6 +651,70 @@ async function desaAuto() {
     alert(e?.message || "No s'ha pogut desar.")
   }
 }
+// ── Saldo de minuts (RRHH i admin): configuració, saldos per persona i decisió ──
+const confSaldo = ref(null)
+const editantSaldo = ref(null)
+const fmtMin = n => `${n > 0 ? '+' : ''}${n} min`
+onMounted(async () => {
+  if (!authStore.isStaff) return
+  try { confSaldo.value = await api.get('/v1/saldo-minuts/config') } catch (e) { /* servidor sense saldo: no es mostra */ }
+})
+function configuraSaldo() {
+  const c = confSaldo.value
+  editantSaldo.value = { enabled: c.enabled, finestra_minuts: c.finestra_minuts, tope_minuts: c.tope_minuts, actiu_des: c.actiu_des ? String(c.actiu_des).slice(0, 10) : '' }
+}
+async function desaSaldo() {
+  const e = editantSaldo.value
+  try {
+    confSaldo.value = await api.put('/v1/saldo-minuts/config', {
+      enabled: !!e.enabled, finestra_minuts: Number(e.finestra_minuts), tope_minuts: Number(e.tope_minuts), actiu_des: e.actiu_des || null,
+    })
+    editantSaldo.value = null
+  } catch (err) {
+    alert(err?.message || "No s'ha pogut desar.")
+  }
+}
+const obreMarge = ref(false)
+const obreAjustos = ref(false)
+const saldos = ref(null)
+const minSaldo = ref(0)
+const detallSaldo = ref(null)
+const enviantAjust = ref(false)
+const formAjust = ref({ decisio: 'compensat', minuts: 0, nota: '' })
+async function obreSaldos() {
+  try {
+    saldos.value = await api.get(`/v1/saldo-minuts/persones?min=${Number(minSaldo.value) || 0}`)
+  } catch (e) {
+    alert(e?.message || "No s'han pogut carregar els saldos.")
+  }
+}
+function tancaSaldos() { saldos.value = null; detallSaldo.value = null }
+async function veuSaldo(p) {
+  try {
+    detallSaldo.value = await api.get(`/v1/saldo-minuts/persones/${p.user_id}`)
+    formAjust.value = { decisio: 'compensat', minuts: 0, nota: '' }
+  } catch (e) {
+    alert(e?.message || "No s'ha pogut carregar la persona.")
+  }
+}
+async function enviaAjust() {
+  const d = detallSaldo.value
+  const f = formAjust.value
+  const text = f.decisio === 'ajustat' ? `ajustar ${fmtMin(Number(f.minuts) || 0)}` : (f.decisio === 'compensat' ? 'compensar-lo en temps (queda a zero)' : 'tancar-lo a zero sense compensar')
+  if (!await confirma(`Vols ${text} el saldo de ${d.nom} (ara ${fmtMin(d.saldo)})? Queda escrit amb el teu nom i el motiu.`)) return
+  enviantAjust.value = true
+  try {
+    await api.post(`/v1/saldo-minuts/persones/${d.user_id}/ajust`, {
+      decisio: f.decisio, minuts: f.decisio === 'ajustat' ? Number(f.minuts) : null, nota: f.nota.trim(),
+    })
+    await veuSaldo({ user_id: d.user_id })
+    await obreSaldos()
+  } catch (e) {
+    alert(e?.message || "No s'ha pogut desar la decisió.")
+  } finally {
+    enviantAjust.value = false
+  }
+}
 async function aprovaCorrectes() {
   const n = pendentsTancats.value.length
   if (!await confirma(`Revisar ${n} fitxatge${n === 1 ? '' : 's'} pendent${n === 1 ? '' : 's'} i aprovar els que estiguin bé? Els que tinguin alguna cosa a mirar es quedaran pendents.`)) return
@@ -673,6 +840,19 @@ function statusBadge(s) { return { 'badge-pending': s === 'pending', 'badge-succ
 </script>
 
 <style scoped>
+.wl-eines { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.wl-ajustos-oberts { background: #eef3f8; }
+.wl-bolet { display: inline-block; min-width: 18px; padding: 0 6px; margin-left: 4px; border-radius: 999px; background: #F5A524; color: #fff; font-size: .72rem; font-weight: 700; text-align: center; }
+.wl-panell { margin-bottom: 12px; padding: 4px 14px 10px; border-radius: 12px; background: #f7f9fb; border: 1px solid #e1e6ec; }
+.wl-ajust-fila { display: grid; grid-template-columns: 130px 1fr auto; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid #e1e6ec; font-size: .86rem; }
+.wl-ajust-fila:first-child { border-top: 0; }
+.wl-ajust-titol { font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; color: #5b6573; }
+.wl-ajust-botons { display: flex; gap: 6px; flex-wrap: wrap; }
+.wl-form-dins { padding: 4px 0 10px; border-top: 0; }
+.wl-marge-llista { margin: 0 0 6px; padding-left: 18px; }
+.wl-marge-llista li { margin: 4px 0; font-size: .85rem; }
+@media (max-width: 700px) { .wl-ajust-fila { grid-template-columns: 1fr; gap: 6px; } }
+
 /* Jornada tancada un altre dia (sortida oblidada): s'ha de veure d'un cop d'ull. */
 .wl-marge { margin-bottom: 12px; padding: 10px 14px; border-radius: 12px; background: #FFF7E6; border: 1px solid #F5C77E; color: #7A4B00; font-size: .86rem; }
 .wl-marge summary { cursor: pointer; }

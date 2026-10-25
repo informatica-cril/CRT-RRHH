@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\WorkLog;
 use App\Models\WorkLogModification;
 use App\Models\WorkLogSegment;
+use App\Services\HorariDia;
 use App\Services\WorkLogService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -74,6 +75,7 @@ class WorkLogCorreccioController extends Controller
             // Els trams es tornen a fer amb les hores noves (mateixes regles que en fitxar la sortida).
             WorkLogSegment::where('work_log_id', $log->id)->delete();
             $this->workLogs->segmentWorkLog($log->fresh(), $request->user());
+            $this->recalculaExtra($log->fresh());
 
             WorkLogModification::create([
                 'work_log_id' => $log->id,
@@ -97,5 +99,27 @@ class WorkLogCorreccioController extends Controller
         });
 
         return response()->json($workLog->fresh()->load('segments'));
+    }
+    /**
+     * Les hores de més sense autoritzar es calculen en fitxar la sortida; en corregir l'hora quedaven
+     * les d'abans (Sonia Nocete: 1h 7min amb la sortida antiga quan amb la corregida eren 1h 30min).
+     * Mateixa regla que en fitxar: hores netes - hores de l'horari d'aquell dia - ja acceptades.
+     * Un dia sense horari no es toca, i tampoc una jornada fora de zona (és una altra revisió).
+     */
+    private function recalculaExtra(WorkLog $log): void
+    {
+        $dia = substr($log->getRawOriginal('start_time'), 0, 10);
+        $horari = HorariDia::minuts(HorariDia::trams($log->user, $dia)) / 60;
+        if ($horari <= 0 || $log->hour_status === 'out_of_area') {
+            return;
+        }
+
+        $net = max(0, (float) $log->total_hours_worked - (float) $log->hours_out_of_area);
+        $extra = max(0, round($net - $horari, 2));
+        $pendent = max(0, round($extra - (float) $log->extra_hours_authorized, 2));
+        $log->update([
+            'extra_hours_unauthorized' => $pendent,
+            'hour_status' => $pendent > 0 ? 'extra' : 'ok',
+        ]);
     }
 }

@@ -307,6 +307,20 @@ class WorkLogSegmentController extends Controller
             'comment' => 'Tramo ' . $segment->segment_number . ' aprobado',
         ]);
 
+        // El tram fora d'horari són les hores de més: aprovar-lo les accepta també (compromís de
+        // pagament, per això només RRHH i admin; coordinació aprova el tram i les hores es queden
+        // per acceptar). Si un topall legal ho impedeix, el tram queda aprovat igualment.
+        $log = $workLog->fresh();
+        if (! $segment->in_schedule && $segment->in_zone && in_array($request->user()->role, ['admin', 'hr'], true)
+            && $log->getRawOriginal('end_time') && (float) $log->extra_hours_unauthorized > 0) {
+            try {
+                $request->merge(['motiu' => 'Acceptades en aprovar el tram ' . $segment->segment_number . ' fora d\'horari']);
+                app(AuthCodeController::class)->acceptaHoresDeMes($request, $log);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
         return response()->json($segment->fresh());
     }
 }

@@ -619,6 +619,15 @@ Route::prefix('v1')->group(function () {
         // Aprovació automàtica dels fitxatges correctes: interruptor i marge de minuts.
         Route::get('aprovacio-automatica', [\App\Http\Controllers\Api\AprovacioAutomaticaController::class, 'show'])->middleware('role:admin,coordinator,hr');
         Route::put('aprovacio-automatica', [\App\Http\Controllers\Api\AprovacioAutomaticaController::class, 'update'])->middleware('role:admin,hr');
+        // Saldo de minuts de la persona (només el propi) i què passaria si fitxa ara (per avisar abans de fitxar).
+        Route::get('saldo-minuts', [\App\Http\Controllers\Api\SaldoMinutsController::class, 'index']);
+        Route::get('saldo-minuts/previsio', [\App\Http\Controllers\Api\SaldoMinutsController::class, 'previsio']);
+        // Saldo de minuts, gestió: configuració, saldos per persona i la decisió de RRHH/admin sobre el saldo.
+        Route::get('saldo-minuts/config', [\App\Http\Controllers\Api\SaldoMinutsController::class, 'config'])->middleware('role:admin,coordinator,hr');
+        Route::put('saldo-minuts/config', [\App\Http\Controllers\Api\SaldoMinutsController::class, 'updateConfig'])->middleware('role:admin,hr');
+        Route::get('saldo-minuts/persones', [\App\Http\Controllers\Api\SaldoMinutsController::class, 'persones'])->middleware('role:admin,hr');
+        Route::get('saldo-minuts/persones/{user}', [\App\Http\Controllers\Api\SaldoMinutsController::class, 'detall'])->middleware('role:admin,hr');
+        Route::post('saldo-minuts/persones/{user}/ajust', [\App\Http\Controllers\Api\SaldoMinutsController::class, 'ajust'])->middleware('role:admin,hr');
         // Quadrant: RRHH i admin canvien l'horari de cada persona dia a dia (coordinació no hi té accés);
         // el treballador veu el seu.
         Route::get('quadrant', [\App\Http\Controllers\Api\QuadrantController::class, 'mes'])->middleware('role:admin,hr');

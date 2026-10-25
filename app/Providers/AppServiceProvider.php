@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Models\MailSetting;
+use App\Models\WorkLog;
+use App\Services\SaldoMinuts;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
@@ -33,5 +35,9 @@ class AppServiceProvider extends ServiceProvider
         } catch (\Throwable $e) {
             // BD no disponible (p. ex. durant migracions/artisan): ignorar silenciosament.
         }
+
+        // Saldo de minuts: es recalcula quan un fitxatge canvia o s'esborra (no fa res si està desactivat).
+        WorkLog::saved(fn (WorkLog $log) => SaldoMinuts::alGuardar($log));
+        WorkLog::deleted(fn (WorkLog $log) => SaldoMinuts::alGuardar($log));
     }
 }

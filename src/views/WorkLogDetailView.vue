@@ -19,6 +19,10 @@
           <div><strong>Temps total entre entrada i sortida:</strong> {{ formatHM(workLog.total_hours_worked) }}</div>
           <div><strong>Per sobre de 8 h:</strong> {{ formatHM((Number(workLog.complementary_minutes) || 0) / 60) }}</div>
           <div><strong>Estat:</strong> {{ etiqueta('fitxatge', workLog.status) }}</div>
+          <div v-if="workLog.saldo_minuts"><strong>Saldo de minuts d'aquest dia:</strong>
+            entrada {{ fmtMin(workLog.saldo_minuts.entrada_delta) }} · sortida {{ fmtMin(workLog.saldo_minuts.sortida_delta) }}
+            · saldo {{ fmtMin(workLog.saldo_minuts.saldo_despres) }}<span v-if="workLog.saldo_minuts.excedent"> ({{ Math.abs(workLog.saldo_minuts.excedent) }} min fora del tope)</span>
+          </div>
           
         </div>
         <div class="effective-banner">
@@ -316,6 +320,9 @@ function posicio(seg, quina) {
 const pendingCount = computed(() =>
   segments.value.filter(s => s.status === 'pending').length
 )
+
+// Minuts amb signe (+2 min, -3 min) per al moviment del saldo de minuts d'aquest dia.
+const fmtMin = n => `${n > 0 ? '+' : ''}${n} min`
 
 async function loadData() {
   const id = route.params.id
