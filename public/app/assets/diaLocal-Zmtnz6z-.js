@@ -1,1 +1,0 @@
-function e(e){if(!e)return``;let t=String(e);if(t.length<=10)return t;let n=new Date(t);if(isNaN(n))return t.slice(0,10);let r=e=>String(e).padStart(2,`0`);return`${n.getFullYear()}-${r(n.getMonth()+1)}-${r(n.getDate())}`}export{e as t};

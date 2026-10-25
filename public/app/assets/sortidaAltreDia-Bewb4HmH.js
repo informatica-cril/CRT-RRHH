@@ -1,0 +1,1 @@
+function i(t){if(!t?.end_time||!t?.date)return null;const r=String(t.date).slice(0,10),e=String(t.end_time).slice(0,10);if(e<=r)return null;const a=Math.round((Date.parse(e)-Date.parse(r))/864e5);return{data:e.split("-").reverse().join("/"),dies:a}}export{i as s};

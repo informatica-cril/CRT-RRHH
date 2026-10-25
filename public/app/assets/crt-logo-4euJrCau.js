@@ -1,1 +1,0 @@
-var e=`/app/assets/crt-logo.png`;export{e as t};
