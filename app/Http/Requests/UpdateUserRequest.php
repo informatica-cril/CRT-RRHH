@@ -32,6 +32,7 @@ class UpdateUserRequest extends FormRequest
             'onboarding_profile_id' => 'nullable|integer',
             'onboarding_completed' => 'boolean',
             'must_change_password' => 'boolean',
+            'es_informatica' => 'boolean',
             // La columna és varchar(20): sense límit, MySQL tallava el desat amb un 500.
             'dni' => 'nullable|string|max:20',
             // CP principal de la persona (domiciliària). No hi era i es descartava sempre en desar.

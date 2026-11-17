@@ -2,6 +2,8 @@
   <div id="crt-app" :class="{ 'dark-mode': isDark, 'is-mobile': isMobile }">
     <!-- Avisos dins de l'app (substitueixen la finestra «… diu» del navegador) -->
     <AvisosApp />
+    <!-- Notificacions de l'app (alertes, respostes d'incidències…): targetes que es queden fins que es resol la causa -->
+    <NotificacionsApp v-if="isAuthenticated && !isLoginRoute" />
     <DialegApp />
     <!-- Global Navigation Blocker / Loader -->
     <!-- Barra fina a dalt mentre es canvia de pantalla; la targeta només si triga -->
@@ -127,6 +129,7 @@
 
 <script setup>
 import AvisosApp from './components/AvisosApp.vue'
+import NotificacionsApp from './components/NotificacionsApp.vue'
 import DialegApp from './components/DialegApp.vue'
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useAuthStore } from './stores/auth'

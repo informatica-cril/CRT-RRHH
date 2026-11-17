@@ -15,6 +15,20 @@ class AvisMargeController extends Controller
         return response() ->json(AvisMarge::llista());
     }
 
+    /** GET /api/v1/avisos-marge/marques — fitxatges que formen part d'una ratxa (inclosos els aprovats), per marcar-los. */
+    public function marques()
+    {
+        $rangs = AvisMarge::marquesAmbRang();
+
+        return response()->json(['ids' => array_keys($rangs), 'rangs' => (object) $rangs]);
+    }
+
+    /** GET /api/v1/avisos-marge/ratxa/{workLog} — els dies de la ratxa a la qual pertany aquest fitxatge. */
+    public function ratxa(\App\Models\WorkLog $workLog)
+    {
+        return response()->json(['persona' => $workLog->user?->name, 'dies' => AvisMarge::diesDeRatxa($workLog)]);
+    }
+
     /** GET /api/v1/el-meu-avis-marge — el treballador veu si porta 3 fitxatges seguits fora d'horari. */
     public function meu(Request $request)
     {

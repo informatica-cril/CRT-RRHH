@@ -129,45 +129,38 @@
         <div v-else class="segments-list">
           <div v-for="seg in segments" :key="seg.id" class="segment-item" :class="segmentClass(seg)">
             <div class="segment-header">
-              <span class="segment-number">Part {{ seg.segment_number }}</span>
+              <div class="seg-titol">
+                <span class="segment-number">Part {{ seg.segment_number }}</span>
+                <span class="seg-rang">{{ rangTram(seg) }}</span>
+              </div>
+              <span class="seg-durada">{{ formatHM((Number(seg.duration_minutes) || 0) / 60) }}</span>
               <span class="segment-status" :class="'status-' + seg.status">{{ etiqueta('tram', seg.status) }}</span>
             </div>
-            <div class="segment-details">
-              <div><strong>Des de:</strong> {{ formatDateTime(seg.start_time) }}</div>
-              <div><strong>Fins a:</strong> {{ formatDateTime(seg.end_time) }}</div>
-              <div><strong>Durada:</strong> {{ formatHM((Number(seg.duration_minutes) || 0) / 60) }}</div>
-              <div>
-                <strong>Zona:</strong>
-                <span :class="seg.in_zone ? 'tag-ok' : 'tag-ko'">{{ seg.in_zone ? 'Dins de la zona' : 'Fora de la zona' }}</span>
-              </div>
-              <div>
-                <strong>Horari:</strong>
-                <span :class="seg.in_schedule ? 'tag-ok' : 'tag-ko'">{{ seg.in_schedule ? "Dins de l'horari" : "Fora de l'horari" }}</span>
-              </div>
+            <div class="seg-xips">
+              <span class="seg-xip" :class="seg.in_zone ? 'xip-ok' : 'xip-ko'">{{ seg.in_zone ? '✓ Dins de la zona' : '✕ Fora de la zona' }}</span>
+              <span class="seg-xip" :class="seg.in_schedule ? 'xip-ok' : 'xip-ko'">{{ seg.in_schedule ? "✓ Dins de l'horari" : "✕ Fora de l'horari" }}</span>
               <!-- Transparència simètrica (C5 EIPD): el treballador veu la distància
                    mesurada i el radi aplicat en cada marcatge -->
-              <div v-if="seg.home_verification">
-                <strong>Domicili:</strong>
-                <span :class="seg.home_verification === 'verificat' ? 'tag-ok' : (seg.home_verification === 'fora_radi' ? 'tag-ko' : '')">{{ etiqueta('verificacio', seg.home_verification) }}</span>
-                <span v-if="seg.home_distance_m != null"> · {{ seg.home_distance_m }} m (radi {{ seg.home_radius_m ?? '—' }} m)</span>
+              <span v-if="seg.home_verification" class="seg-xip" :class="seg.home_verification === 'verificat' ? 'xip-ok' : (seg.home_verification === 'fora_radi' ? 'xip-ko' : 'xip-neutre')">
+                Domicili: {{ etiqueta('verificacio', seg.home_verification) }}<template v-if="seg.home_distance_m != null"> · {{ seg.home_distance_m }} m (radi {{ seg.home_radius_m ?? '—' }} m)</template>
+              </span>
+            </div>
+            <!-- Zona i CP en lloc de les coordenades (calculat al navegador, sense cap servei extern);
+                 les coordenades queden al títol per a qui ja les podia veure. -->
+            <div v-if="coordsVisibles" class="seg-pos">
+              <div class="seg-pos-item">
+                <span class="seg-pos-et">Inici</span>
+                <span v-if="posicio(seg, 'inici')" :title="posicio(seg, 'inici').join(', ')">📍 {{ zonaDePosicio(...posicio(seg, 'inici'))?.text || '—' }}</span>
+                <span v-else class="text-muted" title="Aquí comença una part nova">Sense GPS</span>
               </div>
-              <!-- Zona i CP en lloc de les coordenades (calculat al navegador, sense cap servei extern);
-                   les coordenades queden al títol per a qui ja les podia veure. -->
-              <template v-if="coordsVisibles">
-                <div>
-                  <strong>Posició inici:</strong>
-                  <span v-if="posicio(seg, 'inici')" :title="posicio(seg, 'inici').join(', ')">📍 {{ zonaDePosicio(...posicio(seg, 'inici'))?.text || '—' }}</span>
-                  <span v-else class="text-muted">Sense GPS (aquí comença una part nova)</span>
-                </div>
-                <div>
-                  <strong>Posició fi:</strong>
-                  <span v-if="posicio(seg, 'fi')" :title="posicio(seg, 'fi').join(', ')">📍 {{ zonaDePosicio(...posicio(seg, 'fi'))?.text || '—' }}</span>
-                  <span v-else class="text-muted">Sense GPS (aquí comença una part nova)</span>
-                </div>
-              </template>
-              <div v-if="seg.rejection_reason" class="rejection">
-                <strong>Per què es va rebutjar:</strong> {{ seg.rejection_reason }}
+              <div class="seg-pos-item">
+                <span class="seg-pos-et">Fi</span>
+                <span v-if="posicio(seg, 'fi')" :title="posicio(seg, 'fi').join(', ')">📍 {{ zonaDePosicio(...posicio(seg, 'fi'))?.text || '—' }}</span>
+                <span v-else class="text-muted" title="Aquí comença una part nova">Sense GPS</span>
               </div>
+            </div>
+            <div v-if="seg.rejection_reason" class="rejection">
+              <strong>Per què es va rebutjar:</strong> {{ seg.rejection_reason }}
             </div>
             <!-- Audiència prèvia (EIPD C6) -->
             <div v-if="seg.audiencia_requested_at" class="audiencia-box">
@@ -195,21 +188,22 @@
             </div>
             <!-- Acciones para coordinator/admin -->
             <div v-if="canManage && seg.status === 'pending'" class="segment-actions">
-              <button @click="approveSegment(seg)" class="btn-approve">Aprovar</button>
-              <div class="reject-form">
-                <select v-model="rejectFault[seg.id]" class="form-input">
-                  <option value="">— Quin tipus de falta és? (segons el conveni) —</option>
-                  <optgroup v-for="g in faultsByGrau" :key="g.grau" :label="g.label">
-                    <option v-for="ft in g.items" :key="ft.clau" :value="ft.clau">{{ ft.base_conveni }} · {{ ft.descripcio }}</option>
-                  </optgroup>
-                </select>
-                <FrasesRapides clau="rebuig_tram" v-model="rejectReason[seg.id]" />
-                <textarea v-model="rejectReason[seg.id]" rows="2" class="form-input" placeholder="Per què la rebutges? (mínim 5 lletres)"></textarea>
-                <div v-if="(rejectReason[seg.id] || '').trim().length > 0 && (rejectReason[seg.id] || '').trim().length < 5"
-                  class="reject-hint">Falten {{ 5 - (rejectReason[seg.id] || '').trim().length }} lletres més.</div>
-                <button @click="rejectSegment(seg)" class="btn-reject"
-                  :disabled="!rejectFault[seg.id] || (rejectReason[seg.id] || '').trim().length < 5">Rebutjar</button>
-              </div>
+              <button @click="approveSegment(seg)" class="btn-approve">✓ Aprovar aquesta part</button>
+              <span class="seg-o">o bé, rebutjar-la:</span>
+            </div>
+            <div v-if="canManage && seg.status === 'pending'" class="reject-form">
+              <select v-model="rejectFault[seg.id]" class="form-input">
+                <option value="">— Quin tipus de falta és? (segons el conveni) —</option>
+                <optgroup v-for="g in faultsByGrau" :key="g.grau" :label="g.label">
+                  <option v-for="ft in g.items" :key="ft.clau" :value="ft.clau">{{ ft.base_conveni }} · {{ ft.descripcio }}</option>
+                </optgroup>
+              </select>
+              <FrasesRapides clau="rebuig_tram" v-model="rejectReason[seg.id]" />
+              <textarea v-model="rejectReason[seg.id]" rows="2" class="form-input" placeholder="Per què la rebutges? (mínim 5 lletres)"></textarea>
+              <div v-if="(rejectReason[seg.id] || '').trim().length > 0 && (rejectReason[seg.id] || '').trim().length < 5"
+                class="reject-hint">Falten {{ 5 - (rejectReason[seg.id] || '').trim().length }} lletres més.</div>
+              <button @click="rejectSegment(seg)" class="btn-reject"
+                :disabled="!rejectFault[seg.id] || (rejectReason[seg.id] || '').trim().length < 5">✕ Rebutjar</button>
             </div>
           </div>
         </div>
@@ -219,14 +213,22 @@
       <div class="card modifications-card">
         <h3>Historial de canvis ({{ modifications.length }})</h3>
         <div v-if="modifications.length === 0" class="empty">No hi ha modificacions registrades</div>
-        <div v-else class="modifications-list">
-          <div v-for="mod in modifications" :key="mod.id" class="modification-item">
-            <span class="mod-action">{{ etiqueta('modificacio', mod.action) }}</span>
-            <span class="mod-user">{{ mod.user?.name }}</span>
-            <span class="mod-date">{{ formatDateTime(mod.created_at) }}</span>
-            <span v-if="mod.comment" class="mod-comment">{{ mod.comment }}</span>
-          </div>
-        </div>
+        <ol v-else class="hist">
+          <li v-for="mod in modifications" :key="mod.id" class="hist-item" :class="'hist-' + tipusMod(mod.action)">
+            <span class="hist-punt" aria-hidden="true">{{ iconaMod(mod.action) }}</span>
+            <div class="hist-cos">
+              <div class="hist-cap">
+                <strong class="hist-titol">{{ etiqueta('modificacio', mod.action) }}</strong>
+                <span class="hist-qui">
+                  {{ mod.user?.name || 'Sistema' }}
+                  <em v-if="rolMod(mod)" class="hist-rol" :class="{ 'hist-rol-persona': mod.user_id === workLog.user_id }">{{ rolMod(mod) }}</em>
+                </span>
+                <time class="hist-data">{{ formatDateTime(mod.created_at) }}</time>
+              </div>
+              <p v-if="mod.comment" class="hist-nota">{{ mod.comment }}</p>
+            </div>
+          </li>
+        </ol>
       </div>
     </div>
   </div>
@@ -253,6 +255,14 @@ const loading = ref(true)
 const faultTypes = ref([])
 const rejectFault = ref({})
 const rejectReason = ref({})
+
+// Historial de canvis: les accions importants (incidències, decisions) ressalten; el flux normal queda en gris.
+const TIPUS_MOD = { registre_manual: 'avis', allegacio: 'info', modified: 'canvi', approved: 'ok', rejected: 'no' }
+const ICONA_MOD = { registre_manual: '📍', allegacio: '💬', modified: '✏️', approved: '✓', rejected: '✕', created: '▶', segmented: '✂', break_started: '⏸', break_completed: '▶', break_skipped: '⏭' }
+const tipusMod = a => TIPUS_MOD[a] || 'normal'
+const iconaMod = a => ICONA_MOD[a] || '•'
+const ROLS_MOD = { worker: 'Empleat', hr: 'RRHH', admin: 'Administració', coordinator: 'Coordinació' }
+const rolMod = m => ROLS_MOD[m.user?.role] || ''
 
 const canManage = computed(() => ['admin', 'hr', 'coordinator'].includes(authStore.user?.role))
 
@@ -351,6 +361,19 @@ function formatDate(d) {
 function formatDateTime(d) {
   if (!d) return '—'
   return new Date(d).toLocaleString('ca-ES', { dateStyle: 'short', timeStyle: 'medium' })
+}
+
+// Les hores del tram vénen en hora de Madrid sense zona: es llegeixen del text, sense convertir-les.
+const dataCurta = ts => `${String(ts).slice(8, 10)}/${String(ts).slice(5, 7)}/${String(ts).slice(2, 4)}`
+const horaCurta = ts => String(ts).slice(11, 16)
+function rangTram(seg) {
+  const a = seg.start_time ? String(seg.start_time) : ''
+  const b = seg.end_time ? String(seg.end_time) : ''
+  if (!a) return ''
+  if (!b) return `${dataCurta(a)} · ${horaCurta(a)} → en curs`
+  return a.slice(0, 10) === b.slice(0, 10)
+    ? `${dataCurta(a)} · ${horaCurta(a)} → ${horaCurta(b)}`
+    : `${dataCurta(a)} ${horaCurta(a)} → ${dataCurta(b)} ${horaCurta(b)}`
 }
 
 function segmentClass(seg) {
@@ -526,7 +549,24 @@ async function sendAllegation(seg) {
 .break-avis { margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: #fdecea; border-left: 4px solid #B3352F; color: #8f1f19; font-size: .85rem; font-weight: 600; }
 .tag-ok { color: #4caf50; font-weight: bold; }
 .tag-ko { color: #f44336; font-weight: bold; }
-.segment-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+/* Parts del fitxatge: capçalera amb hores i durada, xips d'estat i accions ordenades */
+.segment-header { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; margin-bottom: 10px; }
+.seg-titol { display: flex; flex-direction: column; gap: 2px; margin-right: auto; min-width: 0; }
+.segment-number { font-weight: 700; font-size: .95rem; }
+.seg-rang { font-size: .85rem; color: #475569; font-variant-numeric: tabular-nums; }
+.seg-durada { font-weight: 700; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.seg-xips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.seg-xip { font-size: .78rem; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
+.xip-ok { background: #e7f6ea; color: #1e6b34; }
+.xip-ko { background: #fdecea; color: #a12a22; }
+.xip-neutre { background: #eef2f6; color: #475569; }
+.seg-pos { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 4px 16px; font-size: .84rem; color: #334155; }
+.seg-pos-item { display: flex; gap: 8px; align-items: baseline; }
+.seg-pos-et { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #94a3b8; min-width: 32px; }
+.segment-actions { align-items: center; padding-top: 10px; margin-top: 10px; border-top: 1px solid #eef2f6; }
+.seg-o { font-size: .82rem; color: #94a3b8; }
+.reject-form { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; padding: 12px; border-radius: 8px; background: #fef8f7; border: 1px solid #f3d3cf; }
+.reject-form .btn-reject { align-self: flex-end; }
 .segment-status { padding: 2px 8px; border-radius: 4px; font-size: 0.85em; }
 .status-pending { background: #fff3cd; }
 .status-approved { background: #d4edda; }
@@ -547,7 +587,28 @@ async function sendAllegation(seg) {
 .correccio-botons { display: flex; gap: 8px; }
 .correccio-error { color: #c62828; font-size: 0.85rem; }
 .reject-hint { color: #ff9800; font-size: 0.82em; margin-top: -4px; }
-.modification-item { display: flex; gap: 12px; padding: 6px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.9em; }
+/* Historial de canvis: línia de temps */
+.hist { list-style: none; margin: 8px 0 0; padding: 0 0 0 4px; position: relative; }
+.hist::before { content: ''; position: absolute; left: 17px; top: 14px; bottom: 14px; width: 2px; background: #e5eaf1; }
+.hist-item { position: relative; display: flex; gap: 14px; padding: 8px 0; }
+.hist-punt { flex: 0 0 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: .8rem; font-weight: 700; background: #f1f5f9; color: #64748b; border: 2px solid #fff; z-index: 1; }
+.hist-cos { flex: 1; min-width: 0; }
+.hist-cap { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.hist-titol { font-size: .95rem; color: #1e293b; }
+.hist-qui { font-size: .85rem; color: #475569; }
+.hist-rol { font-style: normal; font-size: .68rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: #e0ecf8; color: #094E8C; margin-left: 4px; }
+.hist-rol-persona { background: #fef3c7; color: #92400e; }
+.hist-data { margin-left: auto; font-size: .78rem; color: #94a3b8; white-space: nowrap; }
+.hist-nota { margin: 4px 0 0; padding: 8px 10px; border-radius: 8px; background: #f8fafc; color: #334155; font-size: .86rem; line-height: 1.4; }
+.hist-normal .hist-titol { font-weight: 500; color: #64748b; font-size: .88rem; }
+.hist-normal .hist-nota { background: transparent; padding: 0; color: #94a3b8; font-size: .8rem; }
+.hist-avis .hist-punt { background: #fef3c7; color: #b45309; }
+.hist-avis .hist-nota { background: #fffbeb; border-left: 3px solid #f59e0b; }
+.hist-info .hist-punt { background: #dbeafe; color: #1d4ed8; }
+.hist-canvi .hist-punt { background: #ede9fe; color: #6d28d9; }
+.hist-ok .hist-punt { background: #dcfce7; color: #15803d; }
+.hist-no .hist-punt { background: #fee2e2; color: #b91c1c; }
+@media (max-width: 640px) { .hist-data { margin-left: 0; width: 100%; } }
 .empty { color: #999; padding: 12px; }
 .loading, .error { text-align: center; padding: 40px; color: #999; }
 </style>

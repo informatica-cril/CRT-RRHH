@@ -58,9 +58,9 @@
             </select>
           </div>
           <div class="form-group comite-ample">
-            <label class="form-label">Motiu</label>
+            <label class="form-label">Motiu (opcional)</label>
             <FrasesRapides clau="motiu_comite" v-model="form.motiu" />
-            <textarea v-model="form.motiu" class="form-textarea" rows="2" required
+            <textarea v-model="form.motiu" class="form-textarea" rows="2"
               placeholder="Ex.: reunió ordinària del comitè per preparar la negociació del calendari"></textarea>
           </div>
           <div class="form-group comite-ample">
@@ -90,7 +90,7 @@
                 <td class="text-small">{{ h.origen_ref ? 'Excel de RRHH' : `${h.hora_inici.slice(0, 5)}–${h.hora_fi.slice(0, 5)}` }}</td>
                 <td>{{ hm(h.minuts / 60) }}</td>
                 <td class="text-small">{{ tipus[h.tipus] }}<span v-if="!h.consumeix_credit" class="text-muted"> (no descompta)</span></td>
-                <td class="text-small">{{ h.motiu }}</td>
+                <td class="text-small">{{ h.motiu || '—' }}</td>
                 <td>
                   <span class="badge" :class="badge(h.estat)">{{ etiquetaEstat(h.estat) }}</span>
                   <div v-if="h.estat === 'rebutjada' && h.motiu_rebuig" class="text-small" style="color:var(--color-danger);margin-top:4px;">{{ h.motiu_rebuig }}</div>

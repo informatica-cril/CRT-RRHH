@@ -28,6 +28,35 @@ final class AprovacioAutomatica
     /** Accions de l'historial que són el flux normal d'una jornada (la resta és una incidència). */
     private const ACCIONS_NORMALS = ['created', 'segmented', 'break_started', 'break_completed'];
 
+    /**
+     * Per què té l'historial «tocat»: diu QUI i QUÈ (la persona o RRHH), segons l'última acció que no és
+     * del flux normal. null si no n'hi ha cap. Els codis es tradueixen a src/utils/etiquetes.js (noAuto).
+     */
+    private static function motiuModificacio(WorkLog $log): ?string
+    {
+        $m = $log->modifications()->whereNotIn('action', self::ACCIONS_NORMALS)->orderByDesc('id')->first();
+        if (! $m) return null;
+        $laPersona = (int) $m->user_id === (int) $log->user_id;
+        $nous = is_array($m->new_values) ? $m->new_values : [];
+        // Sense GPS hi ha dues maneres: l'app ho anota sola (sense senyal o error del sensor) o la persona escriu el motiu.
+        $manera = str_contains((string) ($nous['justificacio'] ?? ''), 'anotació automàtica') ? '(GPS no disponible)' : '(amb motiu escrit)';
+
+        return match (true) {
+            $m->action === 'allegacio' && $laPersona => ($nous['tipus'] ?? null) === 'declaracio_sortida'
+                ? 'declaració de sortida de la persona' : 'al·legació de la persona',
+            $m->action === 'registre_manual' => ! $laPersona ? 'registrat a mà per RRHH' : match (true) {
+                str_starts_with((string) ($nous['context'] ?? ''), 'inici') => 'entrada sense ubicació ' . $manera,
+                str_starts_with((string) ($nous['context'] ?? ''), 'final') => 'sortida sense ubicació ' . $manera,
+                str_starts_with((string) ($nous['context'] ?? ''), 'hito') => 'visita sense ubicació',
+                default => 'fitxatge sense ubicació',
+            },
+            $m->action === 'modified' && ! $laPersona => (($nous['motiu'] ?? null) === "canvi d'horari" || str_contains((string) $m->comment, 'recalculats'))
+                ? "recalculat per canvi d'horari o zona" : 'modificat per RRHH',
+            in_array($m->action, ['approved', 'rejected'], true) && ! $laPersona => 'tram revisat per RRHH',
+            default => 'modificat o registrat a mà',
+        };
+    }
+
     /** Motiu pel qual el fitxatge NO es pot aprovar sol, o null si es pot. */
     public static function motiu(WorkLog $log, int $marge): ?string
     {
@@ -49,7 +78,7 @@ final class AprovacioAutomatica
         if ($log->break_required && $log->break_status !== 'completed') return 'pausa obligatòria sense fer';
 
         if ($log->alerts()->whereNull('dismissed_at')->exists()) return 'té alertes';
-        if ($log->modifications()->whereNotIn('action', self::ACCIONS_NORMALS)->exists()) return 'modificat o registrat a mà';
+        if ($motiuAMa = self::motiuModificacio($log)) return $motiuAMa;
 
         $trams = $log->segments()->get();
         foreach ($trams as $t) {

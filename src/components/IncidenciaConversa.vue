@@ -3,7 +3,7 @@
     <div v-if="incidencia.missatges?.length" class="ic-fil">
       <div v-for="m in incidencia.missatges" :key="m.id" class="ic-msg" :class="{ meu: m.user_id === jo, rrhh: m.user_id !== incidencia.user_id }">
         <div class="ic-autor">
-          {{ m.user_id === incidencia.user_id ? (m.user?.name || 'Treballador/a') : `${m.user?.name || 'RRHH'} · RRHH` }}
+          {{ m.user_id === incidencia.user_id ? (m.user?.name || 'Treballador/a') : `${m.user?.name || 'Gestió'} · ${incidencia.destinatari === 'informatica' ? 'Informàtica' : 'RRHH'}` }}
           <span class="ic-data">{{ dataHora(m.created_at) }}</span>
         </div>
         <div class="ic-text">{{ m.text }}</div>

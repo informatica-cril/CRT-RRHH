@@ -4,7 +4,7 @@ namespace App\Support;
 
 class DocumentCorporatiu
 {
-    private static function logo(): string
+    public static function logo(): string
     {
         foreach (['assets/crt-logo.png', 'logo/CRT-LOGO-removebg2.png', 'logo/CRT-LOGO.png'] as $rel) {
             $f = public_path($rel);

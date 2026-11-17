@@ -70,7 +70,7 @@
               <td>{{ hm(h.minuts / 60) }}</td>
               <td class="text-small">{{ tipusHores[h.tipus] || h.tipus }}<span v-if="!h.consumeix_credit" class="text-muted"> (no descompta)</span></td>
               <td class="text-small" style="max-width:280px;">
-                {{ h.motiu }}
+                {{ h.motiu || "—" }}
                 <div v-if="h.justificant_name"><a href="#" @click.prevent="baixa(h)">📎 {{ h.justificant_name }}</a></div>
               </td>
               <td>

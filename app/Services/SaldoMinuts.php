@@ -233,6 +233,25 @@ final class SaldoMinuts
         return $a ? $a->only(['entrada_delta', 'sortida_delta', 'delta_aplicat', 'excedent', 'saldo_despres']) : null;
     }
 
+    /**
+     * Persones amb el saldo al tope (en positiu o en negatiu): el que la bossa ja no pot absorbir. RRHH i Superior
+     * n'han de decidir alguna cosa (compensar-lo, ajustar-lo o tancar-lo a zero). [['user_id', 'nom', 'saldo'], ...]
+     */
+    public static function alTope(): array
+    {
+        if (! self::activa()) return [];
+        $tope = (int) SaldoMinutsSetting::getSettings()->tope_minuts;
+        $ultims = SaldoMinutsApunt::select('user_id', 'saldo_despres')->orderBy('date')->orderBy('id')->get()
+            ->groupBy('user_id')->map(fn ($l) => (int) $l->last()->saldo_despres)
+            ->filter(fn ($s) => abs($s) >= $tope);
+        if ($ultims->isEmpty()) return [];
+        $noms = \App\Models\User::whereIn('id', $ultims->keys())->where('active', true)->pluck('name', 'id');
+
+        return $ultims->filter(fn ($s, $uid) => $noms->has($uid))
+            ->map(fn ($s, $uid) => ['user_id' => (int) $uid, 'nom' => $noms[$uid], 'saldo' => $s])
+            ->sortByDesc(fn ($f) => abs($f['saldo']))->values()->all();
+    }
+
     /** Saldo actual d'una persona (0 si no n'hi ha cap línia). */
     public static function saldo(int $userId): int
     {

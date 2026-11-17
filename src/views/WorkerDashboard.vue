@@ -1,7 +1,6 @@
 <template>
   <div>
     <!-- Alert Banner (alertas molestas) -->
-    <WorkLogAlertBanner />
 
     <!-- 3 fitxatges seguits fora de l'horari (de més o de menys): el mateix avís que veu RRHH -->
     <div v-if="avisMarge" class="avis-sense-horari avis-marge" role="status">
@@ -848,7 +847,6 @@ import { formatHM } from '../utils/formatHours'
 import { sortidaAltreDia } from '../utils/sortidaAltreDia'
 import { etiqueta } from '../utils/etiquetes'
 import { resumCps } from '../utils/resumCps'
-import WorkLogAlertBanner from '../components/WorkLogAlertBanner.vue'
 import PacteComplementaries from '../components/PacteComplementaries.vue'
 import BreakTimerModal from '../components/BreakTimerModal.vue'
 import AvisSenseSortida from '../components/AvisSenseSortida.vue'

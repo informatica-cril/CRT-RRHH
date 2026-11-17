@@ -17,8 +17,8 @@ class SendWorkLogReminders extends Command
 
     public function handle(): void
     {
-        $today = now()->toDateString();
-        $now   = now();
+        $now   = now('Europe/Madrid');
+        $today = $now->toDateString();
 
         $openLogs = WorkLog::whereNull('end_time')
             ->whereDate('date', $today)
@@ -32,34 +32,15 @@ class SendWorkLogReminders extends Command
 
             $scheduledEnd = $this->scheduledEndTimeFor($log->user, Carbon::parse($log->getRawOriginal('start_time'), 'Europe/Madrid'));
 
-            // ── Reminder 1: 10 min before scheduled end ───────────────────────
-            if ($scheduledEnd && is_null($log->reminder_pre_sent_at)) {
-                $window_start = $scheduledEnd->copy()->subMinutes(10);
-                $window_end   = $scheduledEnd->copy()->addMinutes(5);
-
-                if ($now->between($window_start, $window_end)) {
-                    $this->sendReminder($log, 0, 'reminder_pre_sent_at', $now);
-                }
-            }
-
-            // ── Reminder 2: workday has ended (scheduledEnd passed) ────────────
+            // Un sol recordatori (RRHH, 11-2026: arribaven massa correus, a totes hores i alguns equivocats):
+            // quan la jornada ha acabat segons l'horari i continua oberta. Els avisos «falten 10 min» i «a les
+            // 20:00» ja no s'envien; la jornada oberta es veu i es resol a la Safata.
             if ($scheduledEnd && is_null($log->reminder1_sent_at)) {
                 $window_start = $scheduledEnd->copy();
                 $window_end   = $scheduledEnd->copy()->addHours(1);
 
                 if ($now->between($window_start, $window_end)) {
                     $this->sendReminder($log, 1, 'reminder1_sent_at', $now);
-                }
-            }
-
-            // ── Reminder 3: session still open 1h+ after scheduled end ────────
-            if ($scheduledEnd && is_null($log->reminder2_sent_at)) {
-                $afterEnd = $scheduledEnd->copy()->addHours(1);
-                $at20h    = Carbon::today()->setHour(20)->setMinute(0)->setSecond(0);
-                $fireAt   = $afterEnd->greaterThan($at20h) ? $afterEnd : $at20h;
-
-                if ($now->greaterThanOrEqualTo($fireAt)) {
-                    $this->sendReminder($log, 2, 'reminder2_sent_at', $now);
                 }
             }
         }
@@ -94,13 +75,14 @@ class SendWorkLogReminders extends Command
     {
         // Quadrant o plantilla d'aquell dia (veure HorariDia).
         $trams = \App\Services\HorariDia::trams($user, $date->toDateString());
-        $day = $trams[0] ?? null;
+        // L'ÚLTIM tram: amb jornada partida, el final del primer tram (p. ex. 13:00) feia saltar l'avís a mig dia.
+        $day = $trams ? end($trams) : null;
 
         if (!$day || empty($day['end'])) {
             return null;
         }
 
         [$eh, $em] = array_map('intval', explode(':', $day['end']));
-        return Carbon::today()->setHour($eh)->setMinute($em)->setSecond(0);
+        return Carbon::parse($date->toDateString(), 'Europe/Madrid')->setTime($eh, $em, 0);
     }
 }

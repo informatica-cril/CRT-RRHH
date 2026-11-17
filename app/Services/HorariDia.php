@@ -49,7 +49,7 @@ final class HorariDia
         if (! $plantilla) return [];
         $diaSetmana = Carbon::parse(substr($dia, 0, 10), 'Europe/Madrid')->dayOfWeek; // 0=Dg..6=Ds
 
-        return self::neteja(collect(WorkSchedule::normalizeDays($plantilla->days))
+        return self::neteja(collect($plantilla->diesDeLaSetmana($dia))
             ->filter(fn ($d) => $d['day'] === $diaSetmana && $d['active'])
             ->map(fn ($d) => ['start' => $d['start'], 'end' => $d['end']])
             ->all());

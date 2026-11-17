@@ -306,17 +306,21 @@ a:hover { color: var(--color-primary); }
   opacity: 1;
 }
 
+/* Avís del menú: només un punt (RRHH, 11-2026: tants números estressaven). El número hi és però no es veu;
+   es llegeix al títol (tooltip) i amb lectors de pantalla. */
 .nav-badge {
   margin-left: auto;
-  flex-shrink: 0; /* el número no s'ha de tallar mai */
+  flex-shrink: 0;
   background: var(--color-danger);
-  color: white;
-  font-size: 0.68rem;
-  font-weight: 700;
-  padding: 2px 6px;
+  font-size: 0;
+  line-height: 0;
+  color: transparent;
+  padding: 0;
+  width: 9px;
+  height: 9px;
+  min-width: 9px;
   border-radius: var(--radius-full);
-  min-width: 18px;
-  text-align: center;
+  overflow: hidden;
 }
 
 /* ---- Header ---- */

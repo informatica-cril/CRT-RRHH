@@ -24,8 +24,15 @@ class WorkLogSenseSortidaController extends Controller
     /** Fitxatges oberts de dies anteriors a avui (hora de Madrid). */
     public static function oberts()
     {
-        return WorkLog::whereNull('end_time')
+        // Un fitxatge rebutjat ja està resolt: no és una jornada pendent de sortida.
+        return WorkLog::whereNull('end_time')->where('status', '!=', 'rejected')
             ->whereDate('date', '<', Carbon::now('Europe/Madrid')->toDateString());
+    }
+
+    /** Els oberts de dies anteriors que encara NO tenen cap hora de sortida declarada (els que declaren passen a «per aplicar»). */
+    public static function senseDeclarar()
+    {
+        return self::oberts()->get()->filter(fn ($l) => self::declaracio($l) === null)->values();
     }
 
     /** Declaració de sortida d'un fitxatge, si n'hi ha. */

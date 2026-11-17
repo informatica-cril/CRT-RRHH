@@ -21,8 +21,11 @@ class ProgramacioCorreusTest extends TestCase
         }
     }
 
-    public function test_els_recordatoris_del_mateix_dia_segueixen(): void
+    public function test_el_recordatori_de_jornada_oberta_ja_no_es_un_correu_programat(): void
     {
-        $this->assertTrue(collect($this->comandaments())->contains(fn ($c) => str_contains($c, 'worklogs:send-reminders')));
+        // Decisió de RRHH (17-11-2026): es veu com a notificació dins de l'app.
+        foreach ($this->comandaments() as $c) {
+            $this->assertStringNotContainsString('worklogs:send-reminders', $c);
+        }
     }
 }

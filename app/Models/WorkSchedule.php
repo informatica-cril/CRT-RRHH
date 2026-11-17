@@ -6,16 +6,63 @@ use Illuminate\Database\Eloquent\Model;
 
 class WorkSchedule extends Model
 {
-    protected $fillable = ['name', 'total_hours_weekly', 'days'];
+    protected $fillable = ['name', 'total_hours_weekly', 'days', 'rotacio'];
 
     protected $casts = [
         'total_hours_weekly' => 'decimal:2',
         'days' => 'array', // JSON array of day objects
+        'rotacio' => 'array', // horari rotatiu opcional (setmanes 2..N); vegeu la migració
     ];
 
     public function users()
     {
         return $this->hasMany(User::class);
+    }
+
+    /** Màxim de setmanes d'un cicle (la 1 + les de `rotacio`). */
+    public const MAX_SETMANES = 8;
+
+    /**
+     * Normalitza l'horari rotatiu: ['inici' => dilluns de la setmana 1, 'setmanes' => [dies setmana 2, …]]
+     * o null si no n'hi ha cap (horari fix). L'inici es porta sempre al dilluns de la seva setmana.
+     */
+    public static function normalizeRotacio($rot): ?array
+    {
+        if (is_string($rot)) $rot = json_decode($rot, true);
+        if (! is_array($rot) || empty($rot['setmanes']) || ! is_array($rot['setmanes'])) return null;
+        // mode «mes»: la setmana del mes (1a, 2a…) decideix l'horari; «alternes»: el cicle de setmanes des d'un dilluns.
+        $mode = ($rot['mode'] ?? 'alternes') === 'mes' ? 'mes' : 'alternes';
+        $inici = null;
+        if ($mode === 'alternes') {
+            if (empty($rot['inici'])) return null;
+            try {
+                $inici = \Carbon\Carbon::parse(substr((string) $rot['inici'], 0, 10), 'Europe/Madrid')->startOfWeek(\Carbon\Carbon::MONDAY)->toDateString();
+            } catch (\Throwable $e) {
+                return null;
+            }
+        }
+        $max = $mode === 'mes' ? 4 : self::MAX_SETMANES - 1;   // la setmana 1 és `days`; el mes té com a molt 5 setmanes
+        $setmanes = array_map(fn ($d) => self::normalizeDays($d), array_slice(array_values($rot['setmanes']), 0, $max));
+
+        return ['mode' => $mode, 'inici' => $inici, 'setmanes' => $setmanes];
+    }
+
+    /** Els `days` de la setmana que toca en una data: la plantilla si és fixa; si és rotatiu, la setmana del cicle. */
+    public function diesDeLaSetmana(string $dia): array
+    {
+        $rot = self::normalizeRotacio($this->rotacio);
+        if (! $rot) return self::normalizeDays($this->days);
+        $n = count($rot['setmanes']) + 1;
+        $dilluns = \Carbon\Carbon::parse(substr($dia, 0, 10), 'Europe/Madrid')->startOfWeek(\Carbon\Carbon::MONDAY);
+        if ($rot['mode'] === 'mes') {
+            // Cada setmana compta pel seu dilluns: dies 1-7 = 1a, 8-14 = 2a… Les que passen del cicle el repeteixen.
+            $k = intdiv($dilluns->day - 1, 7) % $n;
+        } else {
+            $setmana = intdiv((int) \Carbon\Carbon::parse($rot['inici'], 'Europe/Madrid')->diffInDays($dilluns, false), 7);
+            $k = (($setmana % $n) + $n) % $n;
+        }
+
+        return $k === 0 ? self::normalizeDays($this->days) : $rot['setmanes'][$k - 1];
     }
 
     /**
@@ -105,14 +152,23 @@ class WorkSchedule extends Model
     }
 
     /** Clau de l'horari pels seus trams: dues plantilles amb la mateixa clau fan el mateix horari. */
-    public static function signatura($days): string
+    public static function signatura($days, $rotacio = null): string
     {
-        $parts = [];
-        foreach (self::tramsPerDia($days) as $dia => $trams) {
-            foreach ($trams as [$a, $b]) $parts[] = "{$dia}:{$a}-{$b}";
+        $una = function ($d) {
+            $parts = [];
+            foreach (self::tramsPerDia($d) as $dia => $trams) {
+                foreach ($trams as [$a, $b]) $parts[] = "{$dia}:{$a}-{$b}";
+            }
+
+            return implode('|', $parts);
+        };
+        $text = $una($days);
+        // Un horari rotatiu no és igual a un de fix amb la mateixa setmana 1, ni a un altre cicle.
+        if ($rot = self::normalizeRotacio($rotacio)) {
+            $text .= '#' . $rot['mode'] . '#' . $rot['inici'] . '#' . implode('#', array_map($una, $rot['setmanes']));
         }
 
-        return implode('|', $parts);
+        return $text;
     }
 
     /**
@@ -154,5 +210,15 @@ class WorkSchedule extends Model
         }
 
         return $total;
+    }
+
+    /** Minuts setmanals de mitjana del cicle (la setmana 1 i les de la rotació). Si és fix, els de la setmana. */
+    public static function minutsSetmanalsMitjos($days, $rotacio = null): int
+    {
+        $rot = self::normalizeRotacio($rotacio);
+        if (! $rot) return self::minutsSetmanals($days);
+        $totes = array_merge([$days], $rot['setmanes']);
+
+        return (int) round(array_sum(array_map(fn ($d) => self::minutsSetmanals($d), $totes)) / count($totes));
     }
 }

@@ -38,10 +38,11 @@
     </div>
 
     <!-- Documents list -->
-    <div v-for="doc in filteredDocs" :key="doc.id" class="card" style="margin-bottom:16px;">
+    <div v-for="doc in filteredDocs" :key="doc.id" class="card" :style="'margin-bottom:16px;' + (doc.ocult ? 'opacity:.65;' : '')">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
         <div style="flex:1;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <span v-if="doc.ocult" class="badge" style="font-size:0.7rem;background:rgba(100,116,139,0.15);color:#475569;" title="Els treballadors no el veuen">🙈 Ocult</span>
             <span v-if="doc.is_urgent" class="badge badge-danger" style="font-size:0.7rem;">🔴 URGENT</span>
             <span v-if="doc.requires_signature" class="badge badge-warning" style="font-size:0.7rem;">✍️ Firma requerida</span>
             <span class="badge badge-info" style="font-size:0.65rem;">{{ categoryName(doc.category) }}</span>
@@ -54,11 +55,21 @@
             · Destinataris: {{ doc.target_users === 'all' ? 'Tots els treballadors' : doc.target_users.length + ' seleccionats' }}
           </div>
         </div>
-        <div style="display:flex;gap:6px;flex-shrink:0;">
+        <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;max-width:260px;">
           <button class="btn btn-outline btn-sm" @click="toggleDocDetail(doc.id)">
             {{ expandedDocId === doc.id ? '▾ Tancar' : '▸ Detall' }}
           </button>
-          <button v-if="doc.requires_signature" class="btn btn-outline btn-sm" @click="sendReminder(doc)" title="Enviar recordatori">🔔</button>
+          <button class="btn btn-outline btn-sm" @click="openEditModal(doc)" title="Modificar el document">✏️ Editar</button>
+          <button class="btn btn-outline btn-sm" :style="doc.is_urgent ? 'color:var(--color-danger);' : ''" :disabled="ocupat === doc.id"
+            @click="toggleUrgent(doc)" :title="doc.is_urgent ? 'Treure la urgència' : 'Marcar com a urgent'">
+            {{ doc.is_urgent ? '🔴 Treure urgent' : '⚪ Fer urgent' }}
+          </button>
+          <button class="btn btn-outline btn-sm" :disabled="ocupat === doc.id" @click="toggleOcult(doc)"
+            :title="doc.ocult ? 'Tornar-lo a mostrar als treballadors' : 'Amagar-lo als treballadors'">
+            {{ doc.ocult ? '👁 Mostrar' : '🙈 Ocultar' }}
+          </button>
+          <button v-if="doc.requires_signature && !doc.ocult" class="btn btn-outline btn-sm" @click="sendReminder(doc)" title="Enviar recordatori">🔔</button>
+          <button class="btn btn-outline btn-sm" style="color:var(--color-danger);" :disabled="ocupat === doc.id" @click="deleteDocument(doc)" title="Esborrar el document">🗑</button>
         </div>
       </div>
 
@@ -246,7 +257,7 @@
     <div v-if="showCreateModal" class="modal-overlay" @click.self="showCreateModal = false">
       <div class="modal" style="max-width:700px;">
         <div class="modal-header">
-          <h3 class="modal-title">📄 Nou document</h3>
+          <h3 class="modal-title">{{ editingDocId ? '✏️ Modificar document' : '📄 Nou document' }}</h3>
           <button class="icon-btn" @click="showCreateModal = false">✕</button>
         </div>
 
@@ -258,16 +269,19 @@
           <label class="form-label">Descripció breu</label>
           <input class="form-input" v-model="newDoc.description" placeholder="Descripció del document" />
         </div>
-        <div class="form-group">
+        <div v-if="editingDocId" class="text-small text-muted" style="margin-bottom:12px;">
+          {{ newDoc.pdf_present ? 'El PDF no es pot canviar des d\'aquí: per substituir-lo, crea un document nou i esborra o desactiva aquest.' : '' }}
+        </div>
+        <div v-if="!editingDocId || !newDoc.pdf_present" class="form-group">
           <label class="form-label">Contingut del document</label>
-          <div style="display:flex;gap:8px;margin-bottom:10px;">
+          <div v-if="!editingDocId" style="display:flex;gap:8px;margin-bottom:10px;">
             <button class="btn btn-sm" :class="newDoc.content_mode === 'text' ? 'btn-primary' : 'btn-outline'" @click="newDoc.content_mode = 'text'">📝 Text</button>
             <button class="btn btn-sm" :class="newDoc.content_mode === 'pdf' ? 'btn-primary' : 'btn-outline'" @click="newDoc.content_mode = 'pdf'">📄 Pujar PDF</button>
           </div>
           <!-- Text mode -->
           <textarea v-if="newDoc.content_mode === 'text'" class="form-textarea" v-model="newDoc.content" rows="8" placeholder="Escriviu o enganxeu el contingut del document aquí..." style="font-family:monospace;font-size:0.85rem;"></textarea>
           <!-- PDF upload mode -->
-          <div v-else>
+          <div v-else-if="!editingDocId">
             <div v-if="!newDoc.pdf_data" style="border:2px dashed var(--color-border-light);border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:border-color 0.2s;" @click="$refs.pdfInput.click()" @dragover.prevent="onDragOver" @dragleave="onDragLeave" @drop.prevent="onFileDrop" :style="dragging ? 'border-color:var(--color-primary);background:rgba(59,130,246,0.04);' : ''">
               <div style="font-size:2.5rem;margin-bottom:8px;">📎</div>
               <div style="font-weight:600;font-size:0.9rem;margin-bottom:4px;">Arrossegueu un PDF aquí o feu clic per seleccionar</div>
@@ -337,7 +351,8 @@
 
         <div class="modal-footer">
           <button class="btn btn-outline" @click="showCreateModal = false">Cancel·lar</button>
-          <button class="btn btn-primary" @click="createDocument" :disabled="!newDoc.title || (!newDoc.content && !newDoc.pdf_data)">Publicar document</button>
+          <button v-if="editingDocId" class="btn btn-primary" @click="saveEdit" :disabled="!newDoc.title">Guardar canvis</button>
+          <button v-else class="btn btn-primary" @click="createDocument" :disabled="!newDoc.title || (!newDoc.content && !newDoc.pdf_data)">Publicar document</button>
         </div>
       </div>
     </div>
@@ -366,6 +381,8 @@ const activeFilter = ref('all')
 const expandedDocId = ref(null)
 const reminderToast = ref('')
 const showCreateModal = ref(false)
+const editingDocId = ref(null)
+const ocupat = ref(null)
 const showProfileForm = ref(false)
 const editingProfile = ref(null)
 const expandedProfileId = ref(null)
@@ -434,15 +451,15 @@ const filteredDocs = computed(() => {
   }
 })
 
-const urgentCount = computed(() => documents.value.filter(d => d.is_urgent).length)
+const urgentCount = computed(() => documents.value.filter(d => d.is_urgent && !d.ocult).length)
 const completedCount = computed(() => documents.value.filter(d => !d.requires_signature || getPendingCount(d.id) === 0).length)
-const totalPendingSignatures = computed(() => documents.value.filter(d => d.requires_signature).reduce((sum, d) => sum + getPendingCount(d.id), 0))
+const totalPendingSignatures = computed(() => documents.value.filter(d => d.requires_signature && !d.ocult).reduce((sum, d) => sum + getPendingCount(d.id), 0))
 
 // New document form
 const newDoc = reactive({
   title: '', description: '', content: '', file_name: '', category: 'laboral',
   requires_signature: false, is_urgent: false, target_mode: 'all', selected_users: [],
-  content_mode: 'pdf', pdf_data: null, pdf_size: 0
+  content_mode: 'pdf', pdf_data: null, pdf_size: 0, pdf_present: false
 })
 
 watch(() => newDoc.is_urgent, (isUrgent) => {
@@ -453,8 +470,74 @@ const dragging = ref(false)
 const pdfInput = ref(null)
 
 function openCreateModal() {
-  Object.assign(newDoc, { title: '', description: '', content: '', file_name: '', category: 'laboral', requires_signature: false, is_urgent: false, target_mode: 'all', selected_users: [], content_mode: 'pdf', pdf_data: null, pdf_size: 0 })
+  editingDocId.value = null
+  Object.assign(newDoc, { title: '', description: '', content: '', file_name: '', category: 'laboral', requires_signature: false, is_urgent: false, target_mode: 'all', selected_users: [], content_mode: 'pdf', pdf_data: null, pdf_size: 0, pdf_present: false })
   showCreateModal.value = true
+}
+
+function openEditModal(doc) {
+  editingDocId.value = doc.id
+  const tots = doc.target_users === 'all' || !Array.isArray(doc.target_users)
+  Object.assign(newDoc, { title: doc.title || '', description: doc.description || '', content: doc.content || '', file_name: doc.file_name || '',
+    category: doc.category || 'altres', requires_signature: !!doc.requires_signature, is_urgent: !!doc.is_urgent,
+    target_mode: tots ? 'all' : 'selected', selected_users: tots ? [] : [...doc.target_users],
+    content_mode: 'text', pdf_data: null, pdf_size: 0, pdf_present: !!doc.pdf_data })
+  showCreateModal.value = true
+}
+
+async function saveEdit() {
+  if (newDoc.is_urgent) newDoc.requires_signature = true
+  const camps = {
+    title: newDoc.title, description: newDoc.description, file_name: newDoc.file_name, category: newDoc.category,
+    requires_signature: newDoc.requires_signature, is_urgent: newDoc.is_urgent,
+    target_users: newDoc.target_mode === 'all' ? 'all' : [...newDoc.selected_users]
+  }
+  if (!newDoc.pdf_present) camps.content = newDoc.content   // en un PDF el text és només una etiqueta: no es toca
+  try {
+    await db.updateDocument({ id: editingDocId.value, ...camps })
+    auditLog(authStore.userId, 'UPDATE_DOCUMENT', 'document', editingDocId.value, `Document modificat: ${newDoc.title}`)
+    await fetchData()
+    showCreateModal.value = false
+    showToast('✓ Document guardat')
+  } catch (e) { console.error(e); showToast('No s\'ha pogut guardar el document') }
+}
+
+async function toggleUrgent(doc) {
+  ocupat.value = doc.id
+  try {
+    const urgent = !doc.is_urgent
+    await db.updateDocument({ id: doc.id, is_urgent: urgent })
+    auditLog(authStore.userId, 'UPDATE_DOCUMENT', 'document', doc.id, `${urgent ? 'Marcat com a urgent' : 'Urgència treta'}: ${doc.title}`)
+    await fetchData()
+    showToast(urgent ? '🔴 Document marcat com a urgent' : '✓ Urgència treta')
+  } catch (e) { console.error(e); showToast('No s\'ha pogut canviar la urgència') }
+  finally { ocupat.value = null }
+}
+
+async function toggleOcult(doc) {
+  ocupat.value = doc.id
+  try {
+    const ocult = !doc.ocult
+    await db.updateDocument({ id: doc.id, ocult })
+    auditLog(authStore.userId, 'UPDATE_DOCUMENT', 'document', doc.id, `${ocult ? 'Ocultat als treballadors' : 'Tornat a mostrar'}: ${doc.title}`)
+    await fetchData()
+    showToast(ocult ? '🙈 Document ocult: els treballadors ja no el veuen' : '👁 Document visible per als treballadors')
+  } catch (e) { console.error(e); showToast('No s\'ha pogut canviar la visibilitat') }
+  finally { ocupat.value = null }
+}
+
+async function deleteDocument(doc) {
+  if (!confirm(`Esborrar «${doc.title}»?\n\nAquesta acció no es pot desfer.`)) return
+  ocupat.value = doc.id
+  try {
+    await db.deleteDocument(doc.id)
+    auditLog(authStore.userId, 'DELETE_DOCUMENT', 'document', doc.id, `Document esborrat: ${doc.title}`)
+    await fetchData()
+    showToast('✓ Document esborrat')
+  } catch (e) {
+    // El servidor explica per què no (p. ex. ja té firmes registrades).
+    showToast(e?.message || 'No s\'ha pogut esborrar el document')
+  } finally { ocupat.value = null }
 }
 
 async function createDocument() {
@@ -554,7 +637,7 @@ function sendIndividualReminder(doc, sig) {
 
 function showToast(msg) {
   reminderToast.value = msg
-  setTimeout(() => { reminderToast.value = '' }, 3000)
+  setTimeout(() => { reminderToast.value = '' }, 5000)
 }
 
 function formatDate(d) { return new Date(d).toLocaleDateString('ca-ES', { day: '2-digit', month: 'short', year: 'numeric' }) }

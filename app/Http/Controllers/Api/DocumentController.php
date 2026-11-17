@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Document;
 use App\Models\DocumentSignature;
+use App\Models\OnboardingProfile;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -51,17 +52,43 @@ class DocumentController extends Controller
 
     public function update(Request $request, Document $document)
     {
-        $document->update($request->only([
-            'title', 'description', 'content', 'file_name',
-            'category', 'requires_signature', 'is_urgent', 'target_users',
-        ]));
+        $data = $request->validate([
+            'title' => 'sometimes|required|string|max:255',
+            'description' => 'nullable|string',
+            'content' => 'nullable|string',
+            'file_name' => 'nullable|string',
+            'category' => 'sometimes|string',
+            'requires_signature' => 'sometimes|boolean',
+            'is_urgent' => 'sometimes|boolean',
+            'ocult' => 'sometimes|boolean',
+            'target_users' => 'nullable',
+        ]);
+        // Un document urgent bloqueja l'accés fins que es firma: sense firma no té sentit.
+        if (! empty($data['is_urgent'])) $data['requires_signature'] = true;
+        // Si es treu la firma, deixa també de ser urgent.
+        if (array_key_exists('requires_signature', $data) && ! $data['requires_signature']) $data['is_urgent'] = false;
+        $document->update($data);
 
         return response()->json($document->fresh());
     }
 
     public function destroy(Document $document)
     {
+        // Les firmes són constància legal i s'esborrarien en cascada amb el document: si n'hi ha, no es pot esborrar.
+        if ($document->signatures()->exists()) {
+            return response()->json(['message' => 'Aquest document ja té firmes o lectures registrades i no es pot esborrar. Si ja no s\'ha de mostrar als treballadors, oculta\'l.'], 422);
+        }
+        // Els perfils d'onboarding el guarden per id: se'l treu per no deixar-hi un forat.
+        foreach (OnboardingProfile::all() as $p) {
+            $ids = array_values(array_filter($p->document_ids ?? [], fn ($i) => (int) $i !== $document->id));
+            if (count($ids) !== count($p->document_ids ?? [])) {
+                $modes = $p->doc_modes ?? [];
+                unset($modes[$document->id]);
+                $p->update(['document_ids' => $ids, 'doc_modes' => $modes]);
+            }
+        }
         $document->delete();
+
         return response()->json(null, 204);
     }
 
@@ -77,7 +104,7 @@ class DocumentController extends Controller
     {
         $userId = (int) $userId;
 
-        $docs = Document::where(function ($q) use ($userId) {
+        $docs = Document::where('ocult', false)->where(function ($q) use ($userId) {
             // Documentos dirigidos a "todos" (sin target_users específico)
             $q->whereNull('target_users')
               ->orWhere('target_users', '')

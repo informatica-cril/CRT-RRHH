@@ -4,13 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreAuthCodeRequest;
-use App\Mail\AuthCodeNotification;
 use App\Models\AuthorizationCode;
 use App\Models\User;
 use App\Models\WorkSchedule;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
 
 class AuthCodeController extends Controller
 {
@@ -262,19 +260,9 @@ class AuthCodeController extends Controller
                 $authCode->valid_to ? Carbon::parse($authCode->valid_to)->toDateString() : 'sense data fi'));
         }
 
+        // Sense correu (RRHH, 17-11-2026): el treballador ja rep l'avís dins de l'app (avisaTreballador, més amunt).
         if (($request->input('notification_sent') || $request->input('send_notification')) && $authCode->user_id) {
-            $recipient = User::find($authCode->user_id);
-            $generatedBy = User::find($authCode->generated_by);
-            if ($recipient?->email && $generatedBy) {
-                // El correu és síncron (QUEUE=sync). Un SMTP lent/caigut NO pot fer
-                // fallar la creació del codi (que ja existeix): es marca només si s'envia.
-                try {
-                    Mail::to($recipient->email)->send(new AuthCodeNotification($authCode, $recipient, $generatedBy));
-                    $authCode->update(['notification_sent' => true]);
-                } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning('AuthCode notification failed: ' . $e->getMessage());
-                }
-            }
+            $authCode->update(['notification_sent' => true]);
         }
 
         return response()->json(array_merge($authCode->fresh()->toArray(), ['aplicades' => $aplicades]), 201);
@@ -617,6 +605,9 @@ class AuthCodeController extends Controller
         if (! $workLog->getRawOriginal('end_time') || (float) $workLog->extra_hours_unauthorized <= 0) {
             return response()->json(['message' => 'Aquest fitxatge no té hores de més per acceptar.'], 422);
         }
+        if ($workLog->status === 'rejected') {
+            return response()->json(['message' => "El fitxatge està rebutjat: les hores de més no s'hi poden acceptar. Torna'l a revisar abans."], 422);
+        }
         $jaHiEren = \App\Services\AutoritzacioHores::aplica($workLog);
         $workLog->refresh();
         $falten = round((float) $workLog->extra_hours_unauthorized, 2);
@@ -647,6 +638,38 @@ class AuthCodeController extends Controller
 
         return response()->json(['ok' => true, 'aplicades' => round($jaHiEren + (float) ($r['aplicades'] ?? 0), 2),
             'pendents' => round((float) $workLog->fresh()->extra_hours_unauthorized, 2)]);
+    }
+
+    /**
+     * Denegar les hores de més sense autoritzar d'un fitxatge (RRHH i admin): deixen de comptar com a pendents.
+     * No s'esborra res: la quantitat denegada, qui ho ha fet i el motiu queden a l'historial del fitxatge.
+     */
+    public function denegaHoresDeMes(Request $request, \App\Models\WorkLog $workLog)
+    {
+        $data = $request->validate(['motiu' => 'nullable|string|max:500']);
+        $pendents = round((float) $workLog->extra_hours_unauthorized, 2);
+        if (! $workLog->getRawOriginal('end_time') || $pendents <= 0) {
+            return response()->json(['message' => 'Aquest fitxatge no té hores de més per denegar.'], 422);
+        }
+        $motiu = trim((string) ($data['motiu'] ?? '')) ?: 'Hores de més denegades en revisar el fitxatge';
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($workLog, $pendents, $motiu, $request) {
+            $workLog->forceFill([
+                'extra_hours_unauthorized' => 0,
+                'hour_status' => $workLog->hour_status === 'extra' ? 'ok' : $workLog->hour_status,
+            ])->saveQuietly();
+            // El saldo de minuts recorda el valor d'«abans»: sense això, un recàlcul tornaria a posar les hores.
+            \App\Models\SaldoMinutsApunt::where('work_log_id', $workLog->id)
+                ->update(['extra_abans' => 0, 'extra_despres' => 0]);
+            \Illuminate\Support\Facades\DB::table('work_log_modifications')->insert([
+                'work_log_id' => $workLog->id, 'user_id' => $request->user()->id, 'action' => 'modified',
+                'old_values' => json_encode(['extra_hours_unauthorized' => $pendents]),
+                'new_values' => json_encode(['extra_hours_unauthorized' => 0, 'denegades' => $pendents]),
+                'comment' => 'Hores de més denegades: ' . $motiu, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        });
+
+        return response()->json(['ok' => true, 'denegades' => $pendents]);
     }
 
     /**

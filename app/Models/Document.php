@@ -9,13 +9,14 @@ class Document extends Model
     protected $fillable = [
         'title', 'description', 'content', 'file_name',
         'file_path', 'file_mime', 'category',
-        'requires_signature', 'is_urgent',
+        'requires_signature', 'is_urgent', 'ocult',
         'target_users', 'created_by',
     ];
 
     protected $casts = [
         'requires_signature' => 'boolean',
         'is_urgent' => 'boolean',
+        'ocult' => 'boolean',
         'target_users' => 'json',
     ];
 

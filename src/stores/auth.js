@@ -15,6 +15,7 @@ export const useAuthStore = defineStore('auth', {
     userId: (state) => state.user?.id,
     isAdmin: (state) => state.user?.role === 'admin',
     isWorker: (state) => state.user?.role === 'worker',
+    esInformatica: (state) => !!state.user?.es_informatica,     // Equip d'informàtica: respon incidències d'Informàtica
     isHr: (state) => state.user?.role === 'hr',                 // Responsable RRHH
     isCoordinator: (state) => state.user?.role === 'coordinator',
     // Gestió de personal/disponibilitat/permisos: admin o RRHH (RRHH NO accedeix a nòmines/sistema).

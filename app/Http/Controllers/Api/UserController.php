@@ -43,7 +43,7 @@ class UserController extends Controller
                              demanar la fitxa de cadascú. */
                           'domi_username', 'domi_provisioned_at',
                           'privacy_consent', 'seniority_date', 'onboarding_profile_id',
-                          'onboarding_completed', 'must_change_password', 'chat_status',
+                          'onboarding_completed', 'must_change_password', 'es_informatica', 'chat_status',
                           'last_chat_heartbeat', 'geo_consent_accepted_at', 'created_at', 'updated_at'])
                 ->with('workSchedule')
                 ->get()
@@ -182,6 +182,7 @@ class UserController extends Controller
         // rol i la contrasenya, que són d'administració. L'estat actiu té el seu botó (tanca
         // sessions). A les fitxes d'administració, només el contacte.
         if (! $request->user()->isAdmin()) {
+            unset($data['es_informatica']);   // només administració decideix qui és de l'equip d'informàtica
             $esGestioRrhh = $request->user()->role === 'hr';
             $propia = (int) $request->user()->id === (int) $user->id;
             abort_unless($propia || $esGestioRrhh, 403, 'No autoritzat');
@@ -361,6 +362,13 @@ class UserController extends Controller
      */
     public function destroy(Request $request, User $user)
     {
+        // Ningú s'elimina a si mateix, i les fitxes d'administració només les toca administració.
+        abort_if((int) $request->user()->id === (int) $user->id, 422, 'No podeu eliminar la vostra pròpia fitxa.');
+        abort_if(in_array($user->role, ['admin', 'service'], true) && ! $request->user()->isAdmin(), 403, 'Només Superior pot eliminar aquesta fitxa.');
+        abort_if($user->role === 'admin' && $user->active
+            && User::where('role', 'admin')->where('active', true)->where('id', '<>', $user->id)->doesntExist(),
+            422, "És l'únic usuari Superior actiu: dona primer el rol Superior a una altra persona.");
+
         $fitxatges = WorkLog::where('user_id', $user->id)->count();
 
         if ($fitxatges > 0) {

@@ -55,11 +55,10 @@ class ComiteController extends Controller
             'hora_inici'  => 'required|date_format:H:i',
             'hora_fi'     => 'required|date_format:H:i|after:hora_inici',
             'tipus'       => 'required|in:' . implode(',', array_keys(ComiteHora::TIPUS)),
-            'motiu'       => 'required|string|min:5|max:2000',
+            'motiu'       => 'nullable|string|max:2000',   // opcional (RRHH, 11-2026); la columna és NOT NULL: es desa buit
             'justificant' => 'nullable|file|max:8192|mimes:pdf,jpg,jpeg,png',
         ], [
             'hora_fi.after' => "L'hora de fi ha de ser posterior a la d'inici.",
-            'motiu.required' => 'Cal indicar el motiu: és el que justifica les hores.',
             'justificant.mimes' => 'El justificant ha de ser un PDF o una imatge (JPG o PNG).',
             'justificant.max' => 'El justificant no pot passar de 8 MB.',
         ]);
@@ -92,7 +91,7 @@ class ComiteController extends Controller
             'minuts'           => Carbon::parse($inici)->diffInMinutes(Carbon::parse($fi)),
             'tipus'            => $data['tipus'],
             'consumeix_credit' => ! in_array($data['tipus'], ComiteHora::NO_CONSUMEIXEN, true),
-            'motiu'            => $data['motiu'],
+            'motiu'            => trim((string) ($data['motiu'] ?? '')),
         ]);
 
         if ($request->hasFile('justificant')) {

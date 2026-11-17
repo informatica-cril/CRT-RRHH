@@ -342,7 +342,7 @@ const routes = [
     path: '/incidencies',
     name: 'incidencies',
     component: () => import('../views/IncidenciesView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true }
+    meta: { requiresAuth: true, requiresAdmin: true, permetInformatica: true }
   },
   {
     path: '/worker/compliance',
@@ -429,7 +429,7 @@ router.beforeEach(async (to, from, next) => {
 
   // If admin-only route and user is worker, redirect to worker dashboard
   // Coordinators can access admin routes too
-  if (to.meta.requiresAdmin && authStore.user?.role === 'worker') {
+  if (to.meta.requiresAdmin && authStore.user?.role === 'worker' && !(to.meta.permetInformatica && authStore.user?.es_informatica)) {
     next({ name: 'worker-dashboard' })
     return
   }
