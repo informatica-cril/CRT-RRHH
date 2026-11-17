@@ -42,6 +42,7 @@ class FullMensualTest extends TestCase
         $r->assertSee('4 h 05 min');
         $r->assertSee('Signatura del treballador/a', false);
         $r->assertSee("Signatura de l'empresa", false);
+        $r->assertSee('SONIA GOMEZ (RRHH)');
         $this->assertStringNotContainsString('41.38', $r->getContent());
     }
 

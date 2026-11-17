@@ -113,7 +113,7 @@ class FullMensualController extends Controller
             . $files . '</tbody><tfoot><tr><td colspan="4">Total del mes (' . $logs->count() . ' jornades)</td><td class="d">' . $e($hm($total)) . '</td><td></td></tr></tfoot></table>'
             . '<p>Hores de més acceptades: <b>' . $e($hm($extraAut)) . '</b> · Sense autoritzar: <b>' . $e($hm($extraPend)) . '</b>' . ($saldo ? ' · ' . $saldo : '') . '</p>'
             . '<table class="sig"><tr><td><div class="lin">Signatura del treballador/a<br>' . $e($persona->name) . '<br>Data:</div></td>'
-            . '<td><div class="lin">Signatura de l\'empresa (CRT)<br>Nom i càrrec:<br>Data:</div></td></tr></table>'
+            . '<td><div class="lin">Signatura de l\'empresa (CRT)<br>Nom i càrrec: SONIA GOMEZ (RRHH)<br>Data:</div></td></tr></table>'
             . '<div class="peu">Document generat des de CRT RRHH el ' . now('Europe/Madrid')->format('d/m/Y H:i') . '</div>'
             . ($format === 'pdf' ? '<div class="eines" style="text-align:right;margin-top:14px"><button onclick="window.print()">Imprimir o desar com a PDF</button></div>' : '')
             . '</body></html>';
