@@ -284,9 +284,12 @@ Route::prefix('v1')->group(function () {
             Route::get('/', [WorkLogController::class, 'index'])->middleware('role:admin,coordinator,hr');
             // Excel del que es veu a la pantalla de registres (mes, persona i vista).
             Route::get('export', [\App\Http\Controllers\Api\WorkLogExportController::class, 'export'])->middleware('role:admin,coordinator,hr');
+            // Full mensual d'una persona (PDF o Word) amb signatura de la persona i de l'empresa.
+            Route::get('full-mensual', [\App\Http\Controllers\Api\FullMensualController::class, 'show'])->middleware('role:admin,coordinator,hr');
             // Aprovar una selecció de fitxatges d'una sola vegada.
             // Acceptar les hores de més d'un fitxatge (p. ex. ha cobert un torn): RRHH i admin.
             Route::post('{workLog}/accepta-hores-de-mes', [\App\Http\Controllers\Api\AuthCodeController::class, 'acceptaHoresDeMes'])->middleware('role:admin,hr');
+            Route::post('{workLog}/denega-hores-de-mes', [\App\Http\Controllers\Api\AuthCodeController::class, 'denegaHoresDeMes'])->middleware('role:admin,hr');
             Route::post('aprova-seleccionats', [\App\Http\Controllers\Api\WorkLogBulkController::class, 'aprova'])->middleware('role:admin,coordinator,hr');
             // Rebutjar una selecció (com el botó «Rebutjar» de cada fila) i tornar-la a revisar (RRHH i admin).
             Route::post('rebutja-seleccionats', [\App\Http\Controllers\Api\WorkLogBulkController::class, 'rebutja'])->middleware('role:admin,coordinator,hr');
@@ -463,10 +466,13 @@ Route::prefix('v1')->group(function () {
         Route::post('incidencies/meves/vistes', [\App\Http\Controllers\Api\IncidenciaController::class, 'marcaVistes']);
         Route::post('incidencies/{incidencia}/missatges', [\App\Http\Controllers\Api\IncidenciaController::class, 'missatge'])->middleware('throttle:30,60');
         Route::post('incidencies', [\App\Http\Controllers\Api\IncidenciaController::class, 'store'])->middleware('throttle:10,60');
-        Route::get('incidencies', [\App\Http\Controllers\Api\IncidenciaController::class, 'index'])->middleware('role:admin,hr');
-        Route::post('incidencies/{incidencia}/resol', [\App\Http\Controllers\Api\IncidenciaController::class, 'resol'])->middleware('role:admin,hr');
-        Route::post('incidencies/{incidencia}/reobre', [\App\Http\Controllers\Api\IncidenciaController::class, 'reobre'])->middleware('role:admin,hr');
-        Route::post('incidencies/{incidencia}/estat', [\App\Http\Controllers\Api\IncidenciaController::class, 'estat'])->middleware('role:admin,hr');
+        Route::get('incidencies', [\App\Http\Controllers\Api\IncidenciaController::class, 'index']);
+        Route::post('incidencies/{incidencia}/resol', [\App\Http\Controllers\Api\IncidenciaController::class, 'resol']);
+        Route::post('incidencies/{incidencia}/reobre', [\App\Http\Controllers\Api\IncidenciaController::class, 'reobre']);
+        Route::post('incidencies/{incidencia}/redirigeix', [\App\Http\Controllers\Api\IncidenciaController::class, 'redirigeix']);
+        Route::post('incidencies/{incidencia}/estat', [\App\Http\Controllers\Api\IncidenciaController::class, 'estat']);
+        // Notificacions de l'app (alertes, respostes d'incidències, incidències noves): una sola crida.
+        Route::get('notificacions', [\App\Http\Controllers\Api\NotificacionsController::class, 'index']);
         Route::get('safata/resum', [\App\Http\Controllers\Api\SafataController::class, 'resum'])->middleware('role:admin,coordinator,hr');
 
         // ── Representació legal: crèdit horari (art. 68.e ET) ──
@@ -642,6 +648,8 @@ Route::prefix('v1')->group(function () {
         Route::delete('plantilles-horari/{workSchedule}', [\App\Http\Controllers\Api\PlantillesHorariController::class, 'destroy'])->middleware('role:admin,hr');
         Route::get('el-meu-avis-marge', [\App\Http\Controllers\Api\AvisMargeController::class, 'meu']);
         Route::get('avisos-marge', [\App\Http\Controllers\Api\AvisMargeController::class, 'index'])->middleware('role:admin,hr');
+        Route::get('avisos-marge/ratxa/{workLog}', [\App\Http\Controllers\Api\AvisMargeController::class, 'ratxa'])->middleware('role:admin,hr');
+        Route::get('avisos-marge/marques', [\App\Http\Controllers\Api\AvisMargeController::class, 'marques'])->middleware('role:admin,hr');
         Route::post('avisos-marge/{user}/descarta', [\App\Http\Controllers\Api\AvisMargeController::class, 'descarta'])->middleware('role:admin,hr');
 
         // Configuració de correu (admin) + enviament de prova

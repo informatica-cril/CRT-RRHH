@@ -99,6 +99,25 @@ class JornadesSenseSortidaTest extends TestCase
         $this->postJson("/api/v1/work-logs/{$avui->id}/declara-sortida", ['sortida' => '2026-10-07 08:50', 'explicacio' => $explicacio])->assertStatus(422);
     }
 
+    public function test_qui_ha_declarat_la_sortida_deixa_de_comptar_com_a_sense_sortida(): void
+    {
+        $u = $this->user();
+        $declarada = $this->oberta($u, '2026-10-02');
+        $this->oberta($u, '2026-10-06');
+        Sanctum::actingAs($u);
+        $this->postJson("/api/v1/work-logs/{$declarada->id}/declara-sortida", [
+            'sortida' => '2026-10-02 15:00', 'explicacio' => 'Em vaig oblidar de fitxar en marxar',
+        ])->assertCreated();
+
+        Sanctum::actingAs($this->user('hr'));
+        $cua = collect($this->getJson('/api/v1/safata/resum')->json('cues'))->firstWhere('clau', 'sensesortida');
+        $this->assertSame(1, $cua['n']);                                   // la declarada ja no hi compta
+
+        $llista = collect($this->getJson('/api/v1/work-logs?mes=2026-10')->assertOk()->json());
+        $this->assertSame('2026-10-02 15:00', $llista->firstWhere('id', $declarada->id)['declaracio_sortida']['sortida']);
+        $this->assertNull($llista->where('id', '!=', $declarada->id)->first()['declaracio_sortida']);
+    }
+
     public function test_gestio_veu_la_llista_i_la_safata_les_compta(): void
     {
         $u = $this->user();

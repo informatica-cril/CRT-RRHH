@@ -34,7 +34,7 @@ class PlantillesHorariController extends Controller
             'total_hours_weekly' => (float) $s->total_hours_weekly,
             'minuts_reals' => WorkSchedule::minutsSetmanals($s->days),
             'trams' => WorkSchedule::tramsPerDia($s->days),
-            'signatura' => WorkSchedule::signatura($s->days),
+            'signatura' => WorkSchedule::signatura($s->days, $s->rotacio),
             'persones_actives' => (int) ($persones[$s->id]->actius ?? 0),
             'persones_inactives' => (int) ($persones[$s->id]->inactius ?? 0),
             'dies_quadrant' => (int) ($quadrant[$s->id] ?? 0),
@@ -74,8 +74,8 @@ class PlantillesHorariController extends Controller
     {
         $data = $request->validate(['ids' => 'required|array|min:1|max:200', 'ids.*' => 'integer|exists:work_schedules,id']);
         $ids = collect($data['ids'])->map(fn ($i) => (int) $i)->reject(fn ($i) => $i === $workSchedule->id)->unique()->values();
-        $signatura = WorkSchedule::signatura($workSchedule->days);
-        $diferents = WorkSchedule::whereIn('id', $ids)->get()->filter(fn ($s) => WorkSchedule::signatura($s->days) !== $signatura);
+        $signatura = WorkSchedule::signatura($workSchedule->days, $workSchedule->rotacio);
+        $diferents = WorkSchedule::whereIn('id', $ids)->get()->filter(fn ($s) => WorkSchedule::signatura($s->days, $s->rotacio) !== $signatura);
         if ($signatura === '' || $diferents->isNotEmpty()) {
             throw ValidationException::withMessages(['ids' => 'Només es poden ajuntar plantilles que fan exactament el mateix horari.']);
         }

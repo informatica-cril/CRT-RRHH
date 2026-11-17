@@ -66,6 +66,9 @@ class WorkLogService
         if (! $schedule || ! is_array($schedule->days)) {
             return true; // sense horari definit → no bloquejar
         }
+        if (! empty($schedule->rotacio)) {
+            return HorariDia::trams($user, $dia) !== [];   // horari rotatiu: depèn de la setmana
+        }
         $jsDay = (int) $when->copy()->setTimezone('Europe/Madrid')->dayOfWeek; // 0=Dg..6=Ds
         foreach ($schedule->days as $d) {
             $dd = $d['day'] ?? $d['day_num'] ?? null;
@@ -244,11 +247,16 @@ class WorkLogService
                     }
                 } else {
                     // Fora d'horari (abans, entre trams o després): un sol tram pendent de revisió.
+                    // Excepció (RRHH, 16-11-2026): la pausa d'una jornada partida (el forat ENTRE dos trams
+                    // de l'horari) s'aprova sola si és dins de zona, com un descans. No suma a hores extra.
+                    $enPausa = collect($finestres)->contains(function ($f, $k) use ($finestres, $p, $q) {
+                        return isset($finestres[$k + 1]) && $p->gte($f[1]) && $q->lte($finestres[$k + 1][0]);
+                    });
                     $segments[] = [
                         'start_time' => $p->copy(), 'end_time' => $q->copy(),
                         'start_lat' => null, 'start_lng' => null, 'end_lat' => null, 'end_lng' => null,
                         'in_zone' => $zonaA($p), 'in_schedule' => false,
-                        'duration_minutes' => $minuts($p, $q), 'status' => 'pending',
+                        'duration_minutes' => $minuts($p, $q), 'status' => ($enPausa && $zonaA($p)) ? 'approved' : 'pending',
                     ];
                 }
             }
@@ -272,9 +280,29 @@ class WorkLogService
             return isset($segments[$j]) && $segments[$j]['in_schedule'] && $segments[$j]['in_zone']
                 && $segments[$j]['status'] === 'approved';
         };
+        // Amb el saldo de minuts actiu, aquests minuts ja van al saldo: un tram curt fora d'horari que tampoc
+        // és de zona (l'entrada era fora de zona) s'ajunta al tram veí que té el mateix veredicte de zona,
+        // i no queda com a «5 min pendents» a banda. El problema de zona es continua revisant al tram veí.
+        $mateixaZona = function (int $j) use (&$segments): bool {
+            return isset($segments[$j]) && $segments[$j]['in_schedule'] && ! $segments[$j]['in_zone'];
+        };
         for ($i = count($segments) - 1; $i >= 0; $i--) {
             $s = $segments[$i];
-            if ($s['in_schedule'] || ! $s['in_zone'] || $s['duration_minutes'] > (SaldoMinuts::finestraActiva() ?? self::MARGE_HORARI_MIN)) continue;
+            if ($s['in_schedule'] || $s['duration_minutes'] > (SaldoMinuts::finestraActiva() ?? self::MARGE_HORARI_MIN)) continue;
+            if (! $s['in_zone']) {
+                if (SaldoMinuts::finestraActiva() === null) continue;
+                if ($mateixaZona($i - 1)) {
+                    $segments[$i - 1]['end_time'] = $s['end_time'];
+                    $segments[$i - 1]['duration_minutes'] = $minuts($segments[$i - 1]['start_time'], $s['end_time']);
+                } elseif ($mateixaZona($i + 1)) {
+                    $segments[$i + 1]['start_time'] = $s['start_time'];
+                    $segments[$i + 1]['duration_minutes'] = $minuts($s['start_time'], $segments[$i + 1]['end_time']);
+                } else {
+                    continue;
+                }
+                array_splice($segments, $i, 1);
+                continue;
+            }
             if ($ajuntable($i - 1)) {
                 $segments[$i - 1]['end_time'] = $s['end_time'];
                 $segments[$i - 1]['duration_minutes'] = $minuts($segments[$i - 1]['start_time'], $s['end_time']);

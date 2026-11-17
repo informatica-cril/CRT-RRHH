@@ -84,6 +84,43 @@ class SegmentacioHorariTest extends TestCase
         $this->assertSame(6, (int) $t[1]->duration_minutes);
     }
 
+    /** Fitxatge amb l'entrada fora de zona (com el d'Óscar, 9/11): horari 09:00–13:00, fitxa de 09:00 a 13:05. */
+    private function tramsEntradaForaZona(): \Illuminate\Support\Collection
+    {
+        $s = WorkSchedule::create(['name' => 'Matí', 'total_hours_weekly' => 20, 'days' => $this->horari('09:00', '13:00', [1, 2, 3, 4, 5])]);
+        $u = User::create(['name' => 'T', 'email' => uniqid() . '@test.local', 'password' => bcrypt('x'),
+            'role' => 'worker', 'active' => true, 'work_schedule_id' => $s->id]);
+        $log = WorkLog::create(['user_id' => $u->id, 'date' => '2026-10-07',
+            'start_time' => '2026-10-07 09:00:00', 'end_time' => '2026-10-07 13:05:00',
+            'start_location_match' => false, 'end_location_match' => true, 'status' => 'pending']);
+        app(WorkLogService::class)->segmentWorkLog($log->fresh(), $u);
+
+        return WorkLogSegment::where('work_log_id', $log->id)->orderBy('segment_number')->get();
+    }
+
+    public function test_amb_saldo_actiu_el_tram_curt_fora_de_zona_no_queda_pendent_a_banda(): void
+    {
+        \App\Models\SaldoMinutsSetting::create(['enabled' => true, 'finestra_minuts' => 5, 'tope_minuts' => 15, 'actiu_des' => '2026-10-01']);
+        \App\Services\SaldoMinuts::oblida();
+
+        $t = $this->tramsEntradaForaZona();
+
+        $this->assertCount(1, $t);
+        $this->assertSame('pending', $t[0]->status);      // el problema de zona es continua revisant
+        $this->assertFalse((bool) $t[0]->in_zone);
+        $this->assertSame(245, (int) $t[0]->duration_minutes);
+    }
+
+    public function test_sense_saldo_el_tram_curt_fora_de_zona_segueix_a_banda(): void
+    {
+        \App\Services\SaldoMinuts::oblida();
+
+        $t = $this->tramsEntradaForaZona();
+
+        $this->assertCount(2, $t);
+        $this->assertSame(5, (int) $t[1]->duration_minutes);
+    }
+
     public function test_els_talls_de_l_horari_queden_en_hora_de_madrid(): void
     {
         $t = $this->trams($this->horari('14:00', '20:00', [1, 2, 3, 4, 5]), '13:40', '20:20');
@@ -103,7 +140,7 @@ class SegmentacioHorariTest extends TestCase
         $t = $this->trams($days, '09:00', '19:00');
 
         $this->assertSame(['09:00', '13:00', '15:00'], $t->map(fn ($s) => substr($s->getRawOriginal('start_time'), 11, 5))->all());
-        $this->assertSame(['approved', 'pending', 'approved'], $t->pluck('status')->all());
+        $this->assertSame(['approved', 'approved', 'approved'], $t->pluck('status')->all());
         $this->assertSame([true, false, true], $t->map(fn ($s) => (bool) $s->in_schedule)->all());
     }
 
@@ -137,5 +174,24 @@ class SegmentacioHorariTest extends TestCase
         $this->assertCount(1, $t);
         $this->assertTrue((bool) $t[0]->in_schedule);
         $this->assertSame('approved', $t[0]->status);
+    }
+
+    public function test_la_pausa_d_una_jornada_partida_s_aprova_sola_si_es_dins_de_zona(): void
+    {
+        $days = [['day' => 3, 'active' => true, 'start' => '09:00', 'end' => '13:00'],
+                 ['day' => 3, 'active' => true, 'start' => '16:00', 'end' => '19:00']];
+        $t = $this->trams($days, '09:00', '19:00');   // fitxa seguit, sense sortir a la pausa
+
+        $this->assertSame(['approved', 'approved', 'approved'], $t->pluck('status')->all());
+        $this->assertFalse((bool) $t[1]->in_schedule);   // el forat segueix sent fora d'horari: no compta com a extra
+    }
+
+    public function test_el_temps_abans_o_despres_de_la_jornada_partida_continua_pendent(): void
+    {
+        $days = [['day' => 3, 'active' => true, 'start' => '09:00', 'end' => '13:00'],
+                 ['day' => 3, 'active' => true, 'start' => '16:00', 'end' => '19:00']];
+        $t = $this->trams($days, '09:00', '19:30');
+
+        $this->assertSame(['approved', 'approved', 'approved', 'pending'], $t->pluck('status')->all());
     }
 }

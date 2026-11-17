@@ -91,13 +91,14 @@ class SaldoMinutsTest extends TestCase
 
     public function test_repetir_el_calcul_no_resta_dos_cops(): void
     {
-        $l = $this->fitxatge('2026-10-22', '08:15:00', '16:05:00', 0.17);
-        $this->assertEquals(0.14, (float) $l->fresh()->extra_hours_unauthorized);
-        $l->update(['extra_hours_unauthorized' => 0.17]);   // l'app el torna a enviar
-        $this->assertEquals(0.14, (float) $l->fresh()->extra_hours_unauthorized);
+        // 08:15 → 16:05 són 10 min a la bolsa (5 + 5); de 0,30 h de més (18 min) en queden 0,13.
+        $l = $this->fitxatge('2026-10-22', '08:15:00', '16:05:00', 0.30);
+        $this->assertEquals(0.13, (float) $l->fresh()->extra_hours_unauthorized);
+        $l->update(['extra_hours_unauthorized' => 0.30]);   // l'app el torna a enviar
+        $this->assertEquals(0.13, (float) $l->fresh()->extra_hours_unauthorized);
         SaldoMinuts::recalcula($this->treb->id);
         SaldoMinuts::recalcula($this->treb->id);
-        $this->assertEquals(0.14, (float) $l->fresh()->extra_hours_unauthorized);
+        $this->assertEquals(0.13, (float) $l->fresh()->extra_hours_unauthorized);
     }
 
     public function test_un_fitxatge_rebutjat_surt_del_llibre(): void
@@ -158,6 +159,29 @@ class SaldoMinutsTest extends TestCase
         $this->putJson('/api/v1/saldo-minuts/config', ['enabled' => true, 'finestra_minuts' => 5, 'tope_minuts' => 15])
             ->assertOk()->assertJsonPath('enabled', true)->assertJsonPath('actiu_des', Carbon::now('Europe/Madrid')->toDateString());
         $this->putJson('/api/v1/saldo-minuts/config', ['enabled' => true, 'finestra_minuts' => 40, 'tope_minuts' => 15])->assertStatus(422);
+    }
+
+    public function test_les_persones_al_tope_avisen_rrhh_i_l_avis_desapareix_en_decidir(): void
+    {
+        // Dos fitxatges de +10 (15 de tope): el segon deixa el saldo al tope.
+        $this->fitxatge('2026-10-19', '08:15', '16:05');
+        $this->fitxatge('2026-10-20', '08:15', '16:05');
+        $this->assertSame(15, SaldoMinuts::saldo($this->treb->id));
+
+        Sanctum::actingAs(User::factory()->create(['role' => 'hr', 'active' => true]));
+        $items = collect($this->getJson('/api/v1/notificacions')->assertOk()->json('items'))->where('tipus', 'saldo');
+        $this->assertCount(1, $items);
+        $this->assertStringContainsString('1 persona', $items->first()['titol']);
+        $this->assertSame('/work-logs?saldos=tope', $items->first()['enllac']);
+
+        // Un treballador no ho veu.
+        Sanctum::actingAs($this->treb);
+        $this->assertCount(0, collect($this->getJson('/api/v1/notificacions')->json('items'))->where('tipus', 'saldo'));
+
+        // En decidir (compensat → saldo 0), l'avís desapareix.
+        Sanctum::actingAs(User::factory()->create(['role' => 'hr', 'active' => true]));
+        $this->postJson("/api/v1/saldo-minuts/persones/{$this->treb->id}/ajust", ['decisio' => 'compensat', 'nota' => 'compensat'])->assertOk();
+        $this->assertCount(0, collect($this->getJson('/api/v1/notificacions')->json('items'))->where('tipus', 'saldo'));
     }
 
     public function test_la_decisio_de_rrhh_compensa_ajusta_o_tanca_a_zero(): void

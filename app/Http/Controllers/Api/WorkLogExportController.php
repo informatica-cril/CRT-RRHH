@@ -50,7 +50,7 @@ class WorkLogExportController extends Controller
             'forazona'     => $q->where(fn ($w) => $w->where('hour_status', 'out_of_area')
                 ->orWhere('location_match', false)->orWhere('start_location_match', false)
                 ->orWhere('end_location_match', false)->orWhere('hours_out_of_area', '>', 0)),
-            'extra'        => $q->where('extra_hours_unauthorized', '>', 0),
+            'extra'        => $q->where('extra_hours_unauthorized', '>', 0)->where('status', '!=', 'rejected'),
             'sensesortida' => $q->whereNull('end_time'),
             'llargs'       => $q->whereNotNull('end_time')->whereRaw('TIMESTAMPDIFF(MINUTE, start_time, end_time) > 840'),
             'aprovats'     => $q->where('status', 'approved'),

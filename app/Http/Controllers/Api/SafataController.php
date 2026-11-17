@@ -31,7 +31,7 @@ class SafataController extends Controller
                 // Només els que ja es poden revisar (amb sortida): els que són en curs encara no s'aproven.
                 'n' => WorkLog::where('status', 'pending')->whereNotNull('end_time')->count()],
             ['clau' => 'sensesortida', 'titol' => 'Jornades sense sortida', 'icona' => '🚪', 'urgencia' => 'alta', 'enllac' => '/safata',
-                'n' => WorkLogSenseSortidaController::oberts()->count()],
+                'n' => WorkLogSenseSortidaController::senseDeclarar()->count()],
             ['clau' => 'absencies', 'titol' => 'Permisos per aprovar', 'icona' => '📋', 'urgencia' => 'mitjana', 'enllac' => '/absences',
                 'n' => Absence::whereNull('approved')->count()],
             ['clau' => 'excedencies', 'titol' => 'Excedències per resoldre', 'icona' => '📄', 'urgencia' => 'mitjana', 'enllac' => '/excedencies',
@@ -54,7 +54,7 @@ class SafataController extends Controller
             $cues[] = ['clau' => 'sensehorari', 'titol' => 'Persones sense horari', 'icona' => '🗓️', 'urgencia' => 'alta', 'enllac' => '/safata',
                 'n' => UserController::senseHorari()->count()];
             $cues[] = ['clau' => 'incidencies', 'titol' => 'Incidències per atendre', 'icona' => '🛎️', 'urgencia' => 'mitjana', 'enllac' => '/incidencies',
-                'n' => \App\Models\Incidencia::where('estat', 'oberta')->count()];
+                'n' => \App\Models\Incidencia::peraAtendre(IncidenciaController::destinatarisDe($request->user()))->count()];
             $cues[] = ['clau' => 'horesextra', 'titol' => "Hores fora d'horari per autoritzar", 'icona' => '⏰', 'urgencia' => 'mitjana', 'enllac' => '/auth-codes',
                 'n' => \App\Models\OvertimeRequest::where('status', 'pending')->count()];
         }

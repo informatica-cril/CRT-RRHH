@@ -90,7 +90,7 @@ class DocumentSignatureController extends Controller
             return response()->json([]);
         }
 
-        $urgentDocs = Document::urgentRequiringSignature()->get()
+        $urgentDocs = Document::urgentRequiringSignature()->where('ocult', false)->get()
             ->filter(fn($d) => $d->targetsUser((int) $userId));
 
         $signedIds = DocumentSignature::where('user_id', $userId)

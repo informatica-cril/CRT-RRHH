@@ -1,5 +1,5 @@
 <template>
-  <div class="qd" @mouseup="arrossegant = false" @mouseleave="arrossegant = false">
+  <div class="qd" :class="{ 'qd-neta': neta || mode === 'calendari' }" @mouseup="arrossegant = false" @mouseleave="arrossegant = false">
     <div class="page-header">
       <div>
         <h1 class="page-title">Quadrant</h1>
@@ -35,12 +35,20 @@
         title="Les persones que es veuen tindran aquest mes igual que l'anterior, dia de la setmana per dia de la setmana">
         📋 Copiar del mes anterior
       </button>
+      <div class="qd-vista" title="Com es veu el quadrant">
+        <button type="button" class="btn btn-sm" :class="mode === 'calendari' ? 'btn-primary' : 'btn-outline'" @click="canviaMode('calendari')">📅 Calendari</button>
+        <button type="button" class="btn btn-sm" :class="mode === 'taula' ? 'btn-primary' : 'btn-outline'" @click="canviaMode('taula')">▦ Taula</button>
+      </div>
+      <div v-if="mode === 'taula'" class="qd-vista" title="Aspecte de la taula">
+        <button type="button" class="btn btn-sm" :class="neta ? 'btn-primary' : 'btn-outline'" @click="canviaVista(true)">Vista neta</button>
+        <button type="button" class="btn btn-sm" :class="!neta ? 'btn-primary' : 'btn-outline'" @click="canviaVista(false)">Amb colors</button>
+      </div>
       <button v-if="!mostraGuia" type="button" class="btn btn-outline btn-sm" @click="mostraGuia = true">❔ Com funciona</button>
       <router-link to="/plantilles-horari" class="btn btn-outline btn-sm" title="Veure i netejar les plantilles repetides o que no fa servir ningú">🧹 Plantilles</router-link>
     </div>
 
     <div class="qd-llegenda">
-      <span v-for="h in horesPresents" :key="h" class="qd-mostra"><i :style="colorHores(h)">{{ textHores(h) }}</i></span>
+      <span v-for="h in (neta || mode === 'calendari' ? [] : horesPresents)" :key="h" class="qd-mostra"><i :style="colorHores(h)">{{ textHores(h) }}</i></span>
       <span class="qd-mostra"><i class="d-canviat">9-15</i> Canviat al quadrant</span>
       <span class="qd-mostra"><i class="d-amida">9-14</i> A mida</span>
       <span class="qd-mostra"><i class="d-lliure">—</i> No treballa</span>
@@ -48,7 +56,42 @@
       <span class="qd-mostra"><i class="qd-m-festiu">&nbsp;</i> Festiu</span>
     </div>
 
-    <div class="card qd-taula-card">
+    <!-- Calendari de mes d'una persona -->
+    <div v-if="mode === 'calendari'" class="card qd-cal-card">
+      <div v-if="carregant" class="text-muted qd-buit">Carregant…</div>
+      <div v-else-if="!personaCal" class="text-muted qd-buit">No hi ha ningú amb aquest filtre.</div>
+      <template v-else>
+        <div class="qd-cal-cap">
+          <button type="button" class="btn btn-outline btn-sm" @click="mouPersona(-1)" title="Persona anterior">‹</button>
+          <select class="form-select qd-cal-persona" :value="personaCal.id" @change="personaCalId = Number($event.target.value)">
+            <option v-for="p in personesVisibles" :key="p.id" :value="p.id">{{ p.name }}</option>
+          </select>
+          <button type="button" class="btn btn-outline btn-sm" @click="mouPersona(1)" title="Persona següent">›</button>
+          <div class="qd-cal-resum">
+            <strong>{{ formatHM(personaCal.minuts / 60) }}</strong> aquest mes
+            <span class="text-muted"> · {{ personaCal.plantilla?.name || 'Sense plantilla' }}</span>
+          </div>
+          <button type="button" class="btn btn-outline btn-sm" @click="triaFila(personaCal)">Triar tot el mes</button>
+          <button type="button" class="btn btn-outline btn-sm" @click="obreAny(personaCal)">📅 Any</button>
+        </div>
+        <div class="qd-cal">
+          <div v-for="l in ['Dl', 'Dt', 'Dc', 'Dj', 'Dv', 'Ds', 'Dg']" :key="l" class="qd-cal-ds">{{ l }}</div>
+          <div v-for="n in buitsCal" :key="'b' + n" class="qd-cal-buit"></div>
+          <div v-for="d in dades.dies" :key="d" class="qd-cal-dia"
+            :class="[classeDia(personaCal.dies[d]), { sel: seleccio.has(clau(personaCal.id, d)), cap: esCapDeSetmana(d), festiu: dades.festius[d], avui: d === avui }]"
+            :title="titolDia(personaCal, d)"
+            @mousedown.prevent="iniciaArrossega(personaCal.id, d, $event)" @mouseenter="continuaArrossega(personaCal.id, d)">
+            <span class="qd-cal-num">{{ Number(d.slice(8)) }}</span>
+            <span v-if="personaCal.dies[d].absencia" class="qd-cal-tag">Permís</span>
+            <span v-else-if="dades.festius[d] && !personaCal.dies[d].trams.length" class="qd-cal-tag">{{ dades.festius[d] }}</span>
+            <span v-else-if="!personaCal.dies[d].trams.length" class="qd-cal-lliure">{{ esCapDeSetmana(d) ? '' : 'Lliure' }}</span>
+            <span v-for="(t, i) in textCal(personaCal.dies[d])" :key="i" class="qd-cal-hora">{{ t }}</span>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <div v-else class="card qd-taula-card">
       <div v-if="carregant" class="text-muted qd-buit">Carregant…</div>
       <div v-else-if="!personesVisibles.length" class="text-muted qd-buit">No hi ha ningú amb aquest filtre.</div>
       <div v-else class="qd-scroll">
@@ -57,7 +100,7 @@
             <tr>
               <th class="qd-nom">Persona</th>
               <th v-for="d in dades.dies" :key="d" class="qd-dia-cap"
-                :class="{ cap: esCapDeSetmana(d), festiu: dades.festius[d], avui: d === avui }"
+                :class="{ cap: esCapDeSetmana(d), festiu: dades.festius[d], avui: d === avui, 'inici-set': iniciSetmana(d) }"
                 :title="dades.festius[d] ? 'Festiu: ' + dades.festius[d] : 'Triar aquest dia per a totes les persones que es veuen'"
                 @click="triaColumna(d)">
                 <div>{{ Number(d.slice(8)) }}</div>
@@ -71,12 +114,12 @@
               <th class="qd-nom">
                 <button type="button" class="qd-nom-btn" @click="triaFila(p)" :title="'Triar tot el mes de ' + p.name">{{ p.name }}</button>
                 <div class="qd-nom-sub">
-                  <span class="qd-plantilla" :title="p.plantilla?.name || 'Sense plantilla'"><b v-if="p.plantilla && horesDe(p.plantilla.id)" class="qd-h-xip" :style="colorHores(horesDe(p.plantilla.id))">{{ textHores(horesDe(p.plantilla.id)) }}</b> {{ p.plantilla?.name || 'Sense plantilla' }}</span>
+                  <span class="qd-plantilla" :title="p.plantilla?.name || 'Sense plantilla'"><b v-if="p.plantilla && horesDe(p.plantilla.id)" class="qd-h-xip" :style="neta ? {} : colorHores(horesDe(p.plantilla.id))">{{ textHores(horesDe(p.plantilla.id)) }}</b> {{ p.plantilla?.name || 'Sense plantilla' }}</span>
                   <button type="button" class="qd-any-btn" @click="obreAny(p)" title="Veure tot l'any">📅 Any</button>
                 </div>
               </th>
               <td v-for="d in dades.dies" :key="d" class="qd-cel"
-                :class="[classeDia(p.dies[d]), { sel: seleccio.has(clau(p.id, d)), cap: esCapDeSetmana(d), festiu: dades.festius[d] }]"
+                :class="[classeDia(p.dies[d]), { sel: seleccio.has(clau(p.id, d)), cap: esCapDeSetmana(d), festiu: dades.festius[d], 'inici-set': iniciSetmana(d) }]"
                 :style="estilDia(p.dies[d])"
                 :title="titolDia(p, d)"
                 @mousedown.prevent="iniciaArrossega(p.id, d, $event)" @mouseenter="continuaArrossega(p.id, d)">
@@ -195,6 +238,31 @@ function amagaGuia() {
   mostraGuia.value = false
   try { localStorage.setItem(CLAU_GUIA, '1') } catch { /* sense emmagatzematge: només aquesta visita */ }
 }
+// Vista neta (per defecte): sense un color per cada nombre d'hores; només ressalten les excepcions.
+const CLAU_VISTA = 'qd-vista'
+const neta = ref((() => { try { return localStorage.getItem(CLAU_VISTA) !== 'colors' } catch { return true } })())
+function canviaVista(n) {
+  neta.value = n
+  try { localStorage.setItem(CLAU_VISTA, n ? 'neta' : 'colors') } catch { /* només aquesta visita */ }
+}
+// Mode: calendari de mes d'una persona (per defecte) o taula de tot l'equip.
+const CLAU_MODE = 'qd-mode'
+const mode = ref((() => { try { return localStorage.getItem(CLAU_MODE) === 'taula' ? 'taula' : 'calendari' } catch { return 'calendari' } })())
+function canviaMode(m) {
+  mode.value = m
+  try { localStorage.setItem(CLAU_MODE, m) } catch { /* només aquesta visita */ }
+}
+const personaCalId = ref(null)
+const personaCal = computed(() => personesVisibles.value.find(p => p.id === personaCalId.value) || personesVisibles.value[0] || null)
+function mouPersona(n) {
+  const l = personesVisibles.value
+  if (!l.length) return
+  const i = Math.max(0, l.findIndex(p => p.id === personaCal.value?.id))
+  personaCalId.value = l[(i + n + l.length) % l.length].id
+}
+// El mes comença en dilluns: caselles buides abans del dia 1.
+const buitsCal = computed(() => dades.value.dies.length ? (new Date(`${dades.value.dies[0]}T12:00:00`).getDay() + 6) % 7 : 0)
+const textCal = d => (d?.trams || []).map(t => `${hora(t.start)}–${hora(t.end)}`)
 const carregant = ref(false)
 const desant = ref(false)
 
@@ -265,7 +333,7 @@ function classeDia(d) {
   return 'd-plantilla' + canviat
 }
 function estilDia(d) {
-  if (!d || d.absencia || !d.trams.length || !d.work_schedule_id) return {}
+  if (neta.value || !d || d.absencia || !d.trams.length || !d.work_schedule_id) return {}
   const h = horesDe(d.work_schedule_id)
   return h ? colorHores(h) : {}
 }
@@ -284,6 +352,7 @@ function titolDia(p, d) {
   const fest = dades.value.festius[d] ? ` · Festiu: ${dades.value.festius[d]}` : ''
   return `${p.name} · ${d.split('-').reverse().join('/')}\n${textLlarg(p.dies[d])}${fest}`
 }
+const iniciSetmana = d => new Date(`${d}T12:00:00`).getDay() === 1
 const esCapDeSetmana = d => [0, 6].includes(new Date(`${d}T12:00:00`).getDay())
 const inicialDia = d => ['dg', 'dl', 'dt', 'dc', 'dj', 'dv', 'ds'][new Date(`${d}T12:00:00`).getDay()]
 
@@ -450,6 +519,37 @@ function vesAlMes(m) {
 .d-amida { background: repeating-linear-gradient(45deg, #fff, #fff 4px, #f1f5f9 4px, #f1f5f9 8px); color: #0f172a; }
 .d-lliure { color: #cbd5e1; }
 .d-abs { background: #FDECEA; color: #B3352F; font-weight: 600; }
+.qd-vista { display: inline-flex; gap: 4px; }
+/* Calendari de mes */
+.qd-cal-card { padding: 14px; }
+.qd-cal-cap { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+.qd-cal-persona { min-width: 240px; max-width: 320px; font-weight: 600; }
+.qd-cal-resum { margin: 0 auto 0 8px; font-size: .88rem; }
+.qd-cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; user-select: none; }
+.qd-cal-ds { text-align: center; font-size: .72rem; font-weight: 700; color: var(--color-text-muted, #64748b); padding: 2px 0 4px; }
+.qd-cal-dia { position: relative; min-height: 86px; padding: 6px 8px; border: 1px solid var(--color-border-light, #e5eaf1); border-radius: 10px; background: #fff; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+.qd-cal-dia:hover { border-color: #94a3b8; }
+.qd .qd-cal-dia.cap { background: #f4f6f9; }
+.qd .qd-cal-dia.festiu { background: #fdecea; }
+.qd-cal-num { position: absolute; top: 5px; left: 8px; font-size: .72rem; font-weight: 700; color: var(--color-text-muted, #64748b); }
+.qd-cal-hora { font-size: .95rem; font-weight: 600; color: #1e293b; white-space: nowrap; }
+.qd-cal-lliure { font-size: .78rem; color: #cbd5e1; }
+.qd-cal-tag { font-size: .75rem; font-weight: 700; color: #B3352F; text-align: center; }
+.qd .qd-cal-dia.d-canviat { background: #FEF3C7; border-color: #F59E0B; box-shadow: none; }
+.qd .qd-cal-dia.d-canviat .qd-cal-hora { color: #78350F; }
+.qd .qd-cal-dia.d-abs { background: #FDECEA; border-color: #f3b4ae; }
+.qd .qd-cal-dia.avui { box-shadow: inset 0 0 0 2px var(--color-primary, #094E8C); }
+.qd .qd-cal-dia.sel { outline: 3px solid var(--color-primary, #094E8C); outline-offset: -2px; background-image: linear-gradient(rgba(9, 78, 140, .14), rgba(9, 78, 140, .14)); }
+@media (max-width: 640px) { .qd-cal { gap: 3px; } .qd-cal-dia { min-height: 64px; padding: 4px; } .qd-cal-hora { font-size: .7rem; } .qd-cal-persona { min-width: 0; flex: 1; } }
+/* Vista neta: cel·les blanques; només el dia canviat, el permís i el festiu destaquen. Cada setmana comença amb una ratlla. */
+.qd-neta .d-plantilla { font-weight: 400; color: #334155; }
+.qd-neta .d-lliure, .qd-neta .qd-cel.d-lliure { color: transparent; background: #fafbfc; }
+.qd-neta .qd-cel.cap { background: #f4f6f9; }
+.qd-neta .qd-cel.festiu { background: #fdecea; }
+.qd-neta .qd-cel.d-canviat, .qd-neta .qd-cel.d-amida { background: #FEF3C7; color: #78350F; font-weight: 700; }
+.qd-neta .qd-cel.d-abs { background: #FDECEA; color: #B3352F; }
+.qd-neta .qd-h-xip { background: #f1f5f9; color: #475569; }
+.qd-taula .inici-set { border-left: 2px solid #cbd5e1; }
 .qd-h-xip { display: inline-block; padding: 0 5px; border-radius: 4px; font-size: .64rem; margin-right: 2px; }
 .qd-guia { margin-bottom: 10px; padding: 10px 14px; border-radius: 12px; background: #EFF6FF; border: 1px solid #BFDBFE; color: #1E3A8A; font-size: .84rem; }
 .qd-guia-cap { display: flex; justify-content: space-between; align-items: center; }

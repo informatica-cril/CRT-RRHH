@@ -34,24 +34,29 @@ class WorkScheduleController extends Controller
             'name' => 'nullable|string|max:255',
             'total_hours_weekly' => 'nullable|numeric|min:0',
             'days' => 'required|array',
+            'rotacio' => 'nullable|array',
+            'rotacio.inici' => 'nullable|date',
+            'rotacio.mode' => 'nullable|in:mes,alternes',
+            'rotacio.setmanes' => 'required_with:rotacio|array|max:' . (WorkSchedule::MAX_SETMANES - 1),
         ]);
 
         // Blindatge: normalitzar l'estructura de days (day/active/start/end) perquè
         // no entrin jornades malformades que un consumidor (domi) llegiria com "no treballa".
         $data['days'] = WorkSchedule::normalizeDays($data['days']);
+        $data['rotacio'] = WorkSchedule::normalizeRotacio($data['rotacio'] ?? null);
 
         // No es creen plantilles repetides (RRHH, 19-10-2026: n'hi havia desenes d'iguals): si ja n'hi
         // ha una amb els mateixos dies i hores, es torna aquella i qui la demanava la fa servir.
-        $signatura = WorkSchedule::signatura($data['days']);
+        $signatura = WorkSchedule::signatura($data['days'], $data['rotacio']);
         if ($signatura !== '') {
-            $igual = WorkSchedule::orderBy('id')->get()->first(fn ($s) => WorkSchedule::signatura($s->days) === $signatura);
+            $igual = WorkSchedule::orderBy('id')->get()->first(fn ($s) => WorkSchedule::signatura($s->days, $s->rotacio) === $signatura);
             if ($igual) {
                 return response()->json(array_merge($igual->toArray(), ['reutilitzada' => true]));
             }
         }
 
         $data['name'] = trim((string) ($data['name'] ?? '')) ?: (WorkSchedule::nomAutomatic($data['days']) ?: 'Sense horari');
-        $data['total_hours_weekly'] ??= round(WorkSchedule::minutsSetmanals($data['days']) / 60, 2);
+        $data['total_hours_weekly'] ??= round(WorkSchedule::minutsSetmanalsMitjos($data['days'], $data['rotacio']) / 60, 2);
 
         return response()->json(WorkSchedule::create($data), 201);
     }
@@ -72,10 +77,17 @@ class WorkScheduleController extends Controller
             'name' => 'string|max:255',
             'total_hours_weekly' => 'numeric|min:0',
             'days' => 'array',
+            'rotacio' => 'nullable|array',
+            'rotacio.inici' => 'nullable|date',
+            'rotacio.mode' => 'nullable|in:mes,alternes',
+            'rotacio.setmanes' => 'required_with:rotacio|array|max:' . (WorkSchedule::MAX_SETMANES - 1),
         ]);
 
         if (array_key_exists('days', $data)) {
             $data['days'] = WorkSchedule::normalizeDays($data['days']);
+        }
+        if (array_key_exists('rotacio', $data)) {
+            $data['rotacio'] = WorkSchedule::normalizeRotacio($data['rotacio']);
         }
 
         $workSchedule->update($data);
@@ -83,7 +95,7 @@ class WorkScheduleController extends Controller
         // Horari nou: es tornen a calcular els trams dels fitxatges pendents de qui el fa servir
         // (les hores de fitxatge no canvien; només si cada tram és dins o fora d'horari).
         $recalculats = 0;
-        if (array_key_exists('days', $data)) {
+        if (array_key_exists('days', $data) || array_key_exists('rotacio', $data)) {
             $recalculats = app(\App\Services\RecalculaTrams::class)
                 ->perUsuaris(\App\Models\User::where('work_schedule_id', $workSchedule->id)->pluck('id'), $request->user());
         }

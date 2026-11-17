@@ -30,6 +30,7 @@ class User extends Authenticatable
         'privacy_consent', 'seniority_date',
         'onboarding_profile_id',
         'must_change_password',
+        'es_informatica',
         'chat_status', 'last_chat_heartbeat',
         'geo_consent_accepted_at',
         // CRIL, CRT o CRIL_CRT: qui treballa a totes dues entitats té accés a totes dues plataformes.
@@ -132,6 +133,7 @@ class User extends Authenticatable
         'privacy_consent' => 'boolean',
         'onboarding_completed' => 'boolean',
         'must_change_password' => 'boolean',
+        'es_informatica' => 'boolean',
         'seniority_date' => 'date',
         'totp_confirmed' => 'boolean',
         'second_factor_at' => 'datetime',

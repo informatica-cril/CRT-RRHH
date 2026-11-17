@@ -3,18 +3,24 @@
     <div class="page-header">
       <div>
         <h1 class="page-title">🛎️ Tinc un problema</h1>
-        <p class="page-subtitle">Explica què passa i RRHH se n'encarregarà. La resposta la veuràs aquí mateix.</p>
+        <p class="page-subtitle">Explica què passa i tria si ho ha de veure RRHH o Informàtica. La resposta la veuràs aquí mateix.</p>
       </div>
     </div>
 
     <div v-if="enviada" class="card inc-ok">
       <div class="inc-ok-ico">✅</div>
       <h3>Incidència enviada</h3>
-      <p class="text-muted">RRHH ja l'ha rebuda. Quan et responguin, ho veuràs a «Les meves incidències».</p>
+      <p class="text-muted">Ja l'han rebuda. Quan et responguin, ho veuràs a «Les meves incidències».</p>
       <button class="btn btn-outline" @click="novaIncidencia">Enviar-ne una altra</button>
     </div>
 
     <form v-else class="card inc-form" @submit.prevent="envia">
+      <label class="form-label">A qui ho vols enviar?</label>
+      <div class="inc-tipus">
+        <button v-for="d in DESTINATARIS" :key="d.codi" type="button" class="inc-xip" :class="{ sel: form.destinatari === d.codi }"
+          @click="form.destinatari = d.codi">{{ d.icona }} {{ d.nom }}</button>
+      </div>
+
       <label class="form-label">De què es tracta?</label>
       <div class="inc-tipus">
         <button v-for="t in TIPUS" :key="t.codi" type="button" class="inc-xip" :class="{ sel: form.tipus === t.codi }"
@@ -68,7 +74,8 @@ import api from '../services/apiClient'
 import { TIPUS_INCIDENCIA as TIPUS } from '../utils/etiquetes'
 import IncidenciaConversa from '../components/IncidenciaConversa.vue'
 
-const form = reactive({ tipus: '', assumpte: '', descripcio: '' })
+const DESTINATARIS = [{ codi: 'rrhh', nom: 'RRHH', icona: '👥' }, { codi: 'informatica', nom: 'Informàtica', icona: '💻' }]
+const form = reactive({ destinatari: 'rrhh', tipus: '', assumpte: '', descripcio: '' })
 const enviant = ref(false)
 const enviada = ref(false)
 const error = ref('')
@@ -100,7 +107,7 @@ async function envia() {
   enviant.value = true
   error.value = ''
   try {
-    await api.post('/v1/incidencies', { tipus: form.tipus, assumpte: form.assumpte.trim(), descripcio: form.descripcio.trim() })
+    await api.post('/v1/incidencies', { destinatari: form.destinatari, tipus: form.tipus, assumpte: form.assumpte.trim(), descripcio: form.descripcio.trim() })
     enviada.value = true
     carrega()
   } catch (e) {
@@ -113,7 +120,7 @@ async function envia() {
 }
 
 function novaIncidencia() {
-  Object.assign(form, { tipus: '', assumpte: '', descripcio: '' })
+  Object.assign(form, { destinatari: 'rrhh', tipus: '', assumpte: '', descripcio: '' })
   enviada.value = false
 }
 
@@ -121,7 +128,7 @@ onMounted(carrega)
 </script>
 
 <style scoped>
-.inc-form { max-width: 100px; padding: 24px; }
+.inc-form { max-width: 720px; padding: 24px; }
 .inc-tipus { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 18px; }
 .inc-xip { border: 1px solid var(--color-border); background: var(--color-bg-card); color: var(--color-text); border-radius: 999px; padding: 8px 14px; font-size: 0.88rem; cursor: pointer; }
 .inc-xip:hover { background: var(--color-bg-hover); }

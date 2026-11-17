@@ -232,6 +232,17 @@
               {{ canviantEstat ? 'Desant…' : (estatActiu ? 'Desactivar' : 'Reactivar') }}
             </button>
           </div>
+          <!-- Eliminar: si la persona ja ha fitxat, la llei obliga a conservar el registre 4 anys (art. 34.9 ET) i només
+               es dona de baixa (es desactiva). Només s'esborra de veres una fitxa que no ha fitxat mai (alta errònia). -->
+          <div v-if="editingUser && potGestionar2fa && editingUser.id !== authStore.userId" class="fitxa-bloc estat-bloc">
+            <div>
+              <div class="form-label" style="margin-bottom:2px;">Eliminar la fitxa</div>
+              <div class="text-small text-muted">Si ja té fitxatges, no s'esborra: es dona de baixa i el registre es conserva (obligació legal). Si no n'ha fet mai, s'elimina.</div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline" style="color:var(--color-danger);border-color:var(--color-danger);" :disabled="eliminant" @click="eliminaTreballador">
+              {{ eliminant ? 'Eliminant…' : '🗑 Eliminar' }}
+            </button>
+          </div>
         </div>
 
         <div v-show="pestanyaFitxa === 'lloc'">
@@ -280,6 +291,12 @@
               <span class="text-small text-muted">{{ DESC_ROL[form.role] || DESC_ROL.worker }}</span>
             </div>
           </div>
+          </div>
+          <div v-if="authStore.isAdmin" class="form-group">
+            <label class="text-small" style="display:flex;align-items:center;gap:8px;">
+              <input type="checkbox" v-model="form.es_informatica" :disabled="isSaving" />
+              Equip d'informàtica: pot veure i respondre les incidències enviades a Informàtica
+            </label>
           </div>
           <div v-if="['Fisioterapeuta', 'Logopeda', 'Terapeuta Ocupacional'].includes(form.job_profile)">
         <div class="form-group">
@@ -674,6 +691,36 @@
           </div>
         </div>
 
+        <!-- Horari rotatiu (opcional): l'horari canvia segons la setmana. Per defecte apagat: horari fix de sempre. -->
+        <div style="margin-top:14px;padding:10px 12px;border:1px solid var(--color-border-light);border-radius:8px;">
+          <label style="display:flex;gap:8px;align-items:center;cursor:pointer;">
+            <input type="checkbox" :checked="rotatiu.actiu" style="width:15px;height:15px;" @change="activaRotatiu($event.target.checked, $event.target)" />
+            <span><strong>Horari rotatiu</strong> <span class="text-small text-muted">— l'horari canvia segons la setmana (p. ex. la 1a setmana del mes al matí i la 2a a la tarda)</span></span>
+          </label>
+          <div v-if="rotatiu.actiu" style="margin-top:10px;">
+            <div class="text-small" style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:8px;">
+              <label style="cursor:pointer;"><input type="radio" value="mes" v-model="rotatiu.mode" /> Per setmana del mes (1a, 2a…)</label>
+              <label style="cursor:pointer;"><input type="radio" value="alternes" v-model="rotatiu.mode" /> Setmanes alternes</label>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+              <button v-for="(w, i) in rotatiu.setmanes" :key="i" type="button" class="btn btn-sm"
+                :class="i === rotatiu.actual ? 'btn-primary' : 'btn-outline'" @click="canviaSetmana(i)">{{ etiquetaSetmana(i) }}</button>
+              <button v-if="rotatiu.setmanes.length < maxSetmanes" type="button" class="btn btn-outline btn-sm" title="Afegir una setmana més al cicle (còpia de l'actual)" @click="afegeixSetmana">+ setmana</button>
+              <button v-if="rotatiu.setmanes.length > 2" type="button" class="btn btn-outline btn-sm" style="color:var(--color-danger);" @click="treuSetmana">Treure la {{ etiquetaSetmana(rotatiu.actual).toLowerCase() }}</button>
+            </div>
+            <div v-if="rotatiu.mode === 'mes'" class="text-small text-muted" style="margin-top:8px;">
+              Cada setmana compta pel seu dilluns: la 1a és la que té el dilluns entre el dia 1 i el 7, la 2a entre el 8 i el 14… Si no defineixes les 5, es repeteix el cicle:
+              {{ repartimentMes }}.
+            </div>
+            <div v-else class="text-small" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+              La <strong>setmana 1</strong> és la que comença el dilluns
+              <input class="form-input" type="date" v-model="rotatiu.inici" style="width:150px;" />
+              <span class="text-muted">i el cicle es repeteix cada {{ rotatiu.setmanes.length }} setmanes.</span>
+            </div>
+            <div class="text-small text-muted" style="margin-top:6px;">Estàs editant la <strong>{{ etiquetaSetmana(rotatiu.actual).toLowerCase() }}</strong>: els dies de sota són els d'aquesta setmana.</div>
+          </div>
+        </div>
+
         <!-- Aplicar un mateix horari a diversos dies d'un cop, en lloc d'anar un per un -->
         <div style="margin-top:14px;padding:10px 12px;background:var(--color-bg);border-radius:8px;">
           <div class="form-label" style="margin-bottom:6px;">Aplicar un horari a diversos dies</div>
@@ -708,7 +755,7 @@
         </div>
 
         <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
-          <span class="text-small"><strong>Total setmanal:</strong> {{ formatHM(totalWeeklyHours) }}</span>
+          <span class="text-small"><strong>{{ rotatiu.actiu ? 'Mitjana setmanal:' : 'Total setmanal:' }}</strong> {{ formatHM(totalWeeklyHours) }}</span>
           <span class="text-small text-muted">Anual estimat: {{ (totalWeeklyHours / 37.5 * 1726).toFixed(0) }}h</span>
         </div>
         <div class="modal-footer">
@@ -1423,7 +1470,7 @@ const DESC_ROL = {
   hr: 'Gestiona la plantilla: fitxes, horaris, zones, fitxatges i permisos.',
   admin: "Control total de l'aplicació, també la configuració i qui és Superior.",
 }
-const form = reactive({ retribucio_pct: '', role: 'worker', entitat: 'CRT', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: '', specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
+const form = reactive({ es_informatica: false, retribucio_pct: '', role: 'worker', entitat: 'CRT', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: '', specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
 // Previsualitza el mòdul del % que s'està escrivint.
 let tempsModul = null
 watch(nouPct, (pct) => {
@@ -1443,6 +1490,50 @@ watch(nouPct, (pct) => {
 })
 
 const scheduleForm = reactive({ id: 1, days: [] })
+// Horari rotatiu (opcional). `setmanes` guarda els dies de totes les setmanes del cicle; la que s'edita
+// (`actual`) viu a scheduleForm.days i es torna a desar a `setmanes` en canviar de pestanya o en desar.
+const MAX_SETMANES = 8
+const rotatiu = reactive({ actiu: false, mode: 'mes', inici: '', setmanes: [], actual: 0 })
+const maxSetmanes = computed(() => (rotatiu.mode === 'mes' ? 5 : MAX_SETMANES))
+const ORD = ['1a', '2a', '3a', '4a', '5a', '6a', '7a', '8a']
+const etiquetaSetmana = (i) => (rotatiu.mode === 'mes' ? `${ORD[i]} setmana` : `Setmana ${i + 1}`)
+// Mode «mes»: a quina de les setmanes definides toca cada setmana del mes (les que passen del cicle el repeteixen).
+const repartimentMes = computed(() => [0, 1, 2, 3, 4].map(k => `${ORD[k]} → ${etiquetaSetmana(k % Math.max(rotatiu.setmanes.length, 1))}`).join(' · '))
+const clona = (x) => JSON.parse(JSON.stringify(x))
+const dillunsAvui = () => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+function reiniciaRotatiu() { Object.assign(rotatiu, { actiu: false, mode: 'mes', inici: '', setmanes: [], actual: 0 }) }
+function carregaRotatiu(sched) {
+  const r = sched?.rotacio
+  if (r?.setmanes?.length) {
+    Object.assign(rotatiu, { actiu: true, mode: r.mode === 'alternes' || (!r.mode && r.inici) ? 'alternes' : 'mes', inici: r.inici || dillunsAvui(), actual: 0,
+      setmanes: [senseTramsBuits(clona(sched.days)), ...r.setmanes.map(w => senseTramsBuits(clona(w)))] })
+  } else reiniciaRotatiu()
+}
+function desaSetmanaActual() { if (rotatiu.actiu) rotatiu.setmanes[rotatiu.actual] = clona(scheduleForm.days) }
+function canviaSetmana(i) { desaSetmanaActual(); rotatiu.actual = i; scheduleForm.days = clona(rotatiu.setmanes[i]) }
+function activaRotatiu(on, casella) {
+  if (on) {
+    rotatiu.actiu = true; rotatiu.inici = rotatiu.inici || dillunsAvui(); rotatiu.actual = 0
+    rotatiu.setmanes = [clona(scheduleForm.days), clona(scheduleForm.days)]   // la setmana 2 comença com a còpia de la 1
+    canviaSetmana(1)
+  } else {
+    if (rotatiu.setmanes.length && !confirm("Es perdran les altres setmanes i quedarà només la setmana 1. Continuar?")) { if (casella) casella.checked = true; return }
+    scheduleForm.days = clona(rotatiu.setmanes[0] || scheduleForm.days)
+    reiniciaRotatiu()
+  }
+}
+function afegeixSetmana() { desaSetmanaActual(); rotatiu.setmanes.push(clona(scheduleForm.days)); canviaSetmana(rotatiu.setmanes.length - 1) }
+function treuSetmana() {
+  const i = rotatiu.actual
+  rotatiu.setmanes.splice(i, 1)
+  rotatiu.actual = Math.min(i, rotatiu.setmanes.length - 1)
+  scheduleForm.days = clona(rotatiu.setmanes[rotatiu.actual])
+}
+/** El que s'envia al servidor: la setmana 1 és `days` i les altres van a `rotacio` (null si és fix). */
+function rotacioPerDesar() {
+  if (!rotatiu.actiu) return null
+  return { mode: rotatiu.mode, inici: rotatiu.mode === 'alternes' ? rotatiu.inici : null, setmanes: rotatiu.setmanes.slice(1).map(w => diesPerDesar(w)) }
+}
 const isNewSchedule = ref(false)
 const newScheduleName = ref('')
 
@@ -1539,6 +1630,24 @@ async function desaPractiques() {
 // ── Estat actiu / inactiu ──
 const estatActiu = ref(true)
 const canviantEstat = ref(false)
+const eliminant = ref(false)
+async function eliminaTreballador() {
+  const u = editingUser.value
+  if (!u) return
+  if (!await confirma(`Eliminar ${u.name}?\n\nSi ja ha fitxat, no s'esborra: es dona de baixa i es conserva el registre de jornada (obligació legal de 4 anys). Si no ha fitxat mai, la fitxa s'elimina del tot.`)) return
+  eliminant.value = true
+  try {
+    const r = await api.delete(`/v1/users/${u.id}`)
+    alert(r?.message || 'Fet.')
+    showEditModal.value = false
+    editingUser.value = null
+    await fetchData()
+  } catch (e) {
+    alert(e?.message || "No s'ha pogut eliminar.")
+  } finally {
+    eliminant.value = false
+  }
+}
 async function canviaEstat() {
   const nou = !estatActiu.value
   const nom = editingUser.value?.name || ''
@@ -1605,7 +1714,7 @@ async function openEditModal(user) {
     // L'API serialitza la data en UTC (2020-03-01 surt com 2020-02-29T23:00:00Z): tallar per la T
     // mostrava i desava el dia anterior. Es llegeix en hora de Madrid.
     const sDate = user.seniority_date ? new Date(user.seniority_date).toLocaleDateString('en-CA', { timeZone: 'Europe/Madrid' }) : ''
-    Object.assign(form, { retribucio_pct: '', role: user.role || 'worker', entitat: user.entitat || 'CRT', name: user.name, email: user.email, dni: user.dni || '', device_phone: user.device_phone || '', pacte_complementaries: !!user.pacte_complementaries,  work_type: user.work_type || 'DOMICILIARIA', job_profile: user.job_profile || 'Fisioterapeuta', postal_code_assigned: user.postal_code_assigned, work_schedule_id: user.work_schedule_id, seniority_date: sDate, specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
+    Object.assign(form, { es_informatica: !!user.es_informatica, retribucio_pct: '', role: user.role || 'worker', entitat: user.entitat || 'CRT', name: user.name, email: user.email, dni: user.dni || '', device_phone: user.device_phone || '', pacte_complementaries: !!user.pacte_complementaries,  work_type: user.work_type || 'DOMICILIARIA', job_profile: user.job_profile || 'Fisioterapeuta', postal_code_assigned: user.postal_code_assigned, work_schedule_id: user.work_schedule_id, seniority_date: sDate, specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
     ratioActual.value = Number(user.complementary_ratio ?? 0.30)
     ratioPct.value = Math.round(ratioActual.value * 100)
     ratioPendent.value = user.complementary_ratio_pending != null ? Number(user.complementary_ratio_pending) : null
@@ -1629,7 +1738,7 @@ async function openEditModal(user) {
         fitxatgeAutomatic.value = !!full.fitxatge_automatic
       } catch (e) { /* es queda buit */ }
   } else {
-    Object.assign(form, { retribucio_pct: '', role: 'worker', entitat: 'CRT', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: new Date().toISOString().split('T')[0], specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
+    Object.assign(form, { es_informatica: false, retribucio_pct: '', role: 'worker', entitat: 'CRT', name: '', email: '', dni: '', device_phone: '', pacte_complementaries: false, work_type: 'AMBULATORIA', job_profile: 'Fisioterapeuta', postal_code_assigned: '', work_schedule_id: 1, seniority_date: new Date().toISOString().split('T')[0], specialties: [], lots: [], departments: [], domi_username: '', domi_provisioned_at: null, second_factor: 'dispositiu', totp_confirmed: false })
     showEditModal.value = true
   }
 }
@@ -1668,18 +1777,20 @@ async function openScheduleModal(user) {
   const sched = (user.work_schedule_id ? await db.getWorkSchedule(user.work_schedule_id).catch(() => null) : null) || schedules.value[0]
   scheduleForm.id = sched.id
   scheduleForm.days = senseTramsBuits(JSON.parse(JSON.stringify(sched.days)))
+  carregaRotatiu(sched)
   showScheduleModal.value = true
 }
 
 function startNewSchedule() {
   isNewSchedule.value = true
   newScheduleName.value = ''
+  reiniciaRotatiu()
   scheduleForm.days = DEFAULT_DAYS()
 }
 
 async function loadScheduleTemplate() {
   const sched = await db.getWorkSchedule(scheduleForm.id)
-  if (sched) scheduleForm.days = senseTramsBuits(JSON.parse(JSON.stringify(sched.days)))
+  if (sched) { scheduleForm.days = senseTramsBuits(JSON.parse(JSON.stringify(sched.days))); carregaRotatiu(sched) }
 }
 
 function calcHours(d) {
@@ -1695,11 +1806,19 @@ function diaActiu(day) {
 }
 // El que es desa: trams extra buits fora i, si el dia és de descans, els seus trams també.
 // Nom automàtic de la plantilla a partir de l'horari que s'està editant (src/utils/nomHorari.js).
-const nomNovaPlantilla = computed(() => nomHorari(diesPerDesar().filter(d => diaActiu(d.day))))
-function diesPerDesar() {
-  return scheduleForm.days
-    .filter((d, i) => !(isExtraTramo(i) && !d.start && !d.end))
-    .map((d, i, arr) => (arr.slice(0, i).some(x => x.day === d.day) ? { ...d, active: diaActiu(d.day) && !!d.start && !!d.end } : d))
+// Amb horari rotatiu el nom surt de la setmana 1 i s'hi afegeix el cicle.
+const diesSetmana1 = () => (rotatiu.actiu && rotatiu.actual !== 0 ? rotatiu.setmanes[0] : scheduleForm.days)
+const nomNovaPlantilla = computed(() => {
+  const dies = diesPerDesar(diesSetmana1())
+  const nom = nomHorari(dies.filter(d => dies.find(x => x.day === d.day)?.active))
+  return nom && rotatiu.actiu ? `${nom} · rotatiu ${rotatiu.mode === 'mes' ? 'per setmana del mes' : rotatiu.setmanes.length + ' setmanes'}` : nom
+})
+function diesPerDesar(dies = scheduleForm.days) {
+  const actiuDia = (day) => !!dies.find(x => x.day === day)?.active
+  const extra = (i) => dies.slice(0, i).some(x => x.day === dies[i].day)
+  return dies
+    .filter((d, i) => !(extra(i) && !d.start && !d.end))
+    .map((d, i, arr) => (arr.slice(0, i).some(x => x.day === d.day) ? { ...d, active: actiuDia(d.day) && !!d.start && !!d.end } : d))
 }
 // En carregar una plantilla, els trams extra buits que s'hagin desat no es poden omplir (surten com a descans): fora.
 function senseTramsBuits(days) {
@@ -1736,7 +1855,13 @@ function applyBulkSchedule(dayNumbers) {
   }
 }
 
-const totalWeeklyHours = computed(() => scheduleForm.days.filter(d => d.active && diaActiu(d.day)).reduce((s, d) => s + calcHours(d), 0).toFixed(2))
+const horesDe = (dies) => dies.filter(d => d.active && dies.find(x => x.day === d.day)?.active).reduce((s, d) => s + calcHours(d), 0)
+// Amb horari rotatiu, la mitjana de les setmanes del cicle.
+const totalWeeklyHours = computed(() => {
+  if (!rotatiu.actiu) return horesDe(scheduleForm.days).toFixed(2)
+  const totes = rotatiu.setmanes.map((w, i) => (i === rotatiu.actual ? scheduleForm.days : w))
+  return (totes.reduce((s, w) => s + horesDe(w), 0) / totes.length).toFixed(2)
+})
 
 // Altres persones actives amb la plantilla triada (sense comptar la de la fitxa).
 const altresAmbPlantilla = computed(() => workers.value.filter(w => w.active && w.id !== scheduleUser.value?.id
@@ -1745,8 +1870,11 @@ const altresAmbPlantilla = computed(() => workers.value.filter(w => w.active && 
 const desantHorari = ref(false)
 async function saveSchedule() {
   if (desantHorari.value) return
+  if (rotatiu.actiu && rotatiu.mode === 'alternes' && !rotatiu.inici) { alert("Indica quin dilluns comença la setmana 1 de l'horari rotatiu."); return }
   desantHorari.value = true
   try {
+    if (rotatiu.actiu) canviaSetmana(0)   // la setmana 1 és la plantilla («days»); les altres van a «rotacio»
+    const rotacio = rotacioPerDesar()
     let scheduleId = scheduleForm.id
     let recalculats = 0
     if (isNewSchedule.value) {
@@ -1754,7 +1882,8 @@ async function saveSchedule() {
       const created = await db.addWorkSchedule({
         name: nomNovaPlantilla.value,
         total_hours_weekly: parseFloat(totalWeeklyHours.value),
-        days: diesPerDesar()
+        days: diesPerDesar(),
+        rotacio
       })
       scheduleId = created.id
       if (created.reutilitzada) avisa(`Ja hi havia una plantilla amb aquest horari («${created.name}»): s'ha fet servir aquesta en lloc de crear-ne una de nova.`)
@@ -1762,18 +1891,20 @@ async function saveSchedule() {
     } else {
       const originalSched = await db.getWorkSchedule(scheduleForm.id)
       const canviat = JSON.stringify(originalSched?.days || []) !== JSON.stringify(diesPerDesar())
+        || JSON.stringify(originalSched?.rotacio || null) !== JSON.stringify(rotacio)
       if (canviat && altresAmbPlantilla.value > 0) {
         // Plantilla compartida: abans es reescrivia i canviava l'horari de tothom qui la tenia.
         const created = await db.addWorkSchedule({
           name: nomNovaPlantilla.value,
           total_hours_weekly: parseFloat(totalWeeklyHours.value),
-          days: diesPerDesar()
+          days: diesPerDesar(),
+          rotacio
         })
         scheduleId = created.id
         if (created.reutilitzada) avisa(`Ja hi havia una plantilla amb aquest horari («${created.name}»): s'ha fet servir aquesta.`)
         else auditLog(authStore.userId, 'CREATE_SCHEDULE', 'work_schedule', created.id, `Plantilla pròpia "${created.name}" (la compartida no es toca)`)
       } else if (canviat) {
-        const sched = { ...originalSched, days: diesPerDesar(), total_hours_weekly: parseFloat(totalWeeklyHours.value) }
+        const sched = { ...originalSched, days: diesPerDesar(), rotacio, total_hours_weekly: parseFloat(totalWeeklyHours.value) }
         const rSched = await db.updateWorkSchedule(sched)
         recalculats += rSched?.trams_recalculats || 0
         auditLog(authStore.userId, 'UPDATE_SCHEDULE', 'work_schedule', scheduleForm.id, `Horari actualitzat per ${scheduleUser.value.name}`)

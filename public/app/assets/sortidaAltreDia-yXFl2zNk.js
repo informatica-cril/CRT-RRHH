@@ -1,0 +1,1 @@
+function e(e){if(!e?.end_time||!e?.date)return null;let t=String(e.date).slice(0,10),n=String(e.end_time).slice(0,10);if(n<=t)return null;let r=Math.round((Date.parse(n)-Date.parse(t))/864e5);return{data:n.split(`-`).reverse().join(`/`),dies:r}}export{e as t};

@@ -199,15 +199,14 @@ const navItems = computed(() => {
     right: -8px;
     background: var(--color-danger, #ef4444);
     color: #fff;
-    font-size: 0.6rem;
-    font-weight: 700;
-    min-width: 16px;
-    height: 16px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 3px;
+    font-size: 0;           /* només el punt, sense número */
+    color: transparent;
+    min-width: 10px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    overflow: hidden;
+    padding: 0;
     border: 2px solid var(--color-surface, #1e2435);
   }
 

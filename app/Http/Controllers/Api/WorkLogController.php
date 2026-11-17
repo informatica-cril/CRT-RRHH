@@ -39,6 +39,14 @@ class WorkLogController extends Controller
                 // la llista el mostra perquè no quedi amagat.
                 ->withSum(['segments as minuts_fora_horari_pendents' => fn ($q) => $q
                     ->where('in_schedule', false)->where('status', 'pending')], 'duration_minutes')
+                // Trossos fora de zona encara per revisar (la llista els marca en vermell) i el temps dins d'horari
+                // que per això encara no compta: així «0min» no sembla que no hagi treballat.
+                ->withCount(['segments as trams_fora_zona_pendents' => fn ($q) => $q
+                    ->where('in_zone', false)->where('status', 'pending')])
+                ->withSum(['segments as minuts_fora_zona_pendents' => fn ($q) => $q
+                    ->where('in_zone', false)->where('status', 'pending')], 'duration_minutes')
+                ->withSum(['segments as minuts_dins_horari_pendents' => fn ($q) => $q
+                    ->where('in_schedule', true)->where('status', 'pending')], 'duration_minutes')
                 ->when($perMes, function ($q) use ($mes) {
                     $ini = \Carbon\Carbon::createFromFormat('Y-m-d', $mes . '-01');
                     $q->whereBetween('date', [$ini->toDateString(), $ini->copy()->endOfMonth()->toDateString()]);
@@ -59,6 +67,18 @@ class WorkLogController extends Controller
                 ->mapWithKeys(fn ($l) => [$l->id => \App\Services\AprovacioAutomatica::motiu($l, $marge)]);
             $logs->each(function ($w) use ($motius) {
                 if ($motius->has($w->id)) $w->setAttribute('motiu_no_auto', $motius[$w->id]);
+            });
+        }
+
+        // Jornades obertes d'altres dies: si la persona ja ha declarat l'hora de sortida, es diu (camp nou: l'app mòbil
+        // l'ignora). Passen de «sense sortida» a «sortida declarada per aplicar».
+        $obertes = $logs->filter(fn ($w) => ! $w->getRawOriginal('end_time') && $w->status !== 'rejected'
+            && substr((string) $w->getRawOriginal('date'), 0, 10) < now('Europe/Madrid')->toDateString());
+        if ($obertes->isNotEmpty()) {
+            $logs->each(function ($w) use ($obertes) {
+                if ($obertes->contains("id", $w->id)) {
+                    $w->setAttribute('declaracio_sortida', \App\Http\Controllers\Api\WorkLogSenseSortidaController::declaracio($w));
+                }
             });
         }
 
@@ -134,16 +154,24 @@ class WorkLogController extends Controller
         $data['start_time'] = $now->toDateTimeString();
         $data['date'] = $now->toDateString();
 
-        // Prevent duplicate open sessions for the same user on the same date
-        $existing = WorkLog::where('user_id', $data['user_id'])
-            ->whereDate('date', $data['date'])
-            ->whereNull('end_time')
-            ->first();
-        if ($existing) {
-            return response()->json($existing, 200);
-        }
+        // Cap jornada oberta duplicada el mateix dia. Dues peticions gairebé alhora (doble toc, reintent per
+        // mala cobertura) passaven totes dues la comprovació i creaven dues jornades: ara es bloqueja la fila
+        // de la persona fins que la primera acaba i la segona ja troba la jornada oberta.
+        [$log, $creat] = \Illuminate\Support\Facades\DB::transaction(function () use ($data) {
+            \App\Models\User::whereKey($data['user_id'])->lockForUpdate()->first();
+            $existing = WorkLog::where('user_id', $data['user_id'])
+                ->whereDate('date', $data['date'])
+                ->whereNull('end_time')
+                ->first();
+            if ($existing) {
+                return [$existing, false];
+            }
 
-        $log = WorkLog::create($data);
+            return [WorkLog::create($data), true];
+        });
+        if (! $creat) {
+            return response()->json($log, 200);
+        }
         if (trim($justificacio) !== '') {
             try {
                 \App\Models\WorkLogModification::create([
@@ -170,7 +198,9 @@ class WorkLogController extends Controller
     public function pendentsPerMes()
     {
         return response()->json(
-            WorkLog::where('status', 'pending')->get(['date'])
+            // Només els que ja tenen sortida: són els que es poden aprovar. Els oberts (encara treballant o amb
+            // la sortida per declarar) tenen la seva pròpia llista i feien semblar que hi havia feina per revisar.
+            WorkLog::where('status', 'pending')->whereNotNull('end_time')->get(['date'])
                 ->countBy(fn ($l) => substr((string) $l->getRawOriginal('date'), 0, 7))
                 ->map(fn ($n, $mes) => ['mes' => $mes, 'n' => $n])
                 ->sortKeysDesc()->values()

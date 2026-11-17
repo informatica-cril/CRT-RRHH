@@ -12,7 +12,8 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        $schedule->command('worklogs:send-reminders')->everyMinute();
+        // DESACTIVAT (RRHH, 17-11-2026): el recordatori de jornada sense tancar ja no és un correu: surt com a
+        // notificació dins de l'app (NotificacionsController). El comandament es pot llançar a mà si cal.
         // Pausa obligatòria des del servidor: no depèn que la pantalla del treballador sigui oberta.
         $schedule->command('worklogs:pausa-automatica')->everyMinute()->withoutOverlapping();
         // DESACTIVAT (RRHH, 08-10-2026): el correu diari de jornades d'altres dies sense sortida

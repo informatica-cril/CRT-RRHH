@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\AprovacioAutomaticaSetting;
 use App\Models\User;
+use App\Models\WorkLogModification;
+use App\Services\AprovacioAutomatica;
 use App\Models\WorkLog;
 use App\Models\WorkSchedule;
 use Carbon\Carbon;
@@ -152,5 +154,32 @@ class AprovacioAutomaticaTest extends TestCase
         Sanctum::actingAs($this->treballadora());
         $this->putJson('/api/v1/aprovacio-automatica', ['enabled' => true])->assertForbidden();
         $this->postJson('/api/v1/work-logs/aprova-correctes')->assertForbidden();
+    }
+
+    public function test_el_motiu_diu_qui_ha_tocat_el_fitxatge(): void
+    {
+        AprovacioAutomaticaSetting::getSettings()->update(['enabled' => false]);
+        $w = $this->treballadora();
+        $rrhh = $this->gestio('hr');
+        $casos = [
+            [$w->id, 'allegacio', ['tipus' => 'declaracio_sortida'], 'declaració de sortida de la persona'],
+            [$w->id, 'allegacio', [], 'al·legació de la persona'],
+            [$w->id, 'registre_manual', [], 'fitxatge sense ubicació'],
+            [$w->id, 'registre_manual', ['context' => 'inici de jornada', 'justificacio' => 'GPS no disponible (sense senyal) — anotació automàtica'], 'entrada sense ubicació (GPS no disponible)'],
+            [$w->id, 'registre_manual', ['context' => 'final de jornada', 'justificacio' => 'GPS no disponible al tancament de jornada — anotació automàtica'], 'sortida sense ubicació (GPS no disponible)'],
+            [$w->id, 'registre_manual', ['context' => 'final de jornada', 'justificacio' => 'He sortit de la visita i no tenia cobertura'], 'sortida sense ubicació (amb motiu escrit)'],
+            [$w->id, 'registre_manual', ['context' => 'hito sortida'], 'visita sense ubicació'],
+            [$rrhh->id, 'registre_manual', [], 'registrat a mà per RRHH'],
+            [$rrhh->id, 'modified', [], 'modificat per RRHH'],
+            [$rrhh->id, 'modified', ['motiu' => "canvi d'horari"], "recalculat per canvi d'horari o zona"],
+            [$rrhh->id, 'rejected', [], 'tram revisat per RRHH'],
+        ];
+        foreach ($casos as [$uid, $accio, $nous, $esperat]) {
+            $log = $this->jornada($w, '08:20', '16:00');
+            $this->assertNull(AprovacioAutomatica::motiu($log, 10), 'sense modificacions tot quadra');
+            WorkLogModification::create(['work_log_id' => $log->id, 'user_id' => $uid, 'action' => $accio, 'new_values' => $nous]);
+            $this->assertSame($esperat, AprovacioAutomatica::motiu($log->fresh(), 10));
+            $log->delete();
+        }
     }
 }

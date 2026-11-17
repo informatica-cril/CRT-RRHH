@@ -31,7 +31,6 @@
       <router-link v-for="c in alDia" :key="c.clau" :to="c.enllac" class="sf-xip">{{ c.icona }} {{ c.titol }}</router-link>
     </div>
 
-    <JornadesSenseSortida />
     <PersonesSenseHorari v-if="esGestio" />
   </div>
 </template>
@@ -41,11 +40,10 @@ import { ref, computed, onMounted } from 'vue'
 import db from '../services/db'
 import api from '../services/apiClient'
 import { useAuthStore } from '../stores/auth'
-import JornadesSenseSortida from '../components/JornadesSenseSortida.vue'
 import PersonesSenseHorari from '../components/PersonesSenseHorari.vue'
 
 // Llistes que ja són a sota de les targetes: la targeta només hi baixa.
-const LLISTES = { sensesortida: 'sense-sortida', sensehorari: 'sense-horari' }
+const LLISTES = { sensehorari: 'sense-horari' }
 function baixaALaLlista(clau) {
   const id = LLISTES[clau]
   if (!id) return
@@ -58,7 +56,7 @@ const carregant = ref(true)
 const cues = ref([])
 const total = computed(() => cues.value.reduce((s, c) => s + c.n, 0))
 const PES = { alta: 0, mitjana: 1, baixa: 2 }
-const URGENCIA = { alta: 'Urgent', mitjana: 'Aquesta setmana', baixa: 'Quan es pugui' }
+const URGENCIA = { alta: 'Urgent', mitjana: 'Per fer', baixa: 'Quan es pugui' }
 const actives = computed(() => cues.value.filter(c => c.n > 0)
   .sort((a, b) => (PES[a.urgencia] ?? 9) - (PES[b.urgencia] ?? 9) || b.n - a.n))
 const alDia = computed(() => cues.value.filter(c => c.n === 0))
@@ -79,8 +77,19 @@ onMounted(async () => {
   const resum = await api.get('/v1/safata/resum').catch(() => null)
   const nCua = (clau) => (resum?.cues || []).find(c => c.clau === clau)?.n || 0
   const fitxatges = nCua('fitxatges')
+  // Desglossat per mes («2 de novembre · 67 d'octubre»): perquè es vegi on són, i no només un número gran.
+  let subFitxatges = 'registres de jornada a validar'
+  try {
+    const mesos = await api.get('/v1/work-logs/pendents-per-mes')
+    if (Array.isArray(mesos) && mesos.length) {
+      subFitxatges = mesos.slice(0, 3).map(m => {
+        const [a, mm] = String(m.mes).split('-').map(Number)
+        const nom = new Date(a, mm - 1, 1).toLocaleDateString('ca-ES', { month: 'long' })
+        return `${m.n} ${/^[aeiou]/i.test(nom) ? "d'" : 'de '}${nom}`
+      }).join(' · ')
+    }
+  } catch (e) { /* es queda el text de sempre */ }
   const foraZona = nCua('forazona')
-  const senseSortida = nCua('sensesortida')
   const senseHorari = nCua('sensehorari')
   const incidencies = nCua('incidencies')
   const horesExtra = nCua('horesextra')
@@ -99,9 +108,8 @@ onMounted(async () => {
     ? await n(api.get('/v1/comite/hores?estat=pendent'))
     : 0
   cues.value = [
-    { clau: 'fitxatges', titol: 'Fitxatges pendents d\'aprovar', sub: 'registres de jornada a validar', icona: '⏱', n: fitxatges, urgencia: 'mitjana', enllac: '/work-logs?vista=pendents' },
+    { clau: 'fitxatges', titol: 'Fitxatges pendents d\'aprovar', sub: subFitxatges, icona: '⏱', n: fitxatges, urgencia: 'mitjana', enllac: '/work-logs?vista=perrevisar' },
     { clau: 'forazona', titol: 'Fitxatges fora de zona', sub: 'marca feta fora de la zona o el centre assignat', icona: '📍', n: foraZona, urgencia: 'alta', enllac: '/work-logs?vista=forazona' },
-    { clau: 'sensesortida', titol: 'Jornades sense sortida', sub: "fitxatges d'altres dies sense sortida: llista a sota", icona: '🚪', n: senseSortida, urgencia: 'alta', enllac: '/safata#sense-sortida' },
     { clau: 'absencies', titol: 'Permisos per aprovar', sub: 'sol·licituds d\'absència pendents', icona: '📋', n: absencies, urgencia: 'mitjana', enllac: '/absences' },
     { clau: 'excedencies', titol: 'Excedències per resoldre', sub: 'sol·licituds pendents', icona: '📄', n: excedencies, urgencia: 'mitjana', enllac: '/excedencies' },
     { clau: 'disciplinari', titol: 'Suggeriments disciplinaris', sub: 'el motor proposa; decideix una persona', icona: '⚖️', n: suggeriments, urgencia: 'alta', enllac: '/disciplinary' },

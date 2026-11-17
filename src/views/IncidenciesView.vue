@@ -27,30 +27,65 @@
       {{ filtre === 'oberta' ? '✓ Cap incidència oberta.' : 'No hi ha incidències.' }}
     </div>
 
-    <div v-else class="incs-llista">
-      <div v-for="i in visibles" :key="i.id" class="card incs-item" :class="{ resolta: i.estat === 'resolta' }">
-        <div class="incs-cap">
-          <span class="incs-tipus">{{ tipus(i.tipus) }}</span>
-          <select class="incs-estat-sel" :class="i.estat_gestio" :value="i.estat_gestio" :disabled="desant === i.id"
-            title="Estat de gestió (només el veuen RRHH i Superior)" @change="canviaEstat(i, $event.target.value)">
-            <option v-for="e in ESTATS_INCIDENCIA" :key="e.codi" :value="e.codi">{{ e.nom }}</option>
-          </select>
-          <span class="text-small text-muted incs-data">{{ dataHora(i.created_at) }}</span>
+    <!-- Llista de tiquets: una fila per incidència. El punt vermell és NOMÉS si hi ha una acció per a tu
+         (nova, o el treballador ha contestat). La conversa s'obre al tauler de la dreta. -->
+    <div v-else class="card incs-taula">
+      <table>
+        <thead><tr><th></th><th>#</th><th>Assumpte</th><th>Tipus</th><th>Per a</th><th>Estat</th><th>Últim moviment</th></tr></thead>
+        <tbody>
+          <tr v-for="i in visibles" :key="i.id" :class="{ atendre: calAtendre(i), tancada: i.estat === 'resolta', sel: obertaId === i.id }" @click="obertaId = i.id">
+            <td class="incs-punt-col"><span v-if="calAtendre(i)" class="incs-punt" title="Espera la teva resposta"></span></td>
+            <td class="text-muted">#{{ i.id }}</td>
+            <td>
+              <div class="incs-assumpte">{{ i.assumpte }}</div>
+              <div class="text-small text-muted">{{ i.user?.name }}</div>
+            </td>
+            <td class="text-small">{{ tipus(i.tipus) }}</td>
+            <td class="text-small">{{ i.destinatari === 'informatica' ? '💻 Informàtica' : '👥 RRHH' }}</td>
+            <td><span class="incs-estat-xip" :class="i.estat_gestio">{{ nomEstat(i.estat_gestio) }}</span></td>
+            <td class="text-small">
+              <div>{{ dataHora(ultimMoviment(i)) }}</div>
+              <div class="text-muted">{{ calAtendre(i) ? (i.missatges?.length ? 'Ha contestat el treballador' : 'Sense respondre') : (i.missatges?.length ? 'Última resposta: gestió' : '') }}</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Tauler del tiquet (dreta) -->
+    <div v-if="oberta" class="incs-fons" @click.self="obertaId = null">
+      <aside class="incs-tauler" role="dialog" aria-label="Incidència">
+        <header class="incs-tauler-cap">
+          <div>
+            <div class="text-small text-muted">#{{ oberta.id }} · {{ tipus(oberta.tipus) }} · {{ oberta.destinatari === 'informatica' ? '💻 Informàtica' : '👥 RRHH' }} · {{ dataHora(oberta.created_at) }}</div>
+            <h2 class="incs-tauler-titol">{{ oberta.assumpte }}</h2>
+            <div class="text-small text-muted">{{ oberta.user?.name }}</div>
+          </div>
+          <button class="icon-btn" @click="obertaId = null" aria-label="Tancar">✕</button>
+        </header>
+        <div class="incs-tauler-cos">
+          <div class="incs-fila-estat">
+            <label class="text-small text-muted">Estat</label>
+            <select class="incs-estat-sel" :class="oberta.estat_gestio" :value="oberta.estat_gestio" :disabled="desant === oberta.id"
+              title="Estat de gestió (només el veu qui les gestiona)" @change="canviaEstat(oberta, $event.target.value)">
+              <option v-for="e in ESTATS_INCIDENCIA" :key="e.codi" :value="e.codi">{{ e.nom }}</option>
+            </select>
+          </div>
+          <div class="incs-text">{{ oberta.descripcio }}</div>
+          <div v-if="oberta.estat === 'resolta'" class="text-small incs-resolta">
+            ✓ {{ oberta.estat_gestio === 'descartada' ? 'Descartada' : 'Resolta' }} per {{ oberta.resolutor?.name || '—' }} el {{ dataHora(oberta.resolta_at) }}<span v-if="oberta.nota_resolucio"> · «{{ oberta.nota_resolucio }}»</span>
+          </div>
+          <IncidenciaConversa :incidencia="oberta" :placeholder="`Respon a ${oberta.user?.name || 'la persona'}…`" @actualitzada="substitueix" />
         </div>
-        <div class="incs-assumpte">{{ i.assumpte }}</div>
-        <div class="text-small text-muted">
-          {{ i.user?.name }}
-        </div>
-        <div class="incs-text">{{ i.descripcio }}</div>
-        <div v-if="i.estat === 'resolta'" class="text-small incs-resolta">
-          ✓ {{ i.estat_gestio === 'descartada' ? 'Descartada' : 'Resolta' }} per {{ i.resolutor?.name || '—' }} el {{ dataHora(i.resolta_at) }}<span v-if="i.nota_resolucio"> · «{{ i.nota_resolucio }}»</span>
-        </div>
-        <IncidenciaConversa :incidencia="i" :placeholder="`Respon a ${i.user?.name || 'la persona'}…`" @actualitzada="substitueix" />
-        <div class="incs-accions">
-          <button v-if="i.estat === 'oberta'" class="btn btn-primary btn-sm" :disabled="desant === i.id" @click="resol(i)">✓ Marcar com a resolta</button>
-          <button v-else class="btn btn-outline btn-sm" :disabled="desant === i.id" @click="reobre(i)">↺ Tornar a obrir</button>
-        </div>
-      </div>
+        <footer class="incs-accions">
+          <button v-if="oberta.estat === 'oberta'" class="btn btn-primary btn-sm" :disabled="desant === oberta.id" @click="resol(oberta)">✓ Marcar com a resolta</button>
+          <button v-else class="btn btn-outline btn-sm" :disabled="desant === oberta.id" @click="reobre(oberta)">↺ Tornar a obrir</button>
+          <button class="btn btn-outline btn-sm" :disabled="desant === oberta.id" @click="redirigeix(oberta)"
+            :title="'Passar-la a ' + (oberta.destinatari === 'informatica' ? 'RRHH' : 'Informàtica') + ' si no li tocava a qui l\'ha rebuda'">
+            ↪ Redirigir a {{ oberta.destinatari === 'informatica' ? 'RRHH' : 'Informàtica' }}
+          </button>
+        </footer>
+      </aside>
     </div>
   </div>
 </template>
@@ -58,7 +93,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import api from '../services/apiClient'
-import { demana } from '../utils/dialegs'
+import { demana, confirma } from '../utils/dialegs'
 import { avisa } from '../utils/avisos'
 import { TIPUS_INCIDENCIA, ESTATS_INCIDENCIA } from '../utils/etiquetes'
 import { useEstatUrl } from '../composables/useEstatUrl'
@@ -80,6 +115,16 @@ const estatsDelFiltre = computed(() => ESTATS_INCIDENCIA.filter(e => !filtre.val
 const comptaEstat = (codi) => delFiltre.value.filter(i => i.estat_gestio === codi).length
 // Canviar entre obertes i resoltes treu el filtre d'estat (un estat obert no té res a les resoltes).
 watch(filtre, () => { estatTriat.value = '' })
+const obertaId = ref(null)
+const oberta = computed(() => incidencies.value.find(i => i.id === obertaId.value) || null)
+const nomEstat = (codi) => ESTATS_INCIDENCIA.find(e => e.codi === codi)?.nom || codi
+// Espera una acció de gestió: nova sense resposta, o l'últim missatge és del propi treballador (i no s'està esperant el treballador).
+function calAtendre(i) {
+  if (i.estat !== 'oberta' || i.estat_gestio === 'esperant') return false
+  const m = i.missatges || []
+  return i.estat_gestio === 'nova' || (m.length > 0 && m[m.length - 1].user_id === i.user_id)
+}
+const ultimMoviment = (i) => (i.missatges?.length ? i.missatges[i.missatges.length - 1].created_at : i.created_at)
 const nObertes = computed(() => incidencies.value.filter(i => i.estat === 'oberta').length)
 
 function tipus(codi) {
@@ -118,6 +163,20 @@ async function canviaEstat(i, estat) {
   desant.value = null
 }
 
+async function redirigeix(i) {
+  const a = i.destinatari === 'informatica' ? 'rrhh' : 'informatica'
+  const nom = a === 'rrhh' ? 'RRHH' : 'Informàtica'
+  if (!await confirma(`Passar la incidència #${i.id} a ${nom}? Hi tornarà a sortir com a nova i potser deixaràs de veure-la.`)) return
+  desant.value = i.id
+  try {
+    await api.post(`/v1/incidencies/${i.id}/redirigeix`, { destinatari: a })
+    avisa(`↪ Incidència passada a ${nom}.`)
+    obertaId.value = null
+    await carrega()
+  } catch (e) { avisa(e?.message || "No s'ha pogut redirigir.", 'error') }
+  desant.value = null
+}
+
 async function reobre(i) {
   desant.value = i.id
   try { substitueix(await api.post(`/v1/incidencies/${i.id}/reobre`)) }
@@ -135,6 +194,25 @@ onMounted(carrega)
 .incs-n { margin-left: 6px; background: #d97706; color: #fff; border-radius: 999px; padding: 0 7px; font-size: 0.75rem; font-weight: 700; }
 .incs-buit { padding: 28px; text-align: center; color: var(--color-text-secondary); }
 .incs-llista { display: flex; flex-direction: column; gap: 12px; }
+.incs-taula { padding: 0; overflow: hidden; }
+.incs-taula table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.incs-taula th { text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: #64748B; padding: 10px 12px; background: #f4f7fb; }
+.incs-taula td { padding: 10px 12px; border-top: 1px solid var(--color-border-light, #eef2f7); vertical-align: middle; }
+.incs-taula tbody tr { cursor: pointer; }
+.incs-taula tbody tr:hover, .incs-taula tbody tr.sel { background: var(--color-bg-hover, #f1f5f9); }
+.incs-taula tr.atendre .incs-assumpte { font-weight: 800; }
+.incs-taula tr.tancada { opacity: .7; }
+.incs-punt-col { width: 22px; text-align: center; }
+.incs-punt { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--color-danger, #e5484d); }
+.incs-estat-xip { font-size: .76rem; font-weight: 700; border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+.incs-fons { position: fixed; inset: 0; background: rgba(15, 35, 60, .35); z-index: 900; display: flex; justify-content: flex-end; }
+.incs-tauler { width: min(620px, 100vw); height: 100%; background: var(--color-surface, #fff); box-shadow: -12px 0 32px rgba(15, 35, 60, .2); display: flex; flex-direction: column; }
+.incs-tauler-cap { display: flex; justify-content: space-between; gap: 12px; padding: 18px 20px 12px; border-bottom: 1px solid var(--color-border-light, #eef2f7); }
+.incs-tauler-titol { font-size: 1.15rem; margin: 4px 0 2px; }
+.incs-tauler-cos { flex: 1; overflow: auto; padding: 14px 20px; }
+.incs-fila-estat { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.incs-tauler .incs-accions { padding: 12px 20px; border-top: 1px solid var(--color-border-light, #eef2f7); margin: 0; }
+@media (max-width: 900px) { .incs-taula th:nth-child(4), .incs-taula td:nth-child(4), .incs-taula th:nth-child(5), .incs-taula td:nth-child(5) { display: none; } }
 .incs-item { padding: 16px 18px; border-left: 4px solid #d97706; }
 .incs-item.resolta { border-left-color: var(--color-success, #16a34a); opacity: 0.85; background: var(--color-bg-card); color: inherit; }
 .incs-cap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
