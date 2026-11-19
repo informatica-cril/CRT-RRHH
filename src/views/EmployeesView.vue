@@ -553,8 +553,336 @@
         </div>
         </div>
 
-        <!-- Horari, Calendari i Zona/Centres: es mostren aquí mateix (les finestres d'abans es teletransporten a aquest forat). -->
-        <div id="fitxa-incrustat" class="fitxa-incrustat" v-show="pestanyaIncrustada"></div>
+        <!-- Horari, Calendari i Zona/Centres: es mostren aquí mateix . -->
+        <div class="fitxa-incrustat" v-show="pestanyaIncrustada">
+        <div v-if="showScheduleModal" class="modal-overlay" @click.self="showScheduleModal = false">
+          <div class="modal" style="max-width:650px;">
+            <div class="modal-header">
+              <h3 class="modal-title">Horari detallat — {{ scheduleUser?.name }}</h3>
+              <button class="icon-btn" @click="showScheduleModal = false">✕</button>
+            </div>
+
+            <!-- Mode: seleccionar plantilla existent -->
+            <div v-if="!isNewSchedule">
+              <div class="form-group" style="display:flex;gap:8px;align-items:flex-end;">
+                <div style="flex:1;">
+                  <label class="form-label">Plantilla horària</label>
+                  <select class="form-select" v-model="scheduleForm.id" @change="loadScheduleTemplate">
+                    <option v-for="s in schedules" :key="s.id" :value="s.id">{{ s.name }} ({{ formatHM(s.total_hours_weekly) }}/set)</option>
+                  </select>
+                </div>
+                <button class="btn btn-accent btn-sm" style="white-space:nowrap;margin-bottom:1px;" @click="startNewSchedule">+ Nova plantilla</button>
+              </div>
+              <!-- Una plantilla compartida no es reescriu des de la fitxa d'una persona: tocava l'horari de tothom -->
+              <div v-if="altresAmbPlantilla > 0" class="text-small" style="margin-top:6px;padding:8px 10px;border-radius:8px;background:rgba(245,158,11,0.1);color:var(--color-text);">
+                ⚠️ Aquesta plantilla la fan servir <strong>{{ altresAmbPlantilla }} persones més</strong>. Si canvies els dies,
+                es crearà una plantilla nova només per a {{ scheduleUser?.name }} i la dels altres no es tocarà.
+              </div>
+            </div>
+
+            <!-- Mode: crear nova plantilla -->
+            <div v-else>
+              <div class="form-group" style="display:flex;gap:8px;align-items:flex-end;">
+                <div style="flex:1;">
+                  <label class="form-label">Nom de la nova plantilla</label>
+                  <!-- El nom surt sol de l'horari: així no hi ha dues maneres d'escriure el mateix. -->
+                  <div class="form-input" style="background:var(--color-bg);" :style="{ color: nomNovaPlantilla ? 'var(--color-text)' : 'var(--color-text-muted)' }">
+                    {{ nomNovaPlantilla || 'Es posarà sol quan omplis l\'horari' }}
+                  </div>
+                </div>
+                <button class="btn btn-outline btn-sm" style="white-space:nowrap;margin-bottom:1px;" @click="isNewSchedule = false">← Plantilles</button>
+              </div>
+            </div>
+
+            <!-- Horari rotatiu (opcional): l'horari canvia segons la setmana. Per defecte apagat: horari fix de sempre. -->
+            <div style="margin-top:14px;padding:10px 12px;border:1px solid var(--color-border-light);border-radius:8px;">
+              <label style="display:flex;gap:8px;align-items:center;cursor:pointer;">
+                <input type="checkbox" :checked="rotatiu.actiu" style="width:15px;height:15px;" @change="activaRotatiu($event.target.checked, $event.target)" />
+                <span><strong>Horari rotatiu</strong> <span class="text-small text-muted">— l'horari canvia segons la setmana (p. ex. la 1a setmana del mes al matí i la 2a a la tarda)</span></span>
+              </label>
+              <div v-if="rotatiu.actiu" style="margin-top:10px;">
+                <div class="text-small" style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:8px;">
+                  <label style="cursor:pointer;"><input type="radio" value="mes" v-model="rotatiu.mode" /> Per setmana del mes (1a, 2a…)</label>
+                  <label style="cursor:pointer;"><input type="radio" value="alternes" v-model="rotatiu.mode" /> Setmanes alternes</label>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+                  <button v-for="(w, i) in rotatiu.setmanes" :key="i" type="button" class="btn btn-sm"
+                    :class="i === rotatiu.actual ? 'btn-primary' : 'btn-outline'" @click="canviaSetmana(i)">{{ etiquetaSetmana(i) }}</button>
+                  <button v-if="rotatiu.setmanes.length < maxSetmanes" type="button" class="btn btn-outline btn-sm" title="Afegir una setmana més al cicle (còpia de l'actual)" @click="afegeixSetmana">+ setmana</button>
+                  <button v-if="rotatiu.setmanes.length > 2" type="button" class="btn btn-outline btn-sm" style="color:var(--color-danger);" @click="treuSetmana">Treure la {{ etiquetaSetmana(rotatiu.actual).toLowerCase() }}</button>
+                </div>
+                <div v-if="rotatiu.mode === 'mes'" class="text-small text-muted" style="margin-top:8px;">
+                  Cada setmana compta pel seu dilluns: la 1a és la que té el dilluns entre el dia 1 i el 7, la 2a entre el 8 i el 14… Si no defineixes les 5, es repeteix el cicle:
+                  {{ repartimentMes }}.
+                </div>
+                <div v-else class="text-small" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+                  La <strong>setmana 1</strong> és la que comença el dilluns
+                  <input class="form-input" type="date" v-model="rotatiu.inici" style="width:150px;" />
+                  <span class="text-muted">i el cicle es repeteix cada {{ rotatiu.setmanes.length }} setmanes.</span>
+                </div>
+                <div class="text-small text-muted" style="margin-top:6px;">Estàs editant la <strong>{{ etiquetaSetmana(rotatiu.actual).toLowerCase() }}</strong>: els dies de sota són els d'aquesta setmana.</div>
+              </div>
+            </div>
+
+            <!-- Aplicar un mateix horari a diversos dies d'un cop, en lloc d'anar un per un -->
+            <div style="margin-top:14px;padding:10px 12px;background:var(--color-bg);border-radius:8px;">
+              <div class="form-label" style="margin-bottom:6px;">Aplicar un horari a diversos dies</div>
+              <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;">
+                <input class="form-input" type="time" v-model="bulkStart" style="width:115px;" />
+                <span>→</span>
+                <input class="form-input" type="time" v-model="bulkEnd" style="width:115px;" />
+                <button type="button" class="btn btn-outline btn-sm" :disabled="!bulkStart || !bulkEnd" @click="applyBulkSchedule([1,2,3,4,5])">Laborables (Dl-Dv)</button>
+                <button type="button" class="btn btn-outline btn-sm" :disabled="!bulkStart || !bulkEnd" @click="applyBulkSchedule([1,2,3,4,5,6,0])">Tota la setmana</button>
+                <button type="button" class="btn btn-outline btn-sm" :disabled="!bulkStart || !bulkEnd" @click="applyBulkSchedule([1,3,5])">Dl · Dc · Dv</button>
+                <button type="button" class="btn btn-outline btn-sm" :disabled="!bulkStart || !bulkEnd" @click="applyBulkSchedule([2,4])">Dt · Dj</button>
+              </div>
+              <div class="text-small text-muted" style="margin-top:6px;">
+                Posa l'hora d'entrada i sortida i tria a quins dies s'aplica. Després pots ajustar dies concrets a sota si cal.
+              </div>
+            </div>
+
+            <!-- Editor de dies (comú als dos modes). Suporta jornades partides: diversos trams al mateix dia. -->
+            <div v-for="(d, index) in scheduleForm.days" :key="index" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--color-border-light);">
+              <label style="width:100px;font-weight:500;">
+                <input v-if="!isExtraTramo(index)" type="checkbox" v-model="d.active" style="width:14px;height:14px;margin-right:6px;" />
+                <span v-else style="display:inline-block;width:20px;"></span>
+                {{ isExtraTramo(index) ? '↳ tram' : (d.name || dayName(d.day)) }}
+              </label>
+              <input v-if="d.active" class="form-input" type="time" v-model="d.start" style="width:115px;" />
+              <span v-if="d.active">→</span>
+              <input v-if="d.active" class="form-input" type="time" v-model="d.end" style="width:115px;" />
+              <span v-if="d.active" class="text-small text-muted">{{ formatHM(calcHours(d)) }}</span>
+              <span v-else class="text-small text-muted">Descans</span>
+              <button v-if="d.active" type="button" class="btn btn-outline btn-sm" title="Afegir una altra franja horària a aquest dia (jornada partida)" @click="addTramo(index)">+ franja</button>
+              <button v-if="isExtraTramo(index)" type="button" class="btn btn-outline btn-sm" style="color:var(--color-danger);" title="Treure aquesta franja" @click="removeTramo(index)">✕</button>
+            </div>
+
+            <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
+              <span class="text-small"><strong>{{ rotatiu.actiu ? 'Mitjana setmanal:' : 'Total setmanal:' }}</strong> {{ formatHM(totalWeeklyHours) }}</span>
+              <span class="text-small text-muted">Anual estimat: {{ (totalWeeklyHours / 37.5 * 1726).toFixed(0) }}h</span>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-outline" @click="showScheduleModal = false">{{ t('cancel') }}</button>
+              <button class="btn btn-primary" @click="saveSchedule" :disabled="desantHorari">
+                {{ desantHorari ? 'Desant…' : (isNewSchedule ? 'Crear i assignar' : t('save') + ' horari') }}
+              </button>
+            </div>
+          </div>
+        </div>
+        <div v-if="showCalendarModal" class="modal-overlay" @click.self="showCalendarModal = false">
+          <div class="modal" style="max-width:680px;">
+            <div class="modal-header">
+              <h3 class="modal-title">📆 Calendari laboral — {{ calendarUser?.name }}</h3>
+              <button class="icon-btn" @click="showCalendarModal = false">✕</button>
+            </div>
+            <CalendarPdfViewer v-if="calendarUser" :worker="calendarUser" :schedule="calendarSchedule" />
+            <div class="modal-footer">
+              <button class="btn btn-outline" @click="showCalendarModal = false">{{ t('close') || 'Tancar' }}</button>
+            </div>
+          </div>
+        </div>
+        <div v-if="showCpModal" class="modal-overlay" @click.self="showCpModal = false">
+          <div class="modal" style="max-width:640px;">
+            <div class="modal-header">
+              <h3 class="modal-title">📍 Codis Postals assignats — {{ cpUser?.name }}</h3>
+              <button class="icon-btn" @click="showCpModal = false">✕</button>
+            </div>
+            <!-- Assignació actual. Abans es llegia d'una promesa sense esperar-la i aquesta caixa no sortia mai. -->
+            <div v-if="activeCpAssignment" class="cp-actual">
+              <div class="text-small" style="color:var(--color-success);font-weight:700;">✓ Assignació actual</div>
+              <div class="cp-xips">
+                <span v-if="resumCps(activeCpAssignment.postal_codes).totaBcn" class="cp-xip fixa"><strong>🏙️ Tota Barcelona</strong> {{ activeCpAssignment.postal_codes.length }} CP</span>
+                <template v-else>
+                  <span v-for="cp in [...activeCpAssignment.postal_codes].sort()" :key="cp" class="cp-xip fixa"><strong>{{ cp }}</strong> {{ getCpZoneFn(cp) }}</span>
+                </template>
+              </div>
+            </div>
+            <div v-else class="text-small text-muted" style="margin-bottom:14px;">Aquesta persona encara no té cap codi postal assignat.</div>
+
+            <h4 style="font-size:0.9rem;margin-bottom:8px;">{{ activeCpAssignment ? 'Canviar l’assignació' : 'Nova assignació' }}</h4>
+            <!-- Triats: a dalt i amb ✕, perquè es vegi d'un cop d'ull què es desarà -->
+            <div class="cp-triats">
+              <span class="text-small" style="font-weight:700;">Triats ({{ newCpForm.postal_codes.length }}):</span>
+              <span v-if="!newCpForm.postal_codes.length" class="text-small text-muted">cap — tria'n a la llista de sota</span>
+              <span v-if="resumCps(newCpForm.postal_codes).totaBcn" class="cp-xip triat"><strong>🏙️ Tota Barcelona</strong> {{ newCpForm.postal_codes.length }} CP</span>
+              <template v-else>
+                <span v-for="cp in [...newCpForm.postal_codes].sort()" :key="cp" class="cp-xip triat">
+                  <strong>{{ cp }}</strong> {{ getCpZoneFn(cp) }}
+                  <button type="button" class="cp-treu" :title="'Treure ' + cp" @click="toggleCp(cp)">✕</button>
+                </span>
+              </template>
+              <button v-if="newCpForm.postal_codes.length" type="button" class="btn btn-outline btn-sm" @click="newCpForm.postal_codes = []">Treure'ls tots</button>
+            </div>
+            <div class="cp-cerca-fila">
+              <input v-model="cercaCp" type="search" class="form-input" placeholder="🔍 Cerca per codi o barri (p. ex. «sants», «gràcia», «08015»)" />
+              <!-- Amb una cerca, selecciona només els que es veuen (p. ex. tot l'Eixample); sense, tots. -->
+              <button type="button" class="btn btn-outline btn-sm cp-tots" :disabled="!cpsPerAfegir" @click="seleccionaTotsCp">
+                {{ cercaCp.trim() ? `Seleccionar els ${cpsFiltrats.length} trobats` : 'Seleccionar tots' }}
+              </button>
+            </div>
+            <div class="cp-graella">
+              <button v-for="cp in cpsFiltrats" :key="cp.code" type="button" class="cp-opcio" :class="{ sel: newCpForm.postal_codes.includes(cp.code) }" @click="toggleCp(cp.code)">
+                <span class="cp-codi">{{ newCpForm.postal_codes.includes(cp.code) ? '✓ ' : '' }}{{ cp.code }}</span>
+                <span class="cp-barri">{{ cp.zone }}</span>
+                <span class="cp-qui" :title="'Persones que ja tenen aquest codi assignat'">👥 {{ cobertura[cp.code] || 0 }}</span>
+              </button>
+              <div v-if="!cpsFiltrats.length" class="text-small text-muted" style="grid-column:1/-1;padding:8px;">Cap codi coincideix amb «{{ cercaCp }}»</div>
+            </div>
+            <div class="form-date-row" style="margin-bottom:12px;">
+              <div class="form-group">
+                <label class="form-label">Vàlid des de</label>
+                <input class="form-input" type="date" v-model="newCpForm.valid_from" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Vàlid fins a <span class="text-muted">(buit = indefinit)</span></label>
+                <input class="form-input" type="date" v-model="newCpForm.valid_to" />
+              </div>
+            </div>
+            <button class="btn btn-primary" @click="saveCpAssignment" :disabled="!newCpForm.postal_codes.length || !newCpForm.valid_from">
+              Desar l'assignació ({{ newCpForm.postal_codes.length }} codi{{ newCpForm.postal_codes.length === 1 ? '' : 's' }})
+            </button>
+          </div>
+        </div>
+        <div v-if="showPointsModal" class="modal-overlay" @click.self="showPointsModal = false">
+          <div class="modal" style="max-width:650px;">
+            <div class="modal-header" style="background:linear-gradient(135deg,rgba(59,130,246,0.06),rgba(16,185,129,0.04));border-radius:12px 12px 0 0;">
+              <div>
+                <h3 class="modal-title">📍 On pot fitxar — {{ pointsUser?.name }}</h3>
+                <div class="text-small text-muted">Treballador ambulatori · {{ pointsUser?.job_profile }}</div>
+              </div>
+              <button class="icon-btn" @click="showPointsModal = false">✕</button>
+            </div>
+
+            <!-- Current Centers -->
+            <div v-if="userCenters.length" style="padding:16px 16px 0;">
+              <h4 style="font-size:0.85rem;margin-bottom:8px;">🏢 Centres assignats ({{ userCenters.length }})</h4>
+              <div v-for="center in userCenters" :key="center.id" style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--color-border-light);border-radius:8px;margin-bottom:8px;background:rgba(59,130,246,0.04);">
+                <div style="font-size:1.2rem;">🏢</div>
+                <div style="flex:1;">
+                  <div style="font-weight:600;font-size:0.85rem;">{{ center.name }}</div>
+                  <div class="text-small text-muted">{{ center.work_locations?.length || 0 }} punts on pot fitxar dins del centre</div>
+                </div>
+                <button class="btn btn-danger btn-sm" @click="removeCenter(center.id)" title="Treure aquest centre">✕</button>
+              </div>
+            </div>
+
+            <!-- Current Points -->
+            <div v-if="userPoints.length" style="padding:16px 16px 0;">
+              <h4 style="font-size:0.85rem;margin-bottom:8px;">📍 Altres punts on pot fitxar ({{ userPoints.length }})</h4>
+              <div v-for="pt in userPoints" :key="pt.id" style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--color-border-light);border-radius:8px;margin-bottom:8px;background:rgba(76,175,80,0.03);">
+                <div style="font-size:1.2rem;">📍</div>
+                <div style="flex:1;">
+                  <div style="font-weight:600;font-size:0.85rem;">{{ pt.name }}</div>
+                  <div class="text-small text-muted" style="font-family:monospace;">{{ Number(pt.lat).toFixed(6) }}, {{ Number(pt.lng).toFixed(6) }} · ⊘ {{ pt.radius }}m</div>
+                </div>
+                <button class="btn btn-danger btn-sm" @click="removePoint(pt.id)" title="Treure aquest punt">✕</button>
+              </div>
+            </div>
+        
+            <div v-if="!userPoints.length && !userCenters.length" style="padding:16px;text-align:center;" class="text-muted">
+              Encara no hi ha cap lloc on pugui fitxar. Afegeix-hi un centre o un punt aquí sota.
+            </div>
+
+            <div style="padding:0 16px; margin-top:16px;">
+              <div style="display:flex;flex-wrap:wrap;gap:12px;border-bottom:2px solid var(--color-border-light);margin-bottom:12px;">
+                <button :style="{padding:'8px 12px', background:'none', border:'none', cursor:'pointer', fontWeight:'600', color: pointsTab === 'center' ? 'var(--color-primary)' : 'var(--color-muted)', borderBottom: pointsTab === 'center' ? '3px solid var(--color-primary)' : 'none', marginBottom:'-2px'}" @click="pointsTab = 'center'">🏢 Un centre de la llista</button>
+                <button :style="{padding:'8px 12px', background:'none', border:'none', cursor:'pointer', fontWeight:'600', color: pointsTab === 'manual' ? 'var(--color-primary)' : 'var(--color-muted)', borderBottom: pointsTab === 'manual' ? '3px solid var(--color-primary)' : 'none', marginBottom:'-2px'}" @click="pointsTab = 'manual'">📍 Un altre punt</button>
+              </div>
+            </div>
+
+            <!-- Add Center Tab -->
+            <div v-if="pointsTab === 'center'" style="padding:0 16px 16px;">
+              <div class="form-group">
+                <label class="form-label">Tria un centre ambulatori</label>
+                <select class="form-select" v-model="newCenterId">
+                  <option value="">— Tria un centre —</option>
+                  <option v-for="c in ambulatoryCentersList" :key="c.id" :value="c.id">{{ c.name }} ({{ c.work_locations?.length || 0 }} coords)</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" @click="addCenter" :disabled="!newCenterId">+ Assignar el centre</button>
+            </div>
+
+            <!-- Add Manual Point Tab -->
+            <div v-if="pointsTab === 'manual'" style="padding:0 16px 16px;">
+              <div class="form-group">
+                <label class="form-label">Nom del punt manual</label>
+                <input class="form-input" v-model="newPoint.name" placeholder="p.ex. Clínica Sant Pau" />
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:12px;">
+                <div class="form-group" style="flex:1 1 120px;">
+                  <label class="form-label">Latitud</label>
+                  <input class="form-input" type="number" step="0.000001" v-model.number="newPoint.lat" />
+                </div>
+                <div class="form-group" style="flex:1 1 120px;">
+                  <label class="form-label">Longitud</label>
+                  <input class="form-input" type="number" step="0.000001" v-model.number="newPoint.lng" />
+                </div>
+                <div class="form-group" style="flex:1 1 80px;">
+                  <label class="form-label">Distància permesa (metres)</label>
+                  <input class="form-input" type="number" v-model.number="newPoint.radius" min="50" max="1000" />
+                </div>
+              </div>
+              <div class="text-small text-muted" style="margin-bottom:12px;">
+                💡 Podeu obtenir coordenades des de Google Maps (clic dret → coordenades). Radi recomanat: 50-200m.
+              </div>
+              <button class="btn btn-primary" @click="addPoint" :disabled="!newPoint.name || !newPoint.lat || !newPoint.lng">+ Afegir el punt</button>
+            </div>
+          </div>
+        </div>
+        <div v-if="showMuniModal" class="modal-overlay" @click.self="showMuniModal = false">
+          <div class="modal" style="max-width:650px;">
+            <div class="modal-header" style="background:linear-gradient(135deg,rgba(147,51,234,0.06),rgba(59,130,246,0.04));border-radius:12px 12px 0 0;">
+              <div>
+                <h3 class="modal-title">🏘️ Termes Municipals — {{ muniUser?.name }}</h3>
+                <div class="text-small text-muted">Domiciliari del Vallès · El fitxatge és vàlid en qualsevol punt del terme municipal</div>
+              </div>
+              <button class="icon-btn" @click="showMuniModal = false">✕</button>
+            </div>
+
+            <!-- Active assignment -->
+            <div v-if="activeMuniAssignment" style="padding:16px 16px 0;">
+              <div style="background:rgba(147,51,234,0.07);border-radius:8px;padding:12px;border-left:3px solid rgba(147,51,234,0.6);margin-bottom:12px;">
+                <div class="text-small" style="color:rgba(147,51,234,1);font-weight:600;">Assignació activa</div>
+                <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+                  <span v-for="muni in activeMuniAssignment.municipalities" :key="muni" 
+                    style="background:rgba(147,51,234,0.1);border:1px solid rgba(147,51,234,0.2);border-radius:6px;padding:4px 8px;font-size:0.78rem;font-weight:500;">
+                    {{ getMuniName(muni) }}
+                  </span>
+                </div>
+                <div class="text-small text-muted" style="margin-top:6px;">Des de {{ activeMuniAssignment.valid_from }}{{ activeMuniAssignment.valid_to ? ' fins ' + activeMuniAssignment.valid_to : ' (indefinit)' }}</div>
+              </div>
+            </div>
+
+            <!-- New assignment -->
+            <div style="padding:16px;">
+              <h4 style="font-size:0.85rem;margin-bottom:12px;">Nova assignació de termes municipals</h4>
+              <div class="form-label mb-sm">Municipis del Vallès</div>
+              <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;max-height:250px;overflow-y:auto;border:1px solid var(--color-border-light);border-radius:8px;padding:10px;">
+                <label v-for="muni in municipalityList" :key="muni.code" style="display:flex;align-items:center;gap:6px;font-size:0.82rem;cursor:pointer;padding:4px 0;">
+                  <input type="checkbox" :value="muni.code" v-model="newMuniForm.municipalities" style="width:14px;height:14px;" />
+                  <span>{{ muni.name }}</span>
+                </label>
+              </div>
+              <div class="text-small text-muted mt-sm" v-if="newMuniForm.municipalities.length">
+                Seleccionats: {{ newMuniForm.municipalities.map(c => getMuniName(c)).join(', ') }}
+              </div>
+              <div class="form-date-row" style="margin-top:12px;">
+                <div class="form-group">
+                  <label class="form-label">Vàlid des de</label>
+                  <input class="form-input" type="date" v-model="newMuniForm.valid_from" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Vàlid fins a <span class="text-muted">(buit = indefinit)</span></label>
+                  <input class="form-input" type="date" v-model="newMuniForm.valid_to" />
+                </div>
+              </div>
+              <button class="btn btn-primary" @click="saveMuniAssignment" :disabled="!newMuniForm.municipalities.length || !newMuniForm.valid_from" style="margin-top:8px;">
+                Desar assignació
+              </button>
+            </div>
+          </div>
+        </div>
+        </div>
 
         <div v-show="pestanyaFitxa === 'acces'">
         <div class="form-group" v-if="editingUser && editingUser.active && !(editingUser.role === 'admin' && !authStore.isAdmin)">
@@ -657,139 +985,9 @@
     </div>
 
     <!-- Schedule Editor Modal -->
-    <Teleport to="#fitxa-incrustat" :disabled="!dinsFitxa">
-    <div v-if="showScheduleModal" class="modal-overlay" @click.self="showScheduleModal = false">
-      <div class="modal" style="max-width:650px;">
-        <div class="modal-header">
-          <h3 class="modal-title">Horari detallat — {{ scheduleUser?.name }}</h3>
-          <button class="icon-btn" @click="showScheduleModal = false">✕</button>
-        </div>
-
-        <!-- Mode: seleccionar plantilla existent -->
-        <div v-if="!isNewSchedule">
-          <div class="form-group" style="display:flex;gap:8px;align-items:flex-end;">
-            <div style="flex:1;">
-              <label class="form-label">Plantilla horària</label>
-              <select class="form-select" v-model="scheduleForm.id" @change="loadScheduleTemplate">
-                <option v-for="s in schedules" :key="s.id" :value="s.id">{{ s.name }} ({{ formatHM(s.total_hours_weekly) }}/set)</option>
-              </select>
-            </div>
-            <button class="btn btn-accent btn-sm" style="white-space:nowrap;margin-bottom:1px;" @click="startNewSchedule">+ Nova plantilla</button>
-          </div>
-          <!-- Una plantilla compartida no es reescriu des de la fitxa d'una persona: tocava l'horari de tothom -->
-          <div v-if="altresAmbPlantilla > 0" class="text-small" style="margin-top:6px;padding:8px 10px;border-radius:8px;background:rgba(245,158,11,0.1);color:var(--color-text);">
-            ⚠️ Aquesta plantilla la fan servir <strong>{{ altresAmbPlantilla }} persones més</strong>. Si canvies els dies,
-            es crearà una plantilla nova només per a {{ scheduleUser?.name }} i la dels altres no es tocarà.
-          </div>
-        </div>
-
-        <!-- Mode: crear nova plantilla -->
-        <div v-else>
-          <div class="form-group" style="display:flex;gap:8px;align-items:flex-end;">
-            <div style="flex:1;">
-              <label class="form-label">Nom de la nova plantilla</label>
-              <!-- El nom surt sol de l'horari: així no hi ha dues maneres d'escriure el mateix. -->
-              <div class="form-input" style="background:var(--color-bg);" :style="{ color: nomNovaPlantilla ? 'var(--color-text)' : 'var(--color-text-muted)' }">
-                {{ nomNovaPlantilla || 'Es posarà sol quan omplis l\'horari' }}
-              </div>
-            </div>
-            <button class="btn btn-outline btn-sm" style="white-space:nowrap;margin-bottom:1px;" @click="isNewSchedule = false">← Plantilles</button>
-          </div>
-        </div>
-
-        <!-- Horari rotatiu (opcional): l'horari canvia segons la setmana. Per defecte apagat: horari fix de sempre. -->
-        <div style="margin-top:14px;padding:10px 12px;border:1px solid var(--color-border-light);border-radius:8px;">
-          <label style="display:flex;gap:8px;align-items:center;cursor:pointer;">
-            <input type="checkbox" :checked="rotatiu.actiu" style="width:15px;height:15px;" @change="activaRotatiu($event.target.checked, $event.target)" />
-            <span><strong>Horari rotatiu</strong> <span class="text-small text-muted">— l'horari canvia segons la setmana (p. ex. la 1a setmana del mes al matí i la 2a a la tarda)</span></span>
-          </label>
-          <div v-if="rotatiu.actiu" style="margin-top:10px;">
-            <div class="text-small" style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:8px;">
-              <label style="cursor:pointer;"><input type="radio" value="mes" v-model="rotatiu.mode" /> Per setmana del mes (1a, 2a…)</label>
-              <label style="cursor:pointer;"><input type="radio" value="alternes" v-model="rotatiu.mode" /> Setmanes alternes</label>
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
-              <button v-for="(w, i) in rotatiu.setmanes" :key="i" type="button" class="btn btn-sm"
-                :class="i === rotatiu.actual ? 'btn-primary' : 'btn-outline'" @click="canviaSetmana(i)">{{ etiquetaSetmana(i) }}</button>
-              <button v-if="rotatiu.setmanes.length < maxSetmanes" type="button" class="btn btn-outline btn-sm" title="Afegir una setmana més al cicle (còpia de l'actual)" @click="afegeixSetmana">+ setmana</button>
-              <button v-if="rotatiu.setmanes.length > 2" type="button" class="btn btn-outline btn-sm" style="color:var(--color-danger);" @click="treuSetmana">Treure la {{ etiquetaSetmana(rotatiu.actual).toLowerCase() }}</button>
-            </div>
-            <div v-if="rotatiu.mode === 'mes'" class="text-small text-muted" style="margin-top:8px;">
-              Cada setmana compta pel seu dilluns: la 1a és la que té el dilluns entre el dia 1 i el 7, la 2a entre el 8 i el 14… Si no defineixes les 5, es repeteix el cicle:
-              {{ repartimentMes }}.
-            </div>
-            <div v-else class="text-small" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-              La <strong>setmana 1</strong> és la que comença el dilluns
-              <input class="form-input" type="date" v-model="rotatiu.inici" style="width:150px;" />
-              <span class="text-muted">i el cicle es repeteix cada {{ rotatiu.setmanes.length }} setmanes.</span>
-            </div>
-            <div class="text-small text-muted" style="margin-top:6px;">Estàs editant la <strong>{{ etiquetaSetmana(rotatiu.actual).toLowerCase() }}</strong>: els dies de sota són els d'aquesta setmana.</div>
-          </div>
-        </div>
-
-        <!-- Aplicar un mateix horari a diversos dies d'un cop, en lloc d'anar un per un -->
-        <div style="margin-top:14px;padding:10px 12px;background:var(--color-bg);border-radius:8px;">
-          <div class="form-label" style="margin-bottom:6px;">Aplicar un horari a diversos dies</div>
-          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;">
-            <input class="form-input" type="time" v-model="bulkStart" style="width:115px;" />
-            <span>→</span>
-            <input class="form-input" type="time" v-model="bulkEnd" style="width:115px;" />
-            <button type="button" class="btn btn-outline btn-sm" :disabled="!bulkStart || !bulkEnd" @click="applyBulkSchedule([1,2,3,4,5])">Laborables (Dl-Dv)</button>
-            <button type="button" class="btn btn-outline btn-sm" :disabled="!bulkStart || !bulkEnd" @click="applyBulkSchedule([1,2,3,4,5,6,0])">Tota la setmana</button>
-            <button type="button" class="btn btn-outline btn-sm" :disabled="!bulkStart || !bulkEnd" @click="applyBulkSchedule([1,3,5])">Dl · Dc · Dv</button>
-            <button type="button" class="btn btn-outline btn-sm" :disabled="!bulkStart || !bulkEnd" @click="applyBulkSchedule([2,4])">Dt · Dj</button>
-          </div>
-          <div class="text-small text-muted" style="margin-top:6px;">
-            Posa l'hora d'entrada i sortida i tria a quins dies s'aplica. Després pots ajustar dies concrets a sota si cal.
-          </div>
-        </div>
-
-        <!-- Editor de dies (comú als dos modes). Suporta jornades partides: diversos trams al mateix dia. -->
-        <div v-for="(d, index) in scheduleForm.days" :key="index" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--color-border-light);">
-          <label style="width:100px;font-weight:500;">
-            <input v-if="!isExtraTramo(index)" type="checkbox" v-model="d.active" style="width:14px;height:14px;margin-right:6px;" />
-            <span v-else style="display:inline-block;width:20px;"></span>
-            {{ isExtraTramo(index) ? '↳ tram' : (d.name || dayName(d.day)) }}
-          </label>
-          <input v-if="d.active" class="form-input" type="time" v-model="d.start" style="width:115px;" />
-          <span v-if="d.active">→</span>
-          <input v-if="d.active" class="form-input" type="time" v-model="d.end" style="width:115px;" />
-          <span v-if="d.active" class="text-small text-muted">{{ formatHM(calcHours(d)) }}</span>
-          <span v-else class="text-small text-muted">Descans</span>
-          <button v-if="d.active" type="button" class="btn btn-outline btn-sm" title="Afegir una altra franja horària a aquest dia (jornada partida)" @click="addTramo(index)">+ franja</button>
-          <button v-if="isExtraTramo(index)" type="button" class="btn btn-outline btn-sm" style="color:var(--color-danger);" title="Treure aquesta franja" @click="removeTramo(index)">✕</button>
-        </div>
-
-        <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
-          <span class="text-small"><strong>{{ rotatiu.actiu ? 'Mitjana setmanal:' : 'Total setmanal:' }}</strong> {{ formatHM(totalWeeklyHours) }}</span>
-          <span class="text-small text-muted">Anual estimat: {{ (totalWeeklyHours / 37.5 * 1726).toFixed(0) }}h</span>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-outline" @click="showScheduleModal = false">{{ t('cancel') }}</button>
-          <button class="btn btn-primary" @click="saveSchedule" :disabled="desantHorari">
-            {{ desantHorari ? 'Desant…' : (isNewSchedule ? 'Crear i assignar' : t('save') + ' horari') }}
-          </button>
-        </div>
-      </div>
-    </div>
-    </Teleport>
 
     <!-- CSV Import Modal -->
     <!-- Calendari laboral (PDF incrustat, no descarregable) -->
-    <Teleport to="#fitxa-incrustat" :disabled="!dinsFitxa">
-    <div v-if="showCalendarModal" class="modal-overlay" @click.self="showCalendarModal = false">
-      <div class="modal" style="max-width:680px;">
-        <div class="modal-header">
-          <h3 class="modal-title">📆 Calendari laboral — {{ calendarUser?.name }}</h3>
-          <button class="icon-btn" @click="showCalendarModal = false">✕</button>
-        </div>
-        <CalendarPdfViewer v-if="calendarUser" :worker="calendarUser" :schedule="calendarSchedule" />
-        <div class="modal-footer">
-          <button class="btn btn-outline" @click="showCalendarModal = false">{{ t('close') || 'Tancar' }}</button>
-        </div>
-      </div>
-    </div>
-    </Teleport>
 
     <div v-if="showCsvModal" class="modal-overlay" @click.self="showCsvModal = false">
       <div class="modal" style="max-width:700px;">
@@ -849,217 +1047,10 @@
     </div>
 
     <!-- CP Assignment Modal (DOMICILIARIA) -->
-    <Teleport to="#fitxa-incrustat" :disabled="!dinsFitxa">
-    <div v-if="showCpModal" class="modal-overlay" @click.self="showCpModal = false">
-      <div class="modal" style="max-width:640px;">
-        <div class="modal-header">
-          <h3 class="modal-title">📍 Codis Postals assignats — {{ cpUser?.name }}</h3>
-          <button class="icon-btn" @click="showCpModal = false">✕</button>
-        </div>
-        <!-- Assignació actual. Abans es llegia d'una promesa sense esperar-la i aquesta caixa no sortia mai. -->
-        <div v-if="activeCpAssignment" class="cp-actual">
-          <div class="text-small" style="color:var(--color-success);font-weight:700;">✓ Assignació actual</div>
-          <div class="cp-xips">
-            <span v-if="resumCps(activeCpAssignment.postal_codes).totaBcn" class="cp-xip fixa"><strong>🏙️ Tota Barcelona</strong> {{ activeCpAssignment.postal_codes.length }} CP</span>
-            <template v-else>
-              <span v-for="cp in [...activeCpAssignment.postal_codes].sort()" :key="cp" class="cp-xip fixa"><strong>{{ cp }}</strong> {{ getCpZoneFn(cp) }}</span>
-            </template>
-          </div>
-        </div>
-        <div v-else class="text-small text-muted" style="margin-bottom:14px;">Aquesta persona encara no té cap codi postal assignat.</div>
-
-        <h4 style="font-size:0.9rem;margin-bottom:8px;">{{ activeCpAssignment ? 'Canviar l’assignació' : 'Nova assignació' }}</h4>
-        <!-- Triats: a dalt i amb ✕, perquè es vegi d'un cop d'ull què es desarà -->
-        <div class="cp-triats">
-          <span class="text-small" style="font-weight:700;">Triats ({{ newCpForm.postal_codes.length }}):</span>
-          <span v-if="!newCpForm.postal_codes.length" class="text-small text-muted">cap — tria'n a la llista de sota</span>
-          <span v-if="resumCps(newCpForm.postal_codes).totaBcn" class="cp-xip triat"><strong>🏙️ Tota Barcelona</strong> {{ newCpForm.postal_codes.length }} CP</span>
-          <template v-else>
-            <span v-for="cp in [...newCpForm.postal_codes].sort()" :key="cp" class="cp-xip triat">
-              <strong>{{ cp }}</strong> {{ getCpZoneFn(cp) }}
-              <button type="button" class="cp-treu" :title="'Treure ' + cp" @click="toggleCp(cp)">✕</button>
-            </span>
-          </template>
-          <button v-if="newCpForm.postal_codes.length" type="button" class="btn btn-outline btn-sm" @click="newCpForm.postal_codes = []">Treure'ls tots</button>
-        </div>
-        <div class="cp-cerca-fila">
-          <input v-model="cercaCp" type="search" class="form-input" placeholder="🔍 Cerca per codi o barri (p. ex. «sants», «gràcia», «08015»)" />
-          <!-- Amb una cerca, selecciona només els que es veuen (p. ex. tot l'Eixample); sense, tots. -->
-          <button type="button" class="btn btn-outline btn-sm cp-tots" :disabled="!cpsPerAfegir" @click="seleccionaTotsCp">
-            {{ cercaCp.trim() ? `Seleccionar els ${cpsFiltrats.length} trobats` : 'Seleccionar tots' }}
-          </button>
-        </div>
-        <div class="cp-graella">
-          <button v-for="cp in cpsFiltrats" :key="cp.code" type="button" class="cp-opcio" :class="{ sel: newCpForm.postal_codes.includes(cp.code) }" @click="toggleCp(cp.code)">
-            <span class="cp-codi">{{ newCpForm.postal_codes.includes(cp.code) ? '✓ ' : '' }}{{ cp.code }}</span>
-            <span class="cp-barri">{{ cp.zone }}</span>
-            <span class="cp-qui" :title="'Persones que ja tenen aquest codi assignat'">👥 {{ cobertura[cp.code] || 0 }}</span>
-          </button>
-          <div v-if="!cpsFiltrats.length" class="text-small text-muted" style="grid-column:1/-1;padding:8px;">Cap codi coincideix amb «{{ cercaCp }}»</div>
-        </div>
-        <div class="form-date-row" style="margin-bottom:12px;">
-          <div class="form-group">
-            <label class="form-label">Vàlid des de</label>
-            <input class="form-input" type="date" v-model="newCpForm.valid_from" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Vàlid fins a <span class="text-muted">(buit = indefinit)</span></label>
-            <input class="form-input" type="date" v-model="newCpForm.valid_to" />
-          </div>
-        </div>
-        <button class="btn btn-primary" @click="saveCpAssignment" :disabled="!newCpForm.postal_codes.length || !newCpForm.valid_from">
-          Desar l'assignació ({{ newCpForm.postal_codes.length }} codi{{ newCpForm.postal_codes.length === 1 ? '' : 's' }})
-        </button>
-      </div>
-    </div>
-    </Teleport>
 
     <!-- ═══ AMBULATORY POINTS MODAL ═══ -->
-    <Teleport to="#fitxa-incrustat" :disabled="!dinsFitxa">
-    <div v-if="showPointsModal" class="modal-overlay" @click.self="showPointsModal = false">
-      <div class="modal" style="max-width:650px;">
-        <div class="modal-header" style="background:linear-gradient(135deg,rgba(59,130,246,0.06),rgba(16,185,129,0.04));border-radius:12px 12px 0 0;">
-          <div>
-            <h3 class="modal-title">📍 On pot fitxar — {{ pointsUser?.name }}</h3>
-            <div class="text-small text-muted">Treballador ambulatori · {{ pointsUser?.job_profile }}</div>
-          </div>
-          <button class="icon-btn" @click="showPointsModal = false">✕</button>
-        </div>
-
-        <!-- Current Centers -->
-        <div v-if="userCenters.length" style="padding:16px 16px 0;">
-          <h4 style="font-size:0.85rem;margin-bottom:8px;">🏢 Centres assignats ({{ userCenters.length }})</h4>
-          <div v-for="center in userCenters" :key="center.id" style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--color-border-light);border-radius:8px;margin-bottom:8px;background:rgba(59,130,246,0.04);">
-            <div style="font-size:1.2rem;">🏢</div>
-            <div style="flex:1;">
-              <div style="font-weight:600;font-size:0.85rem;">{{ center.name }}</div>
-              <div class="text-small text-muted">{{ center.work_locations?.length || 0 }} punts on pot fitxar dins del centre</div>
-            </div>
-            <button class="btn btn-danger btn-sm" @click="removeCenter(center.id)" title="Treure aquest centre">✕</button>
-          </div>
-        </div>
-
-        <!-- Current Points -->
-        <div v-if="userPoints.length" style="padding:16px 16px 0;">
-          <h4 style="font-size:0.85rem;margin-bottom:8px;">📍 Altres punts on pot fitxar ({{ userPoints.length }})</h4>
-          <div v-for="pt in userPoints" :key="pt.id" style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--color-border-light);border-radius:8px;margin-bottom:8px;background:rgba(76,175,80,0.03);">
-            <div style="font-size:1.2rem;">📍</div>
-            <div style="flex:1;">
-              <div style="font-weight:600;font-size:0.85rem;">{{ pt.name }}</div>
-              <div class="text-small text-muted" style="font-family:monospace;">{{ Number(pt.lat).toFixed(6) }}, {{ Number(pt.lng).toFixed(6) }} · ⊘ {{ pt.radius }}m</div>
-            </div>
-            <button class="btn btn-danger btn-sm" @click="removePoint(pt.id)" title="Treure aquest punt">✕</button>
-          </div>
-        </div>
-        
-        <div v-if="!userPoints.length && !userCenters.length" style="padding:16px;text-align:center;" class="text-muted">
-          Encara no hi ha cap lloc on pugui fitxar. Afegeix-hi un centre o un punt aquí sota.
-        </div>
-
-        <div style="padding:0 16px; margin-top:16px;">
-          <div style="display:flex;flex-wrap:wrap;gap:12px;border-bottom:2px solid var(--color-border-light);margin-bottom:12px;">
-            <button :style="{padding:'8px 12px', background:'none', border:'none', cursor:'pointer', fontWeight:'600', color: pointsTab === 'center' ? 'var(--color-primary)' : 'var(--color-muted)', borderBottom: pointsTab === 'center' ? '3px solid var(--color-primary)' : 'none', marginBottom:'-2px'}" @click="pointsTab = 'center'">🏢 Un centre de la llista</button>
-            <button :style="{padding:'8px 12px', background:'none', border:'none', cursor:'pointer', fontWeight:'600', color: pointsTab === 'manual' ? 'var(--color-primary)' : 'var(--color-muted)', borderBottom: pointsTab === 'manual' ? '3px solid var(--color-primary)' : 'none', marginBottom:'-2px'}" @click="pointsTab = 'manual'">📍 Un altre punt</button>
-          </div>
-        </div>
-
-        <!-- Add Center Tab -->
-        <div v-if="pointsTab === 'center'" style="padding:0 16px 16px;">
-          <div class="form-group">
-            <label class="form-label">Tria un centre ambulatori</label>
-            <select class="form-select" v-model="newCenterId">
-              <option value="">— Tria un centre —</option>
-              <option v-for="c in ambulatoryCentersList" :key="c.id" :value="c.id">{{ c.name }} ({{ c.work_locations?.length || 0 }} coords)</option>
-            </select>
-          </div>
-          <button class="btn btn-primary" @click="addCenter" :disabled="!newCenterId">+ Assignar el centre</button>
-        </div>
-
-        <!-- Add Manual Point Tab -->
-        <div v-if="pointsTab === 'manual'" style="padding:0 16px 16px;">
-          <div class="form-group">
-            <label class="form-label">Nom del punt manual</label>
-            <input class="form-input" v-model="newPoint.name" placeholder="p.ex. Clínica Sant Pau" />
-          </div>
-          <div style="display:flex;flex-wrap:wrap;gap:12px;">
-            <div class="form-group" style="flex:1 1 120px;">
-              <label class="form-label">Latitud</label>
-              <input class="form-input" type="number" step="0.000001" v-model.number="newPoint.lat" />
-            </div>
-            <div class="form-group" style="flex:1 1 120px;">
-              <label class="form-label">Longitud</label>
-              <input class="form-input" type="number" step="0.000001" v-model.number="newPoint.lng" />
-            </div>
-            <div class="form-group" style="flex:1 1 80px;">
-              <label class="form-label">Distància permesa (metres)</label>
-              <input class="form-input" type="number" v-model.number="newPoint.radius" min="50" max="1000" />
-            </div>
-          </div>
-          <div class="text-small text-muted" style="margin-bottom:12px;">
-            💡 Podeu obtenir coordenades des de Google Maps (clic dret → coordenades). Radi recomanat: 50-200m.
-          </div>
-          <button class="btn btn-primary" @click="addPoint" :disabled="!newPoint.name || !newPoint.lat || !newPoint.lng">+ Afegir el punt</button>
-        </div>
-      </div>
-    </div>
-    </Teleport>
 
     <!-- ═══ MUNICIPAL ASSIGNMENT MODAL (DOMICILIARIA_VALLES) ═══ -->
-    <Teleport to="#fitxa-incrustat" :disabled="!dinsFitxa">
-    <div v-if="showMuniModal" class="modal-overlay" @click.self="showMuniModal = false">
-      <div class="modal" style="max-width:650px;">
-        <div class="modal-header" style="background:linear-gradient(135deg,rgba(147,51,234,0.06),rgba(59,130,246,0.04));border-radius:12px 12px 0 0;">
-          <div>
-            <h3 class="modal-title">🏘️ Termes Municipals — {{ muniUser?.name }}</h3>
-            <div class="text-small text-muted">Domiciliari del Vallès · El fitxatge és vàlid en qualsevol punt del terme municipal</div>
-          </div>
-          <button class="icon-btn" @click="showMuniModal = false">✕</button>
-        </div>
-
-        <!-- Active assignment -->
-        <div v-if="activeMuniAssignment" style="padding:16px 16px 0;">
-          <div style="background:rgba(147,51,234,0.07);border-radius:8px;padding:12px;border-left:3px solid rgba(147,51,234,0.6);margin-bottom:12px;">
-            <div class="text-small" style="color:rgba(147,51,234,1);font-weight:600;">Assignació activa</div>
-            <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
-              <span v-for="muni in activeMuniAssignment.municipalities" :key="muni" 
-                style="background:rgba(147,51,234,0.1);border:1px solid rgba(147,51,234,0.2);border-radius:6px;padding:4px 8px;font-size:0.78rem;font-weight:500;">
-                {{ getMuniName(muni) }}
-              </span>
-            </div>
-            <div class="text-small text-muted" style="margin-top:6px;">Des de {{ activeMuniAssignment.valid_from }}{{ activeMuniAssignment.valid_to ? ' fins ' + activeMuniAssignment.valid_to : ' (indefinit)' }}</div>
-          </div>
-        </div>
-
-        <!-- New assignment -->
-        <div style="padding:16px;">
-          <h4 style="font-size:0.85rem;margin-bottom:12px;">Nova assignació de termes municipals</h4>
-          <div class="form-label mb-sm">Municipis del Vallès</div>
-          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;max-height:250px;overflow-y:auto;border:1px solid var(--color-border-light);border-radius:8px;padding:10px;">
-            <label v-for="muni in municipalityList" :key="muni.code" style="display:flex;align-items:center;gap:6px;font-size:0.82rem;cursor:pointer;padding:4px 0;">
-              <input type="checkbox" :value="muni.code" v-model="newMuniForm.municipalities" style="width:14px;height:14px;" />
-              <span>{{ muni.name }}</span>
-            </label>
-          </div>
-          <div class="text-small text-muted mt-sm" v-if="newMuniForm.municipalities.length">
-            Seleccionats: {{ newMuniForm.municipalities.map(c => getMuniName(c)).join(', ') }}
-          </div>
-          <div class="form-date-row" style="margin-top:12px;">
-            <div class="form-group">
-              <label class="form-label">Vàlid des de</label>
-              <input class="form-input" type="date" v-model="newMuniForm.valid_from" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Vàlid fins a <span class="text-muted">(buit = indefinit)</span></label>
-              <input class="form-input" type="date" v-model="newMuniForm.valid_to" />
-            </div>
-          </div>
-          <button class="btn btn-primary" @click="saveMuniAssignment" :disabled="!newMuniForm.municipalities.length || !newMuniForm.valid_from" style="margin-top:8px;">
-            Desar assignació
-          </button>
-        </div>
-      </div>
-    </div>
-    </Teleport>
   </div>
 </template>
 
@@ -1418,8 +1409,8 @@ function tancaEines(e) { if (einesObertes.value && !einesRef.value?.contains(e.t
 onMounted(() => document.addEventListener('mousedown', tancaEines))
 onUnmounted(() => document.removeEventListener('mousedown', tancaEines))
 
-// Horari, calendari i zona/centres es veuen DINS la fitxa (pestanyes): les finestres d'abans s'hi
-// «teletransporten» (Teleport) i es reaprofita tota la seva lògica. No cal anar d'una finestra a l'altra.
+// Horari, calendari i zona/centres es veuen DINS la fitxa (pestanyes): són les finestres d'abans, posades
+// dins la fitxa amb un estil sense fons ni capçalera, per reaprofitar tota la seva lògica.
 const dinsFitxa = ref(false)
 const pestanyaIncrustada = computed(() => ['horari', 'calendari', 'zona'].includes(pestanyaFitxa.value))
 function tancaIncrustats() {
