@@ -155,40 +155,15 @@
                 </div>
               </td>
               <td>
-                <!-- Un sol botó «Més» amb tot el que és secundari: així una acció nova s'afegeix al menú
-                     i la taula no creix. La fitxa (el més usat) queda sempre a la vista. -->
+                <!-- Un sol botó: dins la fitxa, en pestanyes, hi ha tota la resta (horari, calendari, zones, contrasenya…). -->
                 <div class="emp-accions">
-                  <button class="btn btn-outline btn-sm" @click="openEditModal(user)" title="Obrir la fitxa: dades, jornada i accés">✎ Fitxa</button>
-                  <button class="btn btn-outline btn-sm" :aria-expanded="menuPersona.id === user.id" @click.stop="obreMenuPersona(user, $event)" title="Horari, calendari, zones, contrasenya…">⋯ Més <span class="eines-fletxa" :class="{ oberta: menuPersona.id === user.id }">▾</span></button>
+                  <button class="btn btn-outline btn-sm" @click="openEditModal(user)" title="Obrir la fitxa: dades, jornada, horari, calendari i accés">✎ Fitxa</button>
                 </div>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-    </div>
-
-    <!-- Menú «Més» d'una persona (fix, per no quedar tallat dins la taula) -->
-    <div v-if="menuPersona.id && personaMenu" ref="menuPersonaRef" class="eines-menu menu-persona" role="menu"
-         :style="{ top: menuPersona.y + 'px', left: menuPersona.x + 'px' }" @keydown.esc="menuPersona.id = null">
-      <button v-if="personaMenu.work_type === 'DOMICILIARIA'" class="eines-opcio" role="menuitem" @click="obreOpcioPersona(() => openCpModal(personaMenu))">
-        <span class="eines-icona">📍</span><span><strong>Zona</strong><small>Codis postals on treballa</small></span>
-      </button>
-      <button v-if="personaMenu.work_type === 'DOMICILIARIA_VALLES'" class="eines-opcio" role="menuitem" @click="obreOpcioPersona(() => openMuniModal(personaMenu))">
-        <span class="eines-icona">🏘️</span><span><strong>Municipis</strong><small>Municipis on treballa</small></span>
-      </button>
-      <button v-if="personaMenu.work_type === 'AMBULATORIA'" class="eines-opcio" role="menuitem" @click="obreOpcioPersona(() => openPointsModal(personaMenu))">
-        <span class="eines-icona">📍</span><span><strong>Centres</strong><small>Centres i punts on pot fitxar</small></span>
-      </button>
-      <button class="eines-opcio" role="menuitem" @click="obreOpcioPersona(() => openScheduleModal(personaMenu))">
-        <span class="eines-icona">📅</span><span><strong>Horari</strong><small>Horari de cada dia de la setmana</small></span>
-      </button>
-      <button class="eines-opcio" role="menuitem" @click="obreOpcioPersona(() => openCalendarModal(personaMenu))">
-        <span class="eines-icona">📆</span><span><strong>Calendari</strong><small>Festius, vacances i dies treballats</small></span>
-      </button>
-      <button v-if="personaMenu.active && !(personaMenu.role === 'admin' && !authStore.isAdmin)" class="eines-opcio" role="menuitem" @click="obreOpcioPersona(() => restableixContrasenya(personaMenu))">
-        <span class="eines-icona">🔑</span><span><strong>Restablir contrasenya</strong><small>Genera una contrasenya nova i l'envia per correu</small></span>
-      </button>
     </div>
 
     <!-- Create/Edit Employee Modal -->
@@ -576,6 +551,30 @@
             <span v-if="pracMsg" class="text-small" :style="{ color: pracOk ? '#065f46' : '#be123c' }">{{ pracMsg }}</span>
           </div>
         </div>
+        </div>
+
+        <!-- GESTIÓ: tot el que abans eren botons sota de cada fila. Una opció nova s'afegeix aquí. -->
+        <div v-show="pestanyaFitxa === 'gestio'" v-if="editingUser">
+          <div class="gestio-llista">
+            <button type="button" class="eines-opcio" v-if="editingUser.work_type === 'DOMICILIARIA'" @click="obreDesDeFitxa(u => openCpModal(u))">
+              <span class="eines-icona">📍</span><span><strong>Zona</strong><small>Codis postals on treballa</small></span>
+            </button>
+            <button type="button" class="eines-opcio" v-if="editingUser.work_type === 'DOMICILIARIA_VALLES'" @click="obreDesDeFitxa(u => openMuniModal(u))">
+              <span class="eines-icona">🏘️</span><span><strong>Municipis</strong><small>Municipis on treballa</small></span>
+            </button>
+            <button type="button" class="eines-opcio" v-if="editingUser.work_type === 'AMBULATORIA'" @click="obreDesDeFitxa(u => openPointsModal(u))">
+              <span class="eines-icona">📍</span><span><strong>Centres</strong><small>Centres i punts on pot fitxar</small></span>
+            </button>
+            <button type="button" class="eines-opcio" @click="obreDesDeFitxa(u => openScheduleModal(u))">
+              <span class="eines-icona">📅</span><span><strong>Horari</strong><small>Horari de cada dia de la setmana</small></span>
+            </button>
+            <button type="button" class="eines-opcio" @click="obreDesDeFitxa(u => openCalendarModal(u))">
+              <span class="eines-icona">📆</span><span><strong>Calendari</strong><small>Festius, vacances i dies treballats</small></span>
+            </button>
+            <button type="button" class="eines-opcio" v-if="editingUser.active && !(editingUser.role === 'admin' && !authStore.isAdmin)" @click="restableixContrasenya(editingUser)">
+              <span class="eines-icona">🔑</span><span><strong>Restablir contrasenya</strong><small>Genera una contrasenya nova i l'envia per correu; en entrar haurà de canviar-la</small></span>
+            </button>
+          </div>
         </div>
 
         <div v-show="pestanyaFitxa === 'acces'">
@@ -1423,25 +1422,8 @@ function tancaEines(e) { if (einesObertes.value && !einesRef.value?.contains(e.t
 onMounted(() => document.addEventListener('mousedown', tancaEines))
 onUnmounted(() => document.removeEventListener('mousedown', tancaEines))
 
-// ── Menú «Més» de cada persona ──
-const menuPersona = reactive({ id: null, x: 0, y: 0 })
-const menuPersonaRef = ref(null)
-const personaMenu = computed(() => workers.value.find(w => w.id === menuPersona.id) || null)
-function obreMenuPersona(user, ev) {
-  if (menuPersona.id === user.id) { menuPersona.id = null; return }
-  const r = ev.currentTarget.getBoundingClientRect()
-  const amplada = 300
-  menuPersona.x = Math.max(8, Math.min(r.right - amplada, window.innerWidth - amplada - 8))
-  menuPersona.y = r.bottom + 6
-  menuPersona.id = user.id
-}
-function obreOpcioPersona(obre) { menuPersona.id = null; obre() }
-function tancaMenuPersona(e) {
-  if (menuPersona.id && !menuPersonaRef.value?.contains(e.target)) menuPersona.id = null
-}
-const tancaMenuAlScroll = () => { menuPersona.id = null }
-onMounted(() => { document.addEventListener('mousedown', tancaMenuPersona); window.addEventListener('scroll', tancaMenuAlScroll, true) })
-onUnmounted(() => { document.removeEventListener('mousedown', tancaMenuPersona); window.removeEventListener('scroll', tancaMenuAlScroll, true) })
+// Tanca la fitxa i obre l'altra finestra (horari, calendari, zones…).
+function obreDesDeFitxa(obre) { showEditModal.value = false; const u = editingUser.value; editingUser.value = null; obre(u) }
 
 // Per a qui no sap fer servir «contrasenya oblidada»: contrasenya nova aleatòria per correu;
 // en entrar, l'app li demana que se'n posi una de pròpia.
@@ -1623,7 +1605,7 @@ const pestanyesFitxa = computed(() => [
   { clau: 'dades', nom: '👤 Dades' },
   { clau: 'lloc', nom: '💼 Lloc i servei' },
   { clau: 'jornada', nom: '⏱ Jornada' },
-  ...(editingUser.value ? [{ clau: 'acces', nom: '🔐 Accés' }] : []),
+  ...(editingUser.value ? [{ clau: 'acces', nom: '🔐 Accés' }, { clau: 'gestio', nom: '🗂 Gestió' }] : []),
 ])
 
 // ── Pràctiques ──
@@ -2292,11 +2274,12 @@ async function saveMuniAssignment() {
   background: none; border: 0; border-radius: 8px; cursor: pointer; text-align: left; color: var(--color-text);
 }
 .eines-opcio:hover, .eines-opcio:focus-visible { background: var(--color-bg-hover, #edf2f7); outline: none; }
-.menu-persona { position: fixed; min-width: 300px; }
+.gestio-llista { display: flex; flex-direction: column; gap: 8px; }
+.gestio-llista .eines-opcio { border: 1px solid var(--color-border, #e2e8f0); }
 .eines-opcio strong { display: block; font-size: 0.9rem; }
 .eines-opcio small { display: block; font-size: 0.78rem; color: var(--color-text-secondary); margin-top: 1px; }
 .eines-icona { font-size: 1.2rem; width: 28px; text-align: center; }
-@media (max-width: 600px) { .eines-menu:not(.menu-persona) { right: auto; left: 0; } }
+@media (max-width: 600px) { .eines-menu { right: auto; left: 0; } }
 .tr-filtre { width: auto; min-width: 170px; }
 .rol-fila { grid-column: 1 / -1; }
 .rol-linia { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
