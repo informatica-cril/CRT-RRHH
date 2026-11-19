@@ -55,6 +55,7 @@ class UserController extends Controller
         $data = $request->validated();
         abort_if(($data['role'] ?? null) === 'admin' && ! $request->user()->isAdmin(), 403, self::NOMES_ADMIN);
 
+        $clara = $data['password'];
         $data['password'] = Hash::make($data['password']);
         // ENS: la contrasenya de l'alta la tria (i la veu) qui dona d'alta; la persona l'ha de
         // canviar en entrar per primer cop. Abans no es marcava i entrava sense canviar-la.
@@ -71,7 +72,49 @@ class UserController extends Controller
         // Pacte de complementàries a l'alta → el codi anual neix SOL (cap alta manual a Codis).
         try { $user->materialitzaPacte($request->user()->id); } catch (\Throwable $e) {}
 
-        return response()->json($user->makeHidden(['password'])->toArray() + ($domi !== null ? ['domi' => $domi] : []), 201);
+        // Correu de benvinguda amb les credencials. Si no surt, l'alta continua: qui la fa ja veu la
+        // contrasenya a la pantalla i pot donar-la a mà.
+        $correuEnviat = true;
+        try {
+            \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\WelcomeMail($user, $clara));
+        } catch (\Throwable $e) {
+            $correuEnviat = false;
+            \Illuminate\Support\Facades\Log::warning('Correu de benvinguda no enviat', ['user_id' => $user->id, 'message' => $e->getMessage()]);
+        }
+
+        return response()->json($user->makeHidden(['password'])->toArray()
+            + ($domi !== null ? ['domi' => $domi] : [])
+            + ['correu_enviat' => $correuEnviat], 201);
+    }
+
+    /**
+     * Restableix la contrasenya d'una persona (per a qui no sap fer servir «contrasenya oblidada»):
+     * se'n genera una d'aleatòria, s'envia per correu i en entrar l'app li demana canviar-la.
+     * Si el correu no surt, la contrasenya anterior es queda tal qual.
+     */
+    public function restablirContrasenya(Request $request, User $user)
+    {
+        abort_if($user->role === 'admin' && ! $request->user()->isAdmin(), 403, 'Només un usuari Superior pot restablir la contrasenya d\'un altre Superior.');
+        abort_if(! $user->active, 422, 'Aquesta persona està inactiva.');
+        abort_if(! $user->email, 422, 'Aquesta persona no té correu.');
+
+        $nova = \App\Support\PasswordPolicy::genera(14);
+        $abans = ['password' => $user->getRawOriginal('password'), 'must_change_password' => $user->must_change_password];
+        $user->update(['password' => Hash::make($nova), 'must_change_password' => true]);
+
+        try {
+            \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\PasswordResetMail($user, $nova));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\DB::table('users')->where('id', $user->id)->update($abans);
+            \Illuminate\Support\Facades\Log::warning('Restabliment de contrasenya: correu no enviat', ['user_id' => $user->id, 'message' => $e->getMessage()]);
+
+            return response()->json(['message' => 'No s\'ha pogut enviar el correu. La contrasenya no ha canviat.'], 503);
+        }
+
+        // Les sessions obertes amb la contrasenya anterior es tanquen.
+        $user->tokens()->delete();
+
+        return response()->json(['message' => 'Contrasenya restablerta i enviada a ' . $user->email . '.']);
     }
 
     /**

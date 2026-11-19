@@ -97,6 +97,8 @@ Route::prefix('v1')->group(function () {
             // Treure o tornar l'accés a l'app a una selecció (segueixen a la plantilla).
             Route::post('acces-app', [UserController::class, 'accesApp'])->middleware('role:admin,hr');
             // Fitxatge automàtic (gerència): només admin.
+            // Restablir la contrasenya i enviar-la per correu (admin/RRHH).
+            Route::post('{user}/restableix-contrasenya', [UserController::class, 'restablirContrasenya'])->middleware('role:admin,hr');
             Route::put('{user}/fitxatge-automatic', [UserController::class, 'fitxatgeAutomatic'])->middleware('role:admin');
             // Activar o desactivar una selecció (mateixes regles que la fitxa).
             Route::post('estat-seleccio', [\App\Http\Controllers\Api\UserEstatController::class, 'seleccio'])->middleware('role:admin,hr');
