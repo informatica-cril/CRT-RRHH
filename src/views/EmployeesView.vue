@@ -1439,7 +1439,6 @@ async function obrePestanyaIncrustada() {
   else if (u.work_type === 'DOMICILIARIA_VALLES') await openMuniModal(u)
   else openPointsModal(u)
 }
-watch([pestanyaFitxa, showEditModal], obrePestanyaIncrustada)
 // Després de desar a una pestanya incrustada, no es tanca res: es torna a carregar amb les dades noves.
 async function desatIncrustat(obre, tanca) {
   if (!dinsFitxa.value) { tanca(); return }
@@ -2275,6 +2274,8 @@ async function saveMuniAssignment() {
     alert('Error en desar l\'assignació municipal.')
   }
 }
+// Al final de l'script: ha d'anar DESPRÉS de declarar pestanyaFitxa i showEditModal (si no, la pantalla queda en blanc).
+watch([pestanyaFitxa, showEditModal], obrePestanyaIncrustada)
 </script>
 
 <style scoped>
