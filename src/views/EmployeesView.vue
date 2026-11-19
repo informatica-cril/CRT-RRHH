@@ -553,31 +553,17 @@
         </div>
         </div>
 
-        <!-- GESTIÓ: tot el que abans eren botons sota de cada fila. Una opció nova s'afegeix aquí. -->
-        <div v-show="pestanyaFitxa === 'gestio'" v-if="editingUser">
-          <div class="gestio-llista">
-            <button type="button" class="eines-opcio" v-if="editingUser.work_type === 'DOMICILIARIA'" @click="obreDesDeFitxa(u => openCpModal(u))">
-              <span class="eines-icona">📍</span><span><strong>Zona</strong><small>Codis postals on treballa</small></span>
-            </button>
-            <button type="button" class="eines-opcio" v-if="editingUser.work_type === 'DOMICILIARIA_VALLES'" @click="obreDesDeFitxa(u => openMuniModal(u))">
-              <span class="eines-icona">🏘️</span><span><strong>Municipis</strong><small>Municipis on treballa</small></span>
-            </button>
-            <button type="button" class="eines-opcio" v-if="editingUser.work_type === 'AMBULATORIA'" @click="obreDesDeFitxa(u => openPointsModal(u))">
-              <span class="eines-icona">📍</span><span><strong>Centres</strong><small>Centres i punts on pot fitxar</small></span>
-            </button>
-            <button type="button" class="eines-opcio" @click="obreDesDeFitxa(u => openScheduleModal(u))">
-              <span class="eines-icona">📅</span><span><strong>Horari</strong><small>Horari de cada dia de la setmana</small></span>
-            </button>
-            <button type="button" class="eines-opcio" @click="obreDesDeFitxa(u => openCalendarModal(u))">
-              <span class="eines-icona">📆</span><span><strong>Calendari</strong><small>Festius, vacances i dies treballats</small></span>
-            </button>
-            <button type="button" class="eines-opcio" v-if="editingUser.active && !(editingUser.role === 'admin' && !authStore.isAdmin)" @click="restableixContrasenya(editingUser)">
-              <span class="eines-icona">🔑</span><span><strong>Restablir contrasenya</strong><small>Genera una contrasenya nova i l'envia per correu; en entrar haurà de canviar-la</small></span>
-            </button>
-          </div>
-        </div>
+        <!-- Horari, Calendari i Zona/Centres: es mostren aquí mateix (les finestres d'abans es teletransporten a aquest forat). -->
+        <div id="fitxa-incrustat" class="fitxa-incrustat" v-show="pestanyaIncrustada"></div>
 
         <div v-show="pestanyaFitxa === 'acces'">
+        <div class="form-group" v-if="editingUser && editingUser.active && !(editingUser.role === 'admin' && !authStore.isAdmin)">
+          <label class="form-label">Contrasenya</label>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <button type="button" class="btn btn-secondary btn-sm" @click="restableixContrasenya(editingUser)">🔑 Restablir contrasenya</button>
+            <span class="text-small text-muted">Genera una contrasenya nova i l'envia per correu; en entrar, l'app li demana que se'n posi una de pròpia.</span>
+          </div>
+        </div>
         <!-- SEGON FACTOR. Direcció (01-08-2026): l'ha de poder activar l'admin O RRHH per a
              cada usuari. Dos mètodes, i la tria no és de gust: depèn del dispositiu amb què
              entra la persona. Vegeu el text d'ajuda de sota. -->
@@ -661,7 +647,7 @@
             <li v-for="(msg, camp) in errorsCamp" :key="camp">{{ nomCamp(camp) }}: {{ msg }}</li>
           </ul>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer" v-show="!pestanyaIncrustada">
           <button class="btn btn-outline" @click="showEditModal = false" :disabled="isSaving">{{ t('cancel') }}</button>
           <button class="btn btn-primary" @click="saveUser" :disabled="isSaving">
             {{ isSaving ? 'Guardant...' : t('save') }}
@@ -671,6 +657,7 @@
     </div>
 
     <!-- Schedule Editor Modal -->
+    <Teleport to="#fitxa-incrustat" :disabled="!dinsFitxa">
     <div v-if="showScheduleModal" class="modal-overlay" @click.self="showScheduleModal = false">
       <div class="modal" style="max-width:650px;">
         <div class="modal-header">
@@ -785,9 +772,11 @@
         </div>
       </div>
     </div>
+    </Teleport>
 
     <!-- CSV Import Modal -->
     <!-- Calendari laboral (PDF incrustat, no descarregable) -->
+    <Teleport to="#fitxa-incrustat" :disabled="!dinsFitxa">
     <div v-if="showCalendarModal" class="modal-overlay" @click.self="showCalendarModal = false">
       <div class="modal" style="max-width:680px;">
         <div class="modal-header">
@@ -800,6 +789,7 @@
         </div>
       </div>
     </div>
+    </Teleport>
 
     <div v-if="showCsvModal" class="modal-overlay" @click.self="showCsvModal = false">
       <div class="modal" style="max-width:700px;">
@@ -859,6 +849,7 @@
     </div>
 
     <!-- CP Assignment Modal (DOMICILIARIA) -->
+    <Teleport to="#fitxa-incrustat" :disabled="!dinsFitxa">
     <div v-if="showCpModal" class="modal-overlay" @click.self="showCpModal = false">
       <div class="modal" style="max-width:640px;">
         <div class="modal-header">
@@ -921,8 +912,10 @@
         </button>
       </div>
     </div>
+    </Teleport>
 
     <!-- ═══ AMBULATORY POINTS MODAL ═══ -->
+    <Teleport to="#fitxa-incrustat" :disabled="!dinsFitxa">
     <div v-if="showPointsModal" class="modal-overlay" @click.self="showPointsModal = false">
       <div class="modal" style="max-width:650px;">
         <div class="modal-header" style="background:linear-gradient(135deg,rgba(59,130,246,0.06),rgba(16,185,129,0.04));border-radius:12px 12px 0 0;">
@@ -1009,8 +1002,10 @@
         </div>
       </div>
     </div>
+    </Teleport>
 
     <!-- ═══ MUNICIPAL ASSIGNMENT MODAL (DOMICILIARIA_VALLES) ═══ -->
+    <Teleport to="#fitxa-incrustat" :disabled="!dinsFitxa">
     <div v-if="showMuniModal" class="modal-overlay" @click.self="showMuniModal = false">
       <div class="modal" style="max-width:650px;">
         <div class="modal-header" style="background:linear-gradient(135deg,rgba(147,51,234,0.06),rgba(59,130,246,0.04));border-radius:12px 12px 0 0;">
@@ -1064,6 +1059,7 @@
         </div>
       </div>
     </div>
+    </Teleport>
   </div>
 </template>
 
@@ -1072,7 +1068,7 @@ import FrasesRapides from '../components/FrasesRapides.vue'
 import { confirma, demana } from '../utils/dialegs'
 import { avisa } from '../utils/avisos'
 import { nomHorari } from '../utils/nomHorari'
-import { ref, computed, reactive, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, reactive, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useEstatUrl } from '../composables/useEstatUrl'
 import { db } from '../services/db'
@@ -1422,8 +1418,35 @@ function tancaEines(e) { if (einesObertes.value && !einesRef.value?.contains(e.t
 onMounted(() => document.addEventListener('mousedown', tancaEines))
 onUnmounted(() => document.removeEventListener('mousedown', tancaEines))
 
-// Tanca la fitxa i obre l'altra finestra (horari, calendari, zones…).
-function obreDesDeFitxa(obre) { showEditModal.value = false; const u = editingUser.value; editingUser.value = null; obre(u) }
+// Horari, calendari i zona/centres es veuen DINS la fitxa (pestanyes): les finestres d'abans s'hi
+// «teletransporten» (Teleport) i es reaprofita tota la seva lògica. No cal anar d'una finestra a l'altra.
+const dinsFitxa = ref(false)
+const pestanyaIncrustada = computed(() => ['horari', 'calendari', 'zona'].includes(pestanyaFitxa.value))
+function tancaIncrustats() {
+  showScheduleModal.value = false; showCalendarModal.value = false
+  showCpModal.value = false; showPointsModal.value = false; showMuniModal.value = false
+}
+async function obrePestanyaIncrustada() {
+  tancaIncrustats()
+  const u = editingUser.value
+  if (!showEditModal.value || !u || !pestanyaIncrustada.value) { dinsFitxa.value = false; return }
+  dinsFitxa.value = true
+  await nextTick()
+  const p = pestanyaFitxa.value
+  if (p === 'horari') await openScheduleModal(u)
+  else if (p === 'calendari') openCalendarModal(u)
+  else if (u.work_type === 'DOMICILIARIA') await openCpModal(u)
+  else if (u.work_type === 'DOMICILIARIA_VALLES') await openMuniModal(u)
+  else openPointsModal(u)
+}
+watch([pestanyaFitxa, showEditModal], obrePestanyaIncrustada)
+// Després de desar a una pestanya incrustada, no es tanca res: es torna a carregar amb les dades noves.
+async function desatIncrustat(obre, tanca) {
+  if (!dinsFitxa.value) { tanca(); return }
+  const u = workers.value.find(w => w.id === editingUser.value?.id) || editingUser.value
+  if (u) editingUser.value = u
+  await obre(u)
+}
 
 // Per a qui no sap fer servir «contrasenya oblidada»: contrasenya nova aleatòria per correu;
 // en entrar, l'app li demana que se'n posi una de pròpia.
@@ -1605,7 +1628,14 @@ const pestanyesFitxa = computed(() => [
   { clau: 'dades', nom: '👤 Dades' },
   { clau: 'lloc', nom: '💼 Lloc i servei' },
   { clau: 'jornada', nom: '⏱ Jornada' },
-  ...(editingUser.value ? [{ clau: 'acces', nom: '🔐 Accés' }, { clau: 'gestio', nom: '🗂 Gestió' }] : []),
+  ...(editingUser.value ? [
+    { clau: 'horari', nom: '📅 Horari' },
+    { clau: 'calendari', nom: '📆 Calendari' },
+    ...(editingUser.value.work_type === 'DOMICILIARIA' ? [{ clau: 'zona', nom: '📍 Zona' }] : []),
+    ...(editingUser.value.work_type === 'DOMICILIARIA_VALLES' ? [{ clau: 'zona', nom: '🏘️ Municipis' }] : []),
+    ...(editingUser.value.work_type === 'AMBULATORIA' ? [{ clau: 'zona', nom: '📍 Centres' }] : []),
+    { clau: 'acces', nom: '🔐 Accés' },
+  ] : []),
 ])
 
 // ── Pràctiques ──
@@ -1949,8 +1979,9 @@ async function saveSchedule() {
     const rUser = await db.updateUser({ id: scheduleUser.value.id, work_schedule_id: scheduleId })
     recalculats += rUser?.trams_recalculats || 0
     await fetchData()
-    showScheduleModal.value = false
+    form.work_schedule_id = scheduleId   // la fitxa oberta no ha de tornar a desar l'horari antic
     isNewSchedule.value = false
+    await desatIncrustat(openScheduleModal, () => { showScheduleModal.value = false })
     // El servidor torna a calcular els trams dels fitxatges pendents amb l'horari nou.
     if (recalculats > 0) alert(`Horari desat. S'han tornat a calcular les parts de ${recalculats} fitxatge${recalculats === 1 ? '' : 's'} pendent${recalculats === 1 ? '' : 's'} amb l'horari nou (les hores d'entrada i sortida no canvien).`)
   } catch (e) {
@@ -2103,7 +2134,7 @@ async function saveCpAssignment() {
     
     auditLog(authStore.userId, 'ASSIGN_ZONE', 'user', cpUser.value.id, `Zona CP: ${newCpForm.postal_codes.join(',')}`)
     await fetchData()
-    showCpModal.value = false
+    await desatIncrustat(openCpModal, () => { showCpModal.value = false })
     // Els fitxatges pendents fora de zona es tornen a comprovar amb els codis postals nous.
     const nZona = await reavaluaZonaPersona(cpUser.value.id).catch(e => { console.error(e); return 0 })
     if (nZona) await fetchData()
@@ -2234,7 +2265,7 @@ async function saveMuniAssignment() {
     
     auditLog(authStore.userId, 'ASSIGN_ZONE_MUNI', 'user', muniUser.value.id, `Municipis: ${newMuniForm.municipalities.join(',')}`)
     await fetchData()
-    showMuniModal.value = false
+    await desatIncrustat(openMuniModal, () => { showMuniModal.value = false })
     // Els fitxatges pendents fora de zona es tornen a comprovar amb els municipis nous.
     const nZona = await reavaluaZonaPersona(muniUser.value.id).catch(e => { console.error(e); return 0 })
     if (nZona) await fetchData()
@@ -2274,8 +2305,11 @@ async function saveMuniAssignment() {
   background: none; border: 0; border-radius: 8px; cursor: pointer; text-align: left; color: var(--color-text);
 }
 .eines-opcio:hover, .eines-opcio:focus-visible { background: var(--color-bg-hover, #edf2f7); outline: none; }
-.gestio-llista { display: flex; flex-direction: column; gap: 8px; }
-.gestio-llista .eines-opcio { border: 1px solid var(--color-border, #e2e8f0); }
+/* Finestres teletransportades dins la fitxa: sense fons fosc, ni capçalera pròpia, ni «Cancel·lar». */
+.fitxa-incrustat .modal-overlay { position: static; display: block; background: none; padding: 0; inset: auto; backdrop-filter: none; }
+.fitxa-incrustat .modal { max-width: none !important; width: 100%; box-shadow: none; border: 0; padding: 0; max-height: none; overflow: visible; }
+.fitxa-incrustat .modal-header { display: none; }
+.fitxa-incrustat .modal-footer .btn-outline { display: none; }
 .eines-opcio strong { display: block; font-size: 0.9rem; }
 .eines-opcio small { display: block; font-size: 0.78rem; color: var(--color-text-secondary); margin-top: 1px; }
 .eines-icona { font-size: 1.2rem; width: 28px; text-align: center; }
