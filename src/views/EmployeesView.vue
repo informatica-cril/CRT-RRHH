@@ -155,20 +155,40 @@
                 </div>
               </td>
               <td>
-                <!-- Sempre un botó sota l'altre, tots de la mateixa amplada: abans s'anaven partint en files de 2 i 1. -->
+                <!-- Un sol botó «Més» amb tot el que és secundari: així una acció nova s'afegeix al menú
+                     i la taula no creix. La fitxa (el més usat) queda sempre a la vista. -->
                 <div class="emp-accions">
                   <button class="btn btn-outline btn-sm" @click="openEditModal(user)" title="Obrir la fitxa: dades, jornada i accés">✎ Fitxa</button>
-                  <button v-if="user.work_type === 'DOMICILIARIA'" class="btn btn-outline btn-sm" @click="openCpModal(user)" title="Codis postals on treballa">📍 Zona</button>
-                  <button v-if="user.work_type === 'DOMICILIARIA_VALLES'" class="btn btn-outline btn-sm" @click="openMuniModal(user)" style="color:rgba(147,51,234,1);" title="Municipis on treballa">🏘️ Municipis</button>
-                  <button v-if="user.work_type === 'AMBULATORIA'" class="btn btn-outline btn-sm" @click="openPointsModal(user)" style="color:var(--color-primary);" title="Centres i punts on pot fitxar">📍 Centres</button>
-                  <button class="btn btn-outline btn-sm" @click="openScheduleModal(user)" title="Horari de cada dia de la setmana">📅 Horari</button>
-                  <button class="btn btn-outline btn-sm" @click="openCalendarModal(user)" title="Calendari laboral: festius, vacances i dies treballats">📆 Calendari</button>
+                  <button class="btn btn-outline btn-sm" :aria-expanded="menuPersona.id === user.id" @click.stop="obreMenuPersona(user, $event)" title="Horari, calendari, zones, contrasenya…">⋯ Més <span class="eines-fletxa" :class="{ oberta: menuPersona.id === user.id }">▾</span></button>
                 </div>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
+    </div>
+
+    <!-- Menú «Més» d'una persona (fix, per no quedar tallat dins la taula) -->
+    <div v-if="menuPersona.id && personaMenu" ref="menuPersonaRef" class="eines-menu menu-persona" role="menu"
+         :style="{ top: menuPersona.y + 'px', left: menuPersona.x + 'px' }" @keydown.esc="menuPersona.id = null">
+      <button v-if="personaMenu.work_type === 'DOMICILIARIA'" class="eines-opcio" role="menuitem" @click="obreOpcioPersona(() => openCpModal(personaMenu))">
+        <span class="eines-icona">📍</span><span><strong>Zona</strong><small>Codis postals on treballa</small></span>
+      </button>
+      <button v-if="personaMenu.work_type === 'DOMICILIARIA_VALLES'" class="eines-opcio" role="menuitem" @click="obreOpcioPersona(() => openMuniModal(personaMenu))">
+        <span class="eines-icona">🏘️</span><span><strong>Municipis</strong><small>Municipis on treballa</small></span>
+      </button>
+      <button v-if="personaMenu.work_type === 'AMBULATORIA'" class="eines-opcio" role="menuitem" @click="obreOpcioPersona(() => openPointsModal(personaMenu))">
+        <span class="eines-icona">📍</span><span><strong>Centres</strong><small>Centres i punts on pot fitxar</small></span>
+      </button>
+      <button class="eines-opcio" role="menuitem" @click="obreOpcioPersona(() => openScheduleModal(personaMenu))">
+        <span class="eines-icona">📅</span><span><strong>Horari</strong><small>Horari de cada dia de la setmana</small></span>
+      </button>
+      <button class="eines-opcio" role="menuitem" @click="obreOpcioPersona(() => openCalendarModal(personaMenu))">
+        <span class="eines-icona">📆</span><span><strong>Calendari</strong><small>Festius, vacances i dies treballats</small></span>
+      </button>
+      <button v-if="personaMenu.active && !(personaMenu.role === 'admin' && !authStore.isAdmin)" class="eines-opcio" role="menuitem" @click="obreOpcioPersona(() => restableixContrasenya(personaMenu))">
+        <span class="eines-icona">🔑</span><span><strong>Restablir contrasenya</strong><small>Genera una contrasenya nova i l'envia per correu</small></span>
+      </button>
     </div>
 
     <!-- Create/Edit Employee Modal -->
@@ -1403,6 +1423,38 @@ function tancaEines(e) { if (einesObertes.value && !einesRef.value?.contains(e.t
 onMounted(() => document.addEventListener('mousedown', tancaEines))
 onUnmounted(() => document.removeEventListener('mousedown', tancaEines))
 
+// ── Menú «Més» de cada persona ──
+const menuPersona = reactive({ id: null, x: 0, y: 0 })
+const menuPersonaRef = ref(null)
+const personaMenu = computed(() => workers.value.find(w => w.id === menuPersona.id) || null)
+function obreMenuPersona(user, ev) {
+  if (menuPersona.id === user.id) { menuPersona.id = null; return }
+  const r = ev.currentTarget.getBoundingClientRect()
+  const amplada = 300
+  menuPersona.x = Math.max(8, Math.min(r.right - amplada, window.innerWidth - amplada - 8))
+  menuPersona.y = r.bottom + 6
+  menuPersona.id = user.id
+}
+function obreOpcioPersona(obre) { menuPersona.id = null; obre() }
+function tancaMenuPersona(e) {
+  if (menuPersona.id && !menuPersonaRef.value?.contains(e.target)) menuPersona.id = null
+}
+const tancaMenuAlScroll = () => { menuPersona.id = null }
+onMounted(() => { document.addEventListener('mousedown', tancaMenuPersona); window.addEventListener('scroll', tancaMenuAlScroll, true) })
+onUnmounted(() => { document.removeEventListener('mousedown', tancaMenuPersona); window.removeEventListener('scroll', tancaMenuAlScroll, true) })
+
+// Per a qui no sap fer servir «contrasenya oblidada»: contrasenya nova aleatòria per correu;
+// en entrar, l'app li demana que se'n posi una de pròpia.
+async function restableixContrasenya(user) {
+  if (!(await confirma(`Restablir la contrasenya de ${user.name}? Rebrà a ${user.email} una contrasenya nova i haurà de canviar-la en entrar. La contrasenya actual deixarà de funcionar.`))) return
+  try {
+    const r = await api.post(`/v1/users/${user.id}/restableix-contrasenya`, {})
+    avisa(r?.message || 'Contrasenya restablerta i enviada per correu.')
+  } catch (e) {
+    alert(e?.response?.data?.message || e?.message || "No s'ha pogut restablir la contrasenya.")
+  }
+}
+
 async function fetchData() {
   try {
     const bulk = await db.getUsersBulk()
@@ -1755,9 +1807,10 @@ async function saveUser() {
       const pw = db.generateRandomPasswordSync()
       // El lloc no decideix el rol: Gerència fitxa com la resta. El rol el tria administració.
       const finalRole = authStore.isAdmin ? (form.role || 'worker') : 'worker'
-      await db.addUser({ ...form, password: pw, role: finalRole, active: true, privacy_consent: false })
+      const creat = await db.addUser({ ...form, password: pw, role: finalRole, active: true, privacy_consent: false })
       auditLog(authStore.userId, 'CREATE_USER', 'user', null, `Creat: ${form.name} (DNI: ${form.dni})`)
-      alert(`Treballador creat.\nUsuari: ${form.email}\nContrasenya: ${pw}`)
+      const correu = creat?.correu_enviat === false ? "\n\n⚠ No s'ha pogut enviar el correu: doneu-li vosaltres aquestes dades." : `\n\nS'ha enviat un correu a ${form.email} amb aquestes dades.`
+      alert(`Treballador creat.\nUsuari: ${form.email}\nContrasenya: ${pw}${correu}`)
     }
     await fetchData()
     showEditModal.value = false; editingUser.value = null
@@ -2239,10 +2292,11 @@ async function saveMuniAssignment() {
   background: none; border: 0; border-radius: 8px; cursor: pointer; text-align: left; color: var(--color-text);
 }
 .eines-opcio:hover, .eines-opcio:focus-visible { background: var(--color-bg-hover, #edf2f7); outline: none; }
+.menu-persona { position: fixed; min-width: 300px; }
 .eines-opcio strong { display: block; font-size: 0.9rem; }
 .eines-opcio small { display: block; font-size: 0.78rem; color: var(--color-text-secondary); margin-top: 1px; }
 .eines-icona { font-size: 1.2rem; width: 28px; text-align: center; }
-@media (max-width: 600px) { .eines-menu { right: auto; left: 0; } }
+@media (max-width: 600px) { .eines-menu:not(.menu-persona) { right: auto; left: 0; } }
 .tr-filtre { width: auto; min-width: 170px; }
 .rol-fila { grid-column: 1 / -1; }
 .rol-linia { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
